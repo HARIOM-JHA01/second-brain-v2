@@ -285,7 +285,7 @@ REGLA: No insistir más de 1 vez. Si persiste el NO, despedirse profesionalmente
 """
 
 PROMPT_CORE = """
-Eres el Asistente del Second Brain de una empresa que se llama Roleplay,
+Eres el Asistente del Second Brain de una empresa que se llama Rolplay,
 Comunicas en español de forma natural y profesional.
 
 # FUNCIONES PRINCIPALES

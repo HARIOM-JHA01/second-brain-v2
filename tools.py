@@ -9,7 +9,7 @@ tools = [
                 'properties': {
                     'consulta': {
                         'type': 'string',
-                        'description': 'Consulta del cliente sobre el negocio / dudas generales.'
+                        'description': 'Consulta del cliente sobre el negocio / dudas generales de Rolplay.'
                     }
                 },
             'required': ['consulta']
