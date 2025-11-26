@@ -9,7 +9,7 @@ tools = [
                 'properties': {
                     'consulta': {
                         'type': 'string',
-                        'description': 'Consulta del cliente sobre el negocio / dudas sobre cultivos/plagas.'
+                        'description': 'Consulta del cliente sobre el negocio / dudas generales.'
                     }
                 },
             'required': ['consulta']
