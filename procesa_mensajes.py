@@ -893,11 +893,26 @@ def procesar_mensajes_entrantes(form_data, redis_client=r):
     except:
         print("ERROR AL IMPRIMIR DICT CONVERSATION ASSISTANT SUPABASE")
 
+    answer_text = str(answer_data['answer'])
+
+    # 🔥 LIMITAR A 1600 CARACTERES (WhatsApp permite hasta 1600)
+    MAX_LENGTH = 1520  # Dejamos margen
+
+    if len(answer_text) > MAX_LENGTH:
+        answer_text = answer_text[:MAX_LENGTH] + "\n\n... (respuesta truncada)\n💡 Haz una pregunta más específica para obtener detalles."
+        print(f"⚠️ Respuesta truncada de {len(answer_data['answer'])} a {MAX_LENGTH} caracteres")
+
     # Envía respuesta al usuario con Twilio
     resultado_envio = enviar_mensaje_twilio(
         from_number,
-        str(answer_data['answer'])
+        answer_text  # 🔥 Usar la versión truncada
     )
+    
+    # Envía respuesta al usuario con Twilio
+    # resultado_envio = enviar_mensaje_twilio(
+    #     from_number,
+    #     str(answer_data['answer'])
+    # )
 
     # 🔥 CRÍTICO: Solo completar si el envío fue exitoso
     if not resultado_envio.get('success', False):
