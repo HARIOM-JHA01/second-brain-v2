@@ -353,6 +353,37 @@ def privacy_policy():
     """
     return html_content
 
+from function_tools import get_text_by_relevance, anthropic_completion
+from system_prompt import system_prompt_rag
+from fastapi import Header, HTTPException
+
+API_KEY = os.getenv("GPT_ACTIONS_API_KEY")
+
+@app.post("/api/v1/rag/query")
+async def rag_query(request: Request, authorization: str = Header(None)):
+    # Auth tipo Bearer para el GPT
+    if authorization != f"Bearer {API_KEY}":
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    body = await request.json()
+    pregunta = body.get("question", "")
+
+    if not pregunta:
+        return JSONResponse({"error": "Falta 'question'"}, status_code=400)
+
+    ans = anthropic_completion(
+        system_prompt=system_prompt_rag,
+        messages=[{"role": "user", "content": pregunta}]
+    ).content[0].text.strip()
+    print(f"Respuesta del llm de la query: {ans}")
+
+    contexto = get_text_by_relevance(ans)
+
+    return JSONResponse({
+        "answer": contexto  # o si quieres, aquí ya puedes formatear más
+    })
+
+
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5001))
     uvicorn.run("app:app", host="0.0.0.0", port=port, reload=True)
