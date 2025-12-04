@@ -315,6 +315,28 @@ def agregar_documento_a_qdrant(file_id, mime_type, nombre, ruta, ruta_temporal):
             doc = Document(ruta_temporal)
             texto = "\n".join([para.text for para in doc.paragraphs])
         
+        # 🔥 PPTX
+        elif mime_type == 'application/vnd.openxmlformats-officedocument.presentationml.presentation':
+            from pptx import Presentation
+            prs = Presentation(ruta_temporal)
+            texto = ""
+            for slide in prs.slides:
+                for shape in slide.shapes:
+                    if hasattr(shape, "text"):
+                        texto += shape.text + "\n"
+
+        # 🔥 XLSX
+        elif mime_type == 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':
+            import openpyxl
+            wb = openpyxl.load_workbook(ruta_temporal)
+            texto = ""
+            for sheet_name in wb.sheetnames:
+                sheet = wb[sheet_name]
+                texto += f"\n=== Hoja: {sheet_name} ===\n"
+                for row in sheet.iter_rows(values_only=True):
+                    texto += " | ".join([str(cell) if cell else "" for cell in row]) + "\n"
+
+        
         # Google Doc (exportar desde Drive)
         elif mime_type == 'application/vnd.google-apps.document':
             from google_drive import obtener_servicio
@@ -330,7 +352,13 @@ def agregar_documento_a_qdrant(file_id, mime_type, nombre, ruta, ruta_temporal):
             fh.seek(0)
             texto = fh.read().decode('utf-8')
         
-        if not texto or len(texto.strip()) < 50:
+        # SI NO ES NINGUNO DE ESTOS
+        else:
+            print(f"⚠️ Tipo de archivo no soportado para extracción: {mime_type}")
+            return False
+        
+        print(F" TEXTO: ", texto)
+        if not texto or len(texto.strip()) < 10:
             print(f"⚠️ Texto muy corto o vacío")
             return False
         
