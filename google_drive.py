@@ -937,9 +937,9 @@ if __name__ == "__main__":
     # ============================================================================
 
     # second_brain_folder_id = "1ciaGOxXKcLMNeuIa9103ivxYgBon__7q"
-    chat_gpt_business_folder_id = "1M0TmERmETfEM8flmzwGgfKC7IkrVZaoD"
+    # chat_gpt_business_folder_id = "1M0TmERmETfEM8flmzwGgfKC7IkrVZaoD"
 
-    get_drive_structure_and_extract_text(second_brain_folder_id=chat_gpt_business_folder_id)
+    # get_drive_structure_and_extract_text(second_brain_folder_id=chat_gpt_business_folder_id)
 
     # subir_archivo_a_drive(
     #     ruta_archivo_local="brochure_area_25.pdf",
@@ -1036,8 +1036,8 @@ if __name__ == "__main__":
     #     '1M0TmERmETfEM8flmzwGgfKC7IkrVZaoD' # chat gpt business folder
     # ]
 
-    # ans = obtener_servicio()
-    # print(ans)
+    ans = obtener_servicio()
+    print(ans)
 
     # subir_archivo_a_drive(
     #     ruta_archivo_local="Monti.pdf",

@@ -1,138 +1,168 @@
-# # python3 whisper.py
+"""
+Módulo de transcripción de audio mediante OpenAI Whisper API.
+Convierte notas de voz de WhatsApp en texto.
+"""
 
-# from decorador_costos import decorador_costo
-# from dotenv import load_dotenv
-# from openai import OpenAI
+from dotenv import load_dotenv
+from openai import OpenAI
 
-# import json
-# import librosa
-# import math
-# import os
-# import requests
-# import tempfile
-# import time
-# import traceback
+import os
+import requests
+import tempfile
+import time
+import traceback
 
-# load_dotenv()
+load_dotenv()
 
-# OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-# client = OpenAI(api_key=OPENAI_API_KEY)
-# wasender_api_key = os.getenv("WASENDER_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
+TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
+
+client = OpenAI(api_key=OPENAI_API_KEY)
 
 
-# def audio_a_texto(message_data, id_phone_number, api_key=wasender_api_key):
-#     try:
-#         print("🎙️ Procesando mensaje de audio")
+def transcribe_audio_from_url(
+    media_url: str,
+    phone: str,
+    provider: str = "openai",
+    dest_dir: str = "./storage/audio",
+    timeout: int = 180,
+) -> dict:
+    """
+    Transcribe audio from a Twilio media URL using OpenAI Whisper API.
 
-#         start_time = time.time()
-#         audio_message = message_data.get('message', {}).get('audioMessage', {})
-#         print("Audio message data:", audio_message)
+    Args:
+        media_url (str): Twilio encrypted media URL
+        phone (str): Phone number for metadata/organization
+        provider (str): Transcription provider ('openai' supported)
+        dest_dir (str): Directory to store audio files
+        timeout (int): Request timeout in seconds (default: 180s for Whisper API)
 
-#         if not audio_message:
-#             print("No se encontró audioMessage")
-#             return {
-#                 'answer': 'No se encontró el audio en el mensaje.',
-#                 'input_tokens': 0,
-#                 'id_conversacion': id_phone_number,
-#                 'model_name': 'whisper-1'
-#             }
+    Returns:
+        dict: {
+            'text': str (transcription text or error message),
+            'duration_s': int (audio duration),
+            'model': str (model used),
+            'ok': bool (success flag),
+            'error': Optional[str] (error message if ok=False),
+            'file_path': str (stored audio file path if retained)
+        }
 
-#         decrypt_url = "https://www.wasenderapi.com/api/decrypt-media"
-#         headers = {
-#             "Authorization": f"Bearer {api_key}",
-#             "Content-Type": "application/json"
-#         }
-        
-#         # Payload simplificado según la documentación
-#         payload = {
-#             "data": {
-#                 "messages": {
-#                     "key": {
-#                         "id": message_data.get('key', {}).get('id')
-#                     },
-#                     "message": {
-#                         "audioMessage": {
-#                             "url": audio_message.get('url'),
-#                             "mimetype": audio_message.get('mimetype'),
-#                             "mediaKey": audio_message.get('mediaKey')
-#                         }
-#                     }
-#                 }
-#             }
-#         }
+    Example:
+        result = transcribe_audio_from_url(
+            media_url='https://api.twilio.com/...',
+            phone='5215512345678'
+        )
+    """
+    temp_file_path = None
+    stored_file_path = None
 
-#         print("📡 Enviando request a decrypt-media...")
-        
-#         # Timeout razonable pero no excesivo
-#         decrypt_response = requests.post(
-#             url=decrypt_url, 
-#             headers=headers, 
-#             data=json.dumps(payload), 
-#             timeout=120  # 2 minutos
-#         )
+    try:
+        print(f"🎙️ Iniciando transcripción para: {phone}")
+        start_time = time.time()
 
-#         print(f"✅ Status code: {decrypt_response.status_code}")
-        
-#         decrypt_response.raise_for_status()
+        # 1️⃣ DESCARGAR AUDIO DESDE TWILIO
+        print(f"📥 Descargando audio de: {media_url[:60]}...")
+        response = requests.get(
+            media_url, auth=(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN), timeout=30
+        )
 
-#         decrypted_data = decrypt_response.json()
-#         end_time = time.time()
-#         print(f"⏱️ TIEMPO DE DESENCRIPTACION: {end_time - start_time:.2f} segundos")
-        
-#         audio_url = decrypted_data.get('publicUrl')
-        
-#         print(f"🔗 Audio URL desencriptada: {audio_url}")
+        if response.status_code != 200:
+            error_msg = f"Twilio download failed: {response.status_code}"
+            print(f"❌ {error_msg}")
+            return {
+                "text": f"Error descargando audio: {response.status_code}",
+                "duration_s": 0,
+                "model": "whisper-1",
+                "ok": False,
+                "error": error_msg,
+            }
 
-#         if not audio_url:
-#             print("No se obtuvo URL del audio desencriptado")
-#             return {
-#                 'answer': 'No se pudo obtener el audio desencriptado.',
-#                 'input_tokens': 0,
-#                 'id_conversacion': id_phone_number,
-#                 'model_name': 'whisper-1'
-#             }
+        # 2️⃣ GUARDAR TEMPORALMENTE
+        audio_data = response.content
+        with tempfile.NamedTemporaryFile(suffix=".ogg", delete=False) as tmp_file:
+            tmp_file.write(audio_data)
+            temp_file_path = tmp_file.name
 
-#         print("📥 Descargando audio...")
-#         response = requests.get(audio_url, timeout=120)  # 2 minutos
+        print(
+            f"💾 Audio temporal guardado: {temp_file_path} ({len(audio_data) / 1024:.1f} KB)"
+        )
 
-#         suffix = '.ogg' if 'ogg' in audio_message.get('mimetype', '') else '.mp3'
+        # 3️⃣ ESTIMAR DURACIÓN (sin librosa para reducir deps)
+        try:
+            # Aproximación simple: 128 kbps * 1024 bytes/sec
+            duracion_segundos = max(1, (len(audio_data) / (128 * 1024)))
+            duracion_segundos = int(duracion_segundos)
+        except:
+            duracion_segundos = 0
 
-#         with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp_file:
-#             tmp_file.write(response.content)
-#             tmp_file_path = tmp_file.name
+        print(f"⏱️ Duración estimada: {duracion_segundos}s")
 
-#         print(f"💾 Audio guardado en: {tmp_file_path}")
+        # 4️⃣ TRANSCRIBIR CON WHISPER
+        print("🤖 Enviando a OpenAI Whisper para transcripción...")
+        with open(temp_file_path, "rb") as audio_file:
+            transcript = client.audio.transcriptions.create(
+                model="whisper-1", file=audio_file, timeout=timeout
+            )
 
-#         try:
-#             duracion_segundos = math.ceil(librosa.get_duration(filename=tmp_file_path))
-#         except:
-#             duracion_segundos = 0
+        transcript_text = transcript.text.strip()
+        print(f"✅ Transcripción exitosa: {transcript_text[:80]}...")
 
-#         print("🤖 Transcribiendo con Whisper...")
-#         with open(tmp_file_path, 'rb') as audio_file:
-#             transcript = client.audio.transcriptions.create(
-#                 model="whisper-1",
-#                 file=audio_file,
-#                 timeout=180  # 3 minutos
-#             )
+        # 5️⃣ GUARDAR AUDIO PERMANENTEMENTE (si está configurado)
+        os.makedirs(dest_dir, exist_ok=True)
+        timestamp_str = time.strftime("%Y%m%d_%H%M%S")
 
-#         os.unlink(tmp_file_path)
-        
-#         print(f"✅ Transcripción exitosa: {transcript.text}")
+        try:
+            stored_file_path = os.path.join(dest_dir, f"{phone}_{timestamp_str}.ogg")
 
-#         return {
-#             'answer': transcript.text,
-#             'input_tokens': duracion_segundos,
-#             'id_conversacion': id_phone_number,
-#             'model_name': 'whisper-1'
-#         }
+            with open(stored_file_path, "wb") as f:
+                f.write(audio_data)
 
-#     except Exception as e:
-#         print(f"❌ Error en audio_a_texto: {e}")
-#         traceback.print_exc()
-#         return {
-#             'answer': 'Lo siento, no pude procesar tu audio.',
-#             'input_tokens': 0,
-#             'id_conversacion': id_phone_number,
-#             'model_name': 'whisper-1'
-#         }
+            print(f"💾 Audio permanente almacenado: {stored_file_path}")
+        except Exception as e:
+            print(f"⚠️ No se pudo guardar audio permanentemente: {e}")
+            stored_file_path = None
+
+        elapsed = time.time() - start_time
+        print(f"✅ Transcripción completada en {elapsed:.2f}s")
+
+        return {
+            "text": transcript_text,
+            "duration_s": duracion_segundos,
+            "model": "whisper-1",
+            "ok": True,
+            "error": None,
+            "file_path": stored_file_path,
+        }
+
+    except requests.Timeout:
+        error = "Twilio download timeout (30s)"
+        print(f"❌ {error}")
+        return {
+            "text": "Error: descarga del audio expiró.",
+            "duration_s": 0,
+            "model": "whisper-1",
+            "ok": False,
+            "error": error,
+        }
+
+    except Exception as e:
+        error = f"{type(e).__name__}: {str(e)}"
+        print(f"❌ Error en transcripción: {error}")
+        traceback.print_exc()
+        return {
+            "text": "Error procesando tu audio. Intenta de nuevo.",
+            "duration_s": 0,
+            "model": "whisper-1",
+            "ok": False,
+            "error": error,
+        }
+
+    finally:
+        # 🗑️ LIMPIAR ARCHIVO TEMPORAL
+        if temp_file_path and os.path.exists(temp_file_path):
+            try:
+                os.unlink(temp_file_path)
+                print(f"🗑️ Archivo temporal eliminado: {temp_file_path}")
+            except Exception as e:
+                print(f"⚠️ No se pudo limpiar temporal: {e}")

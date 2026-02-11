@@ -96,3 +96,5 @@ urllib3==2.5.0
 uvicorn==0.38.0
 xlsxwriter==3.2.9
 yarl==1.22.0
+celery==5.4.0
+pydub==0.25.1
