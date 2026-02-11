@@ -85,7 +85,7 @@ def descargar_documento_de_twilio(media_url, nombre_archivo, tipo_archivo):
         print(f"❌ Error descargando archivo: {e}")
         return None
 
-def enviar_mensaje_twilio(telefono, texto, max_retries=3):
+def enviar_mensaje_twilio_orig(telefono, texto, max_retries=3):
     """
     Envía mensaje de WhatsApp usando Twilio
     telefono debe venir en formato: whatsapp:+5215512345678
@@ -98,6 +98,44 @@ def enviar_mensaje_twilio(telefono, texto, max_retries=3):
             
             message = twilio_client.messages.create(
                 from_=TWILIO_SANDBOX_NUMBER,  # 🔥 Usa la variable global, NO el parámetro
+                body=texto,
+                to=telefono
+            )
+            
+            print(f"✅ Mensaje enviado exitosamente. SID: {message.sid}")
+            return {"success": True, "response": {"sid": message.sid, "status": message.status}}
+
+        except Exception as e:
+            print(f"❌ ERROR EN INTENTO {intento + 1}/{max_retries}: {str(e)}")
+            if intento < max_retries - 1:
+                time.sleep(3 * (intento + 1))
+                continue
+            else:
+                print(f"❌ ERROR FINAL después de {max_retries} intentos: {str(e)}")
+                return {"success": False, "error": str(e)}
+
+    return {"success": False, "error": "Falló después de todos los reintentos"}
+
+def enviar_mensaje_twilio(telefono, texto, max_retries=3):
+    """
+    Envía mensaje de WhatsApp usando Twilio, respetando el límite de caracteres (1600) y con reintentos en caso de error.
+    Teléfono debe venir en formato: whatsapp:+5215512345678
+    """
+
+    num_caracteres = len(texto)
+    too_long_ending_text = "La respuesta del asistente es demasiado larga, ha sido recortada"
+
+    if num_caracteres >= 1600:
+        texto = texto[:1500] + "\n\n" + too_long_ending_text
+
+    for intento in range(max_retries):
+        try:
+            print(f"📤 Enviando mensaje con Twilio (intento {intento + 1}/{max_retries}): {texto[:50]}...")
+            print(f"📤 From: {TWILIO_SANDBOX_NUMBER}")  # Para debug
+            print(f"📤 To: {telefono}")  # Para debug
+            
+            message = twilio_client.messages.create(
+                from_=TWILIO_SANDBOX_NUMBER,  # Usa la variable global, NO el parámetro
                 body=texto,
                 to=telefono
             )
@@ -929,3 +967,10 @@ def procesar_mensajes_entrantes(form_data, redis_client=r):
 
     print('✅ Procesamiento completado exitosamente.')
     return 'Success'
+
+if __name__ == "__main__":
+
+    telefono = "whatsapp:+5215566098295"
+    texto = "Hola, este es un mensaje de prueba desde el script principal."
+
+    enviar_mensaje_twilio(telefono, texto, max_retries=3)
