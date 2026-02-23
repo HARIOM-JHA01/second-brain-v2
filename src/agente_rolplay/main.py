@@ -1,10 +1,10 @@
-# python3 app.py
+# python3 main.py
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
-from procesa_mensajes import procesar_mensajes_entrantes
+from src.agente_rolplay.process_messages import procesar_mensajes_entrantes
 from typing import Optional
 
 import os
@@ -17,7 +17,7 @@ redis_host = os.getenv("REDIS_HOST")
 redis_port = os.getenv("REDIS_PORT")
 redis_password = os.getenv("REDIS_PASSWORD")
 
-# app.py - AGREGAR AL INICIO (después de los imports y antes de crear la app)
+# main.py - ADD AT THE BEGINNING (after imports and before creating the app)
 
 from fastapi import FastAPI, Request, Form, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -26,14 +26,14 @@ from google_auth_oauthlib.flow import Flow
 import os
 import uvicorn
 
-# 🔥 AGREGAR ESTA VARIABLE GLOBAL
+# ADD THIS GLOBAL VARIABLE
 oauth_states = {}
 
-# Variable global para SCOPES
+# Variable global for SCOPES
 SCOPES = [
     "https://www.googleapis.com/auth/drive",
     "https://www.googleapis.com/auth/drive.file",
-    "https://www.googleapis.com/auth/drive.readonly"
+    "https://www.googleapis.com/auth/drive.readonly",
 ]
 
 app = FastAPI()
@@ -64,224 +64,243 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.api_route('/', methods=['GET', 'HEAD'])
+
+@app.api_route("/", methods=["GET", "HEAD"])
 def index():
-    '''Route de bienvenida'''
-    return 'La API del Agente con Twilio funciona correctamente.'
+    """Welcome route"""
+    return "La API del Agente con Twilio funciona correctamente."
+
 
 from fastapi import FastAPI, Request, Form, Response
 from fastapi.responses import Response
-from procesa_mensajes import procesar_mensajes_entrantes
+from src.agente_rolplay.process_messages import procesar_mensajes_entrantes
 
-@app.post('/api/v1/webhook')
+
+@app.post("/api/v1/webhook")
 async def webhook_post(request: Request):
     """
-    Recibe mensajes de Twilio WhatsApp
+    Receives messages from Twilio WhatsApp
     """
     try:
-        # Obtener form data (NO JSON)
+        # Get form data (NOT JSON)
         form_data = await request.form()
         mensaje_data = dict(form_data)
-        
-        print("📥 POST recibido de Twilio:", mensaje_data)
-        
-        # Procesar el mensaje
+
+        print("POST received from Twilio:", mensaje_data)
+
+        # Process the message
         procesar_mensajes_entrantes(mensaje_data)
-        
+
         return Response(content="", status_code=200)
-        
+
     except Exception as e:
-        print(f"❌ ERROR: {e}")
+        print(f"ERROR: {e}")
         import traceback
+
         traceback.print_exc()
         return Response(content="", status_code=200)
 
-@app.post('/api/v1/webhook/status')
+
+@app.post("/api/v1/webhook/status")
 async def webhook_status(request: Request):
     """
-    Endpoint opcional para recibir actualizaciones de estado de mensajes enviados
+    Optional endpoint to receive status updates for sent messages
     """
     try:
         form_data = await request.form()
         status_data = dict(form_data)
-        print("Status callback recibido:", status_data)
-        
-        # Aquí puedes procesar los estados: sent, delivered, failed, etc.
-        
+        print("Status callback received:", status_data)
+
+        # Here you can process the statuses: sent, delivered, failed, etc.
+
         return Response(content="", status_code=200, media_type="text/xml")
     except Exception as e:
-        print(f"Error procesando status: {e}")
+        print(f"Error processing status: {e}")
         return Response(content="", status_code=200, media_type="text/xml")
 
-@app.get('/health')
+
+@app.get("/health")
 def health_check():
-    """Endpoint para verificar que la API está funcionando"""
+    """Endpoint to verify the API is working"""
     return JSONResponse(content={"status": "healthy", "service": "twilio-whatsapp-api"})
 
-# app.py - AGREGAR ESTOS IMPORTS
+
+# app.py - ADD THESE IMPORTS
 from google_auth_oauthlib.flow import Flow
 import json
 
-# AGREGAR ESTA VARIABLE GLOBAL
+# ADD THIS GLOBAL VARIABLE
 SCOPES = [
     "https://www.googleapis.com/auth/drive",
     "https://www.googleapis.com/auth/drive.file",
-    "https://www.googleapis.com/auth/drive.readonly"
+    "https://www.googleapis.com/auth/drive.readonly",
 ]
 
-@app.get('/api/v1/drive/auth')
+
+@app.get("/api/v1/drive/auth")
 def generar_link_autorizacion():
     """
-    Genera el link de autorización para Google Drive
+    Generates the authorization link for Google Drive
     """
     try:
         CREDENTIALS_PATH = "DRIVE_CREDENTIALS.json"
-        
+
         if not os.path.exists(CREDENTIALS_PATH):
             return JSONResponse(
-                content={"error": "No existe credentials.json"},
-                status_code=400
+                content={"error": "No existe credentials.json"}, status_code=400
             )
-        
-        # Crear flow con redirect a tu ngrok
+
+        # Create flow with redirect to your ngrok
         flow = Flow.from_client_secrets_file(
             CREDENTIALS_PATH,
             scopes=SCOPES,
-            redirect_uri='https://f9338d3448db.ngrok-free.app/api/v1/drive/callback'
-        )
-        
-        # Generar URL de autorización
-        authorization_url, state = flow.authorization_url(
-            access_type='offline',
-            include_granted_scopes='true'
-        )
-        
-        return JSONResponse(content={
-            "authorization_url": authorization_url,
-            "state": state,
-            "instructions": "Abre este link en tu navegador, autoriza la app y serás redirigido automáticamente"
-        })
-        
-    except Exception as e:
-        return JSONResponse(
-            content={"error": str(e)},
-            status_code=500
+            redirect_uri="https://f9338d3448db.ngrok-free.app/api/v1/drive/callback",
         )
 
-@app.get('/api/v1/drive/callback')
+        # Generate authorization URL
+        authorization_url, state = flow.authorization_url(
+            access_type="offline", include_granted_scopes="true"
+        )
+
+        return JSONResponse(
+            content={
+                "authorization_url": authorization_url,
+                "state": state,
+                "instructions": "Open this link in your browser, authorize the app and you will be redirected automatically",
+            }
+        )
+
+    except Exception as e:
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+
+
+@app.get("/api/v1/drive/callback")
 async def callback_autorizacion(request: Request):
     """
-    Recibe el callback de Google después de autorizar
+    Receives the callback from Google after authorization
     """
     try:
-        # Obtener el código de la URL
-        code = request.query_params.get('code')
-        state = request.query_params.get('state')
-        error = request.query_params.get('error')
-        
-        # Si el usuario canceló o hubo error
+        # Get the code from URL
+        code = request.query_params.get("code")
+        state = request.query_params.get("state")
+        error = request.query_params.get("error")
+
+        # If user cancelled or there was an error
         if error:
             return JSONResponse(
                 content={
-                    "error": f"Autorización cancelada o error: {error}",
-                    "message": "El usuario no autorizó la aplicación"
+                    "error": f"Authorization cancelled or error: {error}",
+                    "message": "El usuario no autorizó la aplicación",
                 },
-                status_code=400
+                status_code=400,
             )
-        
+
         if not code:
             return JSONResponse(
                 content={"error": "No se recibió código de autorización"},
-                status_code=400
+                status_code=400,
             )
-        
-        # 🔥 SIN VALIDACIÓN DE STATE (para simplificar)
-        
+
+        # NO STATE VALIDATION (to simplify)
+
         CREDENTIALS_PATH = "DRIVE_CREDENTIALS.json"
-        
-        # Crear flow
+
+        # Create flow
         flow = Flow.from_client_secrets_file(
             CREDENTIALS_PATH,
             scopes=SCOPES,
-            redirect_uri='https://f9338d3448db.ngrok-free.app/api/v1/drive/callback'
+            redirect_uri="https://f9338d3448db.ngrok-free.app/api/v1/drive/callback",
         )
-        
-        # Intercambiar código por token
-        print(f"🔄 Intercambiando código por token...")
+
+        # Exchange code for token
+        print(f"Exchanging code for token...")
         flow.fetch_token(code=code)
         creds = flow.credentials
-        
-        # Guardar token en archivo
+
+        # Save token to file
         TOKENS_PATH = "token.json"
         with open(TOKENS_PATH, "w") as token:
             token.write(creds.to_json())
-        
-        print(f"✅ Token guardado en: {TOKENS_PATH}")
-        
-        return JSONResponse(content={
-            "success": True,
-            "message": "✅ Token generado exitosamente! Ya puedes usar Google Drive",
-            "token_saved": TOKENS_PATH,
-            "next_steps": "Verifica que existe el archivo token.json en tu servidor"
-        })
-        
+
+        print(f"Token saved to: {TOKENS_PATH}")
+
+        return JSONResponse(
+            content={
+                "success": True,
+                "message": "Token generated successfully! You can now use Google Drive",
+                "token_saved": TOKENS_PATH,
+                "next_steps": "Verify that token.json exists on your server",
+            }
+        )
+
     except Exception as e:
-        print(f"❌ Error en callback: {e}")
+        print(f"Error in callback: {e}")
         return JSONResponse(
             content={
                 "error": str(e),
-                "message": "Hubo un error al procesar la autorización"
+                "message": "There was an error processing the authorization",
             },
-            status_code=500
+            status_code=500,
         )
 
-@app.get('/api/v1/drive/status')
+
+@app.get("/api/v1/drive/status")
 def verificar_token():
     """
-    Verifica si existe un token válido
+    Verifies if a valid token exists
     """
     TOKENS_PATH = "token.json"
-    
+
     if os.path.exists(TOKENS_PATH):
         try:
             from google.oauth2.credentials import Credentials
+
             creds = Credentials.from_authorized_user_file(TOKENS_PATH, SCOPES)
-            
+
             if creds and creds.valid:
-                return JSONResponse(content={
-                    "status": "valid",
-                    "message": "✅ Token válido y listo para usar",
-                    "file": TOKENS_PATH
-                })
+                return JSONResponse(
+                    content={
+                        "status": "valid",
+                        "message": "Token valid and ready to use",
+                        "file": TOKENS_PATH,
+                    }
+                )
             elif creds and creds.expired:
-                return JSONResponse(content={
-                    "status": "expired",
-                    "message": "⚠️ Token expirado, necesita refrescarse",
-                    "file": TOKENS_PATH
-                })
+                return JSONResponse(
+                    content={
+                        "status": "expired",
+                        "message": "Token expired, needs refresh",
+                        "file": TOKENS_PATH,
+                    }
+                )
             else:
-                return JSONResponse(content={
-                    "status": "invalid",
-                    "message": "❌ Token inválido",
-                    "file": TOKENS_PATH
-                })
+                return JSONResponse(
+                    content={
+                        "status": "invalid",
+                        "message": "Token invalid",
+                        "file": TOKENS_PATH,
+                    }
+                )
         except Exception as e:
-            return JSONResponse(content={
-                "status": "error",
-                "message": f"❌ Error leyendo token: {str(e)}"
-            })
+            return JSONResponse(
+                content={"status": "error", "message": f"Error reading token: {str(e)}"}
+            )
     else:
-        return JSONResponse(content={
-            "status": "not_found",
-            "message": "❌ No existe token.json. Necesitas autorizar primero."
-        })
+        return JSONResponse(
+            content={
+                "status": "not_found",
+                "message": "No token.json found. You need to authorize first.",
+            }
+        )
+
 
 from fastapi.responses import HTMLResponse
 
-@app.get('/privacy', response_class=HTMLResponse)
+
+@app.get("/privacy", response_class=HTMLResponse)
 def privacy_policy():
     """
-    Privacy Policy para OpenAI GPT
+    Privacy Policy for OpenAI GPT
     """
     html_content = """
     <!DOCTYPE html>
@@ -353,15 +372,17 @@ def privacy_policy():
     """
     return html_content
 
-from function_tools import get_text_by_relevance, anthropic_completion
-from system_prompt import system_prompt_rag
+
+from src.agente_rolplay.cli_tools import get_text_by_relevance, anthropic_completion
+from src.agente_rolplay.system_prompt import system_prompt_rag
 from fastapi import Header, HTTPException
 
 API_KEY = os.getenv("GPT_ACTIONS_API_KEY")
 
+
 @app.post("/api/v1/rag/query")
 async def rag_query(request: Request, authorization: str = Header(None)):
-    # Auth tipo Bearer para el GPT
+    # Bearer auth for GPT
     if authorization != f"Bearer {API_KEY}":
         raise HTTPException(status_code=401, detail="Unauthorized")
 
@@ -371,17 +392,23 @@ async def rag_query(request: Request, authorization: str = Header(None)):
     if not pregunta:
         return JSONResponse({"error": "Falta 'question'"}, status_code=400)
 
-    ans = anthropic_completion(
-        system_prompt=system_prompt_rag,
-        messages=[{"role": "user", "content": pregunta}]
-    ).content[0].text.strip()
-    print(f"Respuesta del llm de la query: {ans}")
+    ans = (
+        anthropic_completion(
+            system_prompt=system_prompt_rag,
+            messages=[{"role": "user", "content": pregunta}],
+        )
+        .content[0]
+        .text.strip()
+    )
+    print(f"LLM response for query: {ans}")
 
     contexto = get_text_by_relevance(ans)
 
-    return JSONResponse({
-        "answer": contexto  # o si quieres, aquí ya puedes formatear más
-    })
+    return JSONResponse(
+        {
+            "answer": contexto  # or if you want, you can format more here
+        }
+    )
 
 
 if __name__ == "__main__":

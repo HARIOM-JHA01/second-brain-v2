@@ -1,6 +1,6 @@
 """
-Módulo de transcripción de audio mediante OpenAI Whisper API.
-Convierte notas de voz de WhatsApp en texto.
+Audio transcription module using OpenAI Whisper API.
+Converts WhatsApp voice notes to text.
 """
 
 from dotenv import load_dotenv
@@ -58,18 +58,18 @@ def transcribe_audio_from_url(
     stored_file_path = None
 
     try:
-        print(f"🎙️ Iniciando transcripción para: {phone}")
+        print(f"Starting transcription for: {phone}")
         start_time = time.time()
 
-        # 1️⃣ DESCARGAR AUDIO DESDE TWILIO
-        print(f"📥 Descargando audio de: {media_url[:60]}...")
+        # 1. DOWNLOAD AUDIO FROM TWILIO
+        print(f"Downloading audio from: {media_url[:60]}...")
         response = requests.get(
             media_url, auth=(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN), timeout=30
         )
 
         if response.status_code != 200:
             error_msg = f"Twilio download failed: {response.status_code}"
-            print(f"❌ {error_msg}")
+            print(f"Error: {error_msg}")
             return {
                 "text": f"Error descargando audio: {response.status_code}",
                 "duration_s": 0,
@@ -78,37 +78,37 @@ def transcribe_audio_from_url(
                 "error": error_msg,
             }
 
-        # 2️⃣ GUARDAR TEMPORALMENTE
+        # 2. SAVE TEMPORARILY
         audio_data = response.content
         with tempfile.NamedTemporaryFile(suffix=".ogg", delete=False) as tmp_file:
             tmp_file.write(audio_data)
             temp_file_path = tmp_file.name
 
         print(
-            f"💾 Audio temporal guardado: {temp_file_path} ({len(audio_data) / 1024:.1f} KB)"
+            f"Temporary audio saved: {temp_file_path} ({len(audio_data) / 1024:.1f} KB)"
         )
 
-        # 3️⃣ ESTIMAR DURACIÓN (sin librosa para reducir deps)
+        # 3. ESTIMATE DURATION (without librosa to reduce deps)
         try:
-            # Aproximación simple: 128 kbps * 1024 bytes/sec
-            duracion_segundos = max(1, (len(audio_data) / (128 * 1024)))
-            duracion_segundos = int(duracion_segundos)
+            # Simple approximation: 128 kbps * 1024 bytes/sec
+            duration_seconds = max(1, (len(audio_data) / (128 * 1024)))
+            duration_seconds = int(duration_seconds)
         except:
-            duracion_segundos = 0
+            duration_seconds = 0
 
-        print(f"⏱️ Duración estimada: {duracion_segundos}s")
+        print(f"Estimated duration: {duration_seconds}s")
 
-        # 4️⃣ TRANSCRIBIR CON WHISPER
-        print("🤖 Enviando a OpenAI Whisper para transcripción...")
+        # 4. TRANSCRIBE WITH WHISPER
+        print("Sending to OpenAI Whisper for transcription...")
         with open(temp_file_path, "rb") as audio_file:
             transcript = client.audio.transcriptions.create(
                 model="whisper-1", file=audio_file, timeout=timeout
             )
 
         transcript_text = transcript.text.strip()
-        print(f"✅ Transcripción exitosa: {transcript_text[:80]}...")
+        print(f"Transcription successful: {transcript_text[:80]}...")
 
-        # 5️⃣ GUARDAR AUDIO PERMANENTEMENTE (si está configurado)
+        # 5. SAVE AUDIO PERMANENTLY (if configured)
         os.makedirs(dest_dir, exist_ok=True)
         timestamp_str = time.strftime("%Y%m%d_%H%M%S")
 
@@ -118,17 +118,17 @@ def transcribe_audio_from_url(
             with open(stored_file_path, "wb") as f:
                 f.write(audio_data)
 
-            print(f"💾 Audio permanente almacenado: {stored_file_path}")
+            print(f"Permanent audio stored: {stored_file_path}")
         except Exception as e:
-            print(f"⚠️ No se pudo guardar audio permanentemente: {e}")
+            print(f"Warning: Could not save audio permanently: {e}")
             stored_file_path = None
 
         elapsed = time.time() - start_time
-        print(f"✅ Transcripción completada en {elapsed:.2f}s")
+        print(f"Transcription completed in {elapsed:.2f}s")
 
         return {
             "text": transcript_text,
-            "duration_s": duracion_segundos,
+            "duration_s": duration_seconds,
             "model": "whisper-1",
             "ok": True,
             "error": None,
@@ -137,7 +137,7 @@ def transcribe_audio_from_url(
 
     except requests.Timeout:
         error = "Twilio download timeout (30s)"
-        print(f"❌ {error}")
+        print(f"Error: {error}")
         return {
             "text": "Error: descarga del audio expiró.",
             "duration_s": 0,
@@ -148,7 +148,7 @@ def transcribe_audio_from_url(
 
     except Exception as e:
         error = f"{type(e).__name__}: {str(e)}"
-        print(f"❌ Error en transcripción: {error}")
+        print(f"Error in transcription: {error}")
         traceback.print_exc()
         return {
             "text": "Error procesando tu audio. Intenta de nuevo.",
@@ -159,10 +159,10 @@ def transcribe_audio_from_url(
         }
 
     finally:
-        # 🗑️ LIMPIAR ARCHIVO TEMPORAL
+        # CLEANUP TEMPORARY FILE
         if temp_file_path and os.path.exists(temp_file_path):
             try:
                 os.unlink(temp_file_path)
-                print(f"🗑️ Archivo temporal eliminado: {temp_file_path}")
+                print(f"Temporary file removed: {temp_file_path}")
             except Exception as e:
-                print(f"⚠️ No se pudo limpiar temporal: {e}")
+                print(f"Warning: Could not clean up temp file: {e}")

@@ -1,7 +1,7 @@
 [project]
 name = "agente-rolplay"
 version = "0.1.0"
-description = "Add your description here"
+description = "WhatsApp AI Agent with Google Drive integration"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -107,3 +107,9 @@ dependencies = [
     "xlsxwriter==3.2.9",
     "yarl==1.22.0",
 ]
+
+[project.scripts]
+agente-rolplay = "agente_rolplay.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,18 +1,21 @@
 """
-Celery worker para procesar notas de voz de WhatsApp en segundo plano.
-Transcribe audio y alimenta la pipeline de chat existente.
+Celery worker to process WhatsApp voice notes in the background.
+Transcribes audio and feeds the existing chat pipeline.
 
 Usage:
     celery -A audio_worker worker --loglevel=info --concurrency=1 --queues=audio
 """
 
-from agente_roleplay import responder_usuario
+from src.agente_rolplay.roleplay_agent import responder_usuario
 from celery import Celery, Task
-from chat_history import add_to_chat_history, get_chat_history
+from src.agente_rolplay.chat_history_manager import (
+    add_to_chat_history,
+    get_chat_history,
+)
 from datetime import datetime
 from dotenv import load_dotenv
-from procesa_mensajes import enviar_mensaje_twilio
-from whisper import transcribe_audio_from_url
+from src.agente_rolplay.process_messages import enviar_mensaje_twilio
+from src.agente_rolplay.whisper_service import transcribe_audio_from_url
 
 import json
 import os
@@ -21,13 +24,13 @@ import logging
 
 load_dotenv()
 
-# ===== CONFIGURACIÓN =====
+# ===== CONFIGURATION =====
 VOICE_NOTES_ENABLED = os.getenv("VOICE_NOTES_ENABLED", "false").lower() == "true"
 REDIS_HOST = os.getenv("REDIS_HOST")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
 
-# Redis Broker para Celery
+# Redis Broker for Celery
 CELERY_BROKER_URL = f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/0"
 CELERY_RESULT_BACKEND = f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/1"
 
@@ -36,9 +39,9 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-# ===== CREAR APP CELERY =====
+# ===== CREATE CELERY APP =====
 class ContextTask(Task):
-    """Task que preserva contexto de Redis"""
+    """Task that preserves Redis context"""
 
     def __call__(self, *args, **kwargs):
         return self.run(*args, **kwargs)
@@ -51,7 +54,7 @@ app.conf.task_serializer = "json"
 app.conf.accept_content = ["json"]
 app.conf.result_serializer = "json"
 app.conf.task_track_started = True
-app.conf.task_time_limit = 5 * 60  # 5 minutos max
+app.conf.task_time_limit = 5 * 60  # 5 minutes max
 app.Task = ContextTask
 
 # Redis client
@@ -67,15 +70,15 @@ redis_client = redis.Redis(
 @app.task(name="audio_worker.process_audio_job", bind=True, max_retries=2)
 def process_audio_job(self, job_dict: dict) -> dict:
     """
-    Procesa una nota de voz: descarga, transcribe, responde.
+    Process a voice note: download, transcribe, respond.
 
     Args:
         job_dict: {
             'media_url': str,
             'phone_number': str,
-            'from': str (whatsapp:+5215512345678),
-            'id_conversacion': str,
-            'timestamp': int,
+            'from': str (whatsapp:+521551234567id_conversacion': str,
+           8),
+            ' 'timestamp': int,
             'user_data': dict,
             'message_sid': str
         }
@@ -91,7 +94,7 @@ def process_audio_job(self, job_dict: dict) -> dict:
     """
 
     if not VOICE_NOTES_ENABLED:
-        logger.warning("🔇 VOICE_NOTES_ENABLED está deshabilitado")
+        logger.warning("VOICE_NOTES_ENABLED is disabled")
         return {
             "status": "failed",
             "transcript": "",
@@ -101,9 +104,9 @@ def process_audio_job(self, job_dict: dict) -> dict:
         }
 
     try:
-        logger.info(f"🎙️ Procesando audio para: {job_dict.get('phone_number')}")
+        logger.info(f"Processing audio for: {job_dict.get('phone_number')}")
 
-        # Extraer campos del job
+        # Extract fields from job
         media_url = job_dict.get("media_url")
         phone_number = job_dict.get("phone_number")
         from_number = job_dict.get("from")
@@ -112,24 +115,24 @@ def process_audio_job(self, job_dict: dict) -> dict:
         user_data = job_dict.get("user_data", {})
         message_sid = job_dict.get("message_sid")
 
-        # 1️⃣ TRANSCRIBIR AUDIO
-        logger.info(f"📥 Transcribiendo audio...")
+        # 1. TRANSCRIBE AUDIO
+        logger.info(f"Transcribing audio...")
         transcription_result = transcribe_audio_from_url(
             media_url=media_url, phone=phone_number, provider="openai"
         )
 
         if not transcription_result.get("ok", False):
             error_msg = transcription_result.get("error", "Unknown error")
-            logger.error(f"❌ Transcripción falló: {error_msg}")
+            logger.error(f"Transcription failed: {error_msg}")
 
-            # Notificar al usuario del error
+            # Notify user of error
             try:
                 enviar_mensaje_twilio(
                     from_number,
                     f"❌ No pude transcribir tu nota de voz. Error: {error_msg[:50]}",
                 )
             except Exception as e:
-                logger.error(f"⚠️ No se pudo enviar mensaje de error: {e}")
+                logger.error(f"Could not send error message: {e}")
 
             return {
                 "status": "failed",
@@ -140,18 +143,18 @@ def process_audio_job(self, job_dict: dict) -> dict:
             }
 
         transcript_text = transcription_result.get("text", "")
-        logger.info(f"✅ Transcripción exitosa: {transcript_text[:80]}...")
+        logger.info(f"Transcription successful: {transcript_text[:80]}...")
 
-        # 2️⃣ INYECTAR EN PIPELINE DE CHAT
-        logger.info(f"🔄 Inyectando transcripción en pipeline...")
+        # 2. INJECT INTO CHAT PIPELINE
+        logger.info(f"Injecting transcription into pipeline...")
 
-        # Construir data compatible con responder_usuario
+        # Build data compatible with responder_usuario
         data = {
             "id": message_sid,
             "from": from_number,
-            "body": transcript_text,  # La transcripción es el "body"
+            "body": transcript_text,  # The transcription is the "body"
             "fromMe": False,
-            "type": "text",  # Tratar como texto después de transcribir
+            "type": "text",  # Treat as text after transcribing
             "pushName": user_data.get("Usuario", ""),
             "timestamp": timestamp,
             "user_data": user_data,
@@ -159,13 +162,13 @@ def process_audio_job(self, job_dict: dict) -> dict:
             "media_content_type": "audio/ogg",
         }
 
-        # Obtener historial
+        # Get history
         id_chat_history = f"fp-chatHistory:{from_number}"
         id_phone_number = f"fp-idPhone:{phone_number}"
         messages = get_chat_history(id_chat_history, telefono=phone_number)
 
-        # 3️⃣ GENERAR RESPUESTA CON EL AGENTE
-        logger.info(f"🤖 Generando respuesta...")
+        # 3. GENERATE RESPONSE WITH AGENT
+        logger.info(f"Generating response...")
         answer_data = responder_usuario(
             messages,
             data,
@@ -174,20 +177,16 @@ def process_audio_job(self, job_dict: dict) -> dict:
             id_phone_number=id_phone_number,
         )
 
-        logger.info(
-            f"✅ Respuesta generada: {str(answer_data.get('answer', ''))[:80]}..."
-        )
+        logger.info(f"Response generated: {str(answer_data.get('answer', ''))[:80]}...")
 
-        # 4️⃣ ENVIAR RESPUESTA AL USUARIO
-        logger.info(f"📤 Enviando respuesta...")
+        # 4. SEND RESPONSE TO USER
+        logger.info(f"Sending response...")
         resultado_envio = enviar_mensaje_twilio(
             from_number, str(answer_data.get("answer", "Sin respuesta"))
         )
 
         if not resultado_envio.get("success", False):
-            logger.error(
-                f"⚠️ No se pudo enviar respuesta: {resultado_envio.get('error')}"
-            )
+            logger.error(f"Could not send response: {resultado_envio.get('error')}")
             return {
                 "status": "failed",
                 "transcript": transcript_text,
@@ -196,16 +195,14 @@ def process_audio_job(self, job_dict: dict) -> dict:
                 "error": f"Send failed: {resultado_envio.get('error')}",
             }
 
-        # 5️⃣ REGISTRAR EN HISTORIAL DE CHAT
-        logger.info(f"💾 Guardando en historial...")
+        # 5. SAVE TO CHAT HISTORY
+        logger.info(f"Saving to history...")
         add_to_chat_history(id_chat_history, transcript_text, "user", phone_number)
         add_to_chat_history(
             id_chat_history, answer_data.get("answer", ""), "assistant", phone_number
         )
 
-        logger.info(
-            f"✅ Audio procesado y respondido exitosamente para: {phone_number}"
-        )
+        logger.info(f"Audio processed and responded successfully for: {phone_number}")
 
         return {
             "status": "ok",
@@ -216,9 +213,9 @@ def process_audio_job(self, job_dict: dict) -> dict:
         }
 
     except Exception as e:
-        logger.error(f"❌ Error procesando audio: {e}", exc_info=True)
+        logger.error(f"Error processing audio: {e}", exc_info=True)
 
-        # Reintentar si no ha alcanzado el máximo
+        # Retry if max not reached
         try:
             raise self.retry(exc=e, countdown=5)
         except Exception:
@@ -234,7 +231,7 @@ def process_audio_job(self, job_dict: dict) -> dict:
 @app.task(name="audio_worker.health_check")
 def health_check() -> dict:
     """
-    Healthcheck task para monitorear el worker.
+    Healthcheck task to monitor the worker.
     """
     try:
         redis_client.ping()
@@ -244,7 +241,7 @@ def health_check() -> dict:
             "voice_notes_enabled": VOICE_NOTES_ENABLED,
         }
     except Exception as e:
-        logger.error(f"❌ Health check failed: {e}")
+        logger.error(f"Health check failed: {e}")
         return {
             "status": "unhealthy",
             "error": str(e),
@@ -254,35 +251,35 @@ def health_check() -> dict:
 
 def main():
     """
-    Punto de entrada para ejecutar el worker manualmente.
+    Entry point to run the worker manually.
 
     Usage:
-        python audio_worker.py  # Ejecuta worker indefinidamente
-        python audio_worker.py --once  # Procesa un job y sale
+        python audio_worker.py  # Runs worker indefinitely
+        python audio_worker.py --once  # Processes one job and exits
     """
     import sys
 
     if "--once" in sys.argv:
-        # Modo una sola ejecución (útil para CI/tests)
-        logger.info("🔄 Ejecutando en modo --once (procesa un job y sale)...")
+        # Single execution mode (useful for CI/tests)
+        logger.info("Running in --once mode (processes one job and exits)...")
 
-        # Intentar procesar un job de la queue
+        # Try to process a job from the queue
         try:
             job_json = redis_client.rpop("audio_queue")
             if job_json:
                 job_dict = json.loads(job_json)
-                logger.info(f"📌 Procesando job: {job_dict.get('message_sid')}")
+                logger.info(f"Processing job: {job_dict.get('message_sid')}")
                 result = process_audio_job.apply_async(args=[job_dict])
-                logger.info(f"✅ Job enviado a Celery: {result.id}")
+                logger.info(f"Job sent to Celery: {result.id}")
             else:
-                logger.info("⏭️  No hay jobs en la queue")
+                logger.info("No jobs in the queue")
         except Exception as e:
-            logger.error(f"❌ Error en modo --once: {e}")
+            logger.error(f"Error in --once mode: {e}")
     else:
-        # Modo worker normal
-        logger.info("🚀 Iniciando Celery worker...")
-        logger.info(f"🎯 Broker: {CELERY_BROKER_URL}")
-        logger.info(f"📋 Feature: VOICE_NOTES_ENABLED={VOICE_NOTES_ENABLED}")
+        # Normal worker mode
+        logger.info("Starting Celery worker...")
+        logger.info(f"Broker: {CELERY_BROKER_URL}")
+        logger.info(f"Feature: VOICE_NOTES_ENABLED={VOICE_NOTES_ENABLED}")
 
         app.worker_main(
             argv=["worker", "--loglevel=info", "--concurrency=1", "--queues=audio"]

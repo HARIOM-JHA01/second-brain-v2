@@ -78,7 +78,7 @@
 # #         return archivos[0]["id"]
 
 # #     else:
-# #         return None 
+# #         return None
 
 # # def leer_propiedades_excel_completo(spreadsheet_id, hoja, path_salida, servicio_sheets=obtener_servicio()):
 
@@ -105,28 +105,28 @@
 # #         df = pd.DataFrame(data_rows, columns=headers)
 # #         df.columns = df.columns.str.strip()
 
-# #         columnas_esperadas = [
+# #         expected_columns = [
 # #             'id',
-# #             'desarrollo',
-# #             'tipo',
-# #             'recamaras', 
-# #             'baños',
-# #             'precio',
-# #             'zona',
-# #             'caracteristicas_propiedad',
-# #             'amenidades_desarrollo',
-# #             'ubicacion_exacta',
-# #             'referencias_cercanas'
+# #             'development',
+# #             'type',
+# #             'bedrooms',
+# #             'bathrooms',
+# #             'price',
+# #             'zone',
+# #             'property_features',
+# #             'development_amenities',
+# #             'exact_location',
+# #             'nearby_references'
 # #         ]
 
 # #         columnas_presentes = [col for col in columnas_esperadas if col in df.columns]
 # #         columnas_faltantes = [col for col in columnas_esperadas if col not in df.columns]
 
 # #         if columnas_faltantes:
-# #             print(f"⚠️  Columnas faltantes: {columnas_faltantes}")
-        
-# #         print(f"✅ Columnas encontradas: {columnas_presentes}")
-# #         print(f"📊 Total de propiedades: {len(df)}")
+# #             print(f"Warning: Missing columns: {columnas_faltantes}")
+
+# #         print(f"Columns found: {columnas_presentes}")
+# #         print(f"Total properties: {len(df)}")
 
 # #         df = df.fillna('')
 # #         df.to_excel(path_salida)
@@ -162,7 +162,7 @@
 #         "https://www.googleapis.com/auth/drive.file",
 #         "https://www.googleapis.com/auth/drive.readonly"
 #     ]
-    
+
 #     CREDENTIALS_PATH = os.path.join(
 #         os.path.dirname(__file__), DRIVE_CREDENTIALS
 #     )
@@ -170,43 +170,43 @@
 #         os.path.dirname(__file__), DRIVE_TOKENS
 #     )
 
-#     # Si existe el token, cargarlo
+#     # If token exists, load it
 #     if os.path.exists(TOKENS_PATH):
 #         creds = Credentials.from_authorized_user_file(
 #             TOKENS_PATH, SCOPES
 #         )
-#         print("✅ Token cargado desde archivo")
+#         print("Token loaded from file")
 
-#     # Si no hay credenciales válidas
+#     # If no valid credentials
 #     if not creds or not creds.valid:
 #         if creds and creds.expired and creds.refresh_token:
-#             print("🔄 Token expirado, refrescando...")
+#             print("Token expired, refreshing...")
 #             creds.refresh(Request())
-            
-#             # Guardar el token actualizado
+
+#             # Save updated token
 #             with open(TOKENS_PATH, "w") as token:
 #                 token.write(creds.to_json())
-#             print("✅ Token refrescado exitosamente")
+#             print("Token refreshed successfully")
 #         else:
-#             print("❌ No hay token válido. Ejecuta generar_token.py primero")
+#             print("No valid token. Run generar_token.py first")
 #             return None
 
 #     try:
-#         # Construir el servicio según lo solicitado
+#         # Build service as requested
 #         if tipo_servicio == "sheets":
 #             service = build("sheets", "v4", credentials=creds)
-#             print("✅ Servicio de Google Sheets obtenido")
+#             print("Google Sheets service obtained")
 #             return service
 #         elif tipo_servicio == "drive":
 #             service = build("drive", "v3", credentials=creds)
-#             print("✅ Servicio de Google Drive obtenido")
+#             print("Google Drive service obtained")
 #             return service
 #         else:
-#             print(f"❌ Tipo de servicio no reconocido: {tipo_servicio}")
+#             print(f"Unknown service type: {tipo_servicio}")
 #             return None
 
 #     except HttpError as error:
-#         print(f"❌ Error HTTP: {error}")
+#         print(f"HTTP Error: {error}")
 #         return None
 
 # obtener_servicio()
@@ -218,18 +218,17 @@
 # # from google.auth.transport.requests import Request
 # # import os
 
-# # # Nombre del archivo que descargaste
+# # # Name of the file you downloaded
 # # DRIVE_CREDENTIALS = os.getenv("DRIVE_CREDENTIALS", "DRIVE_CREDENTIALS.json")
-# # # Nombre del token que se generará
+# # # Name of the token that will be generated
 # # DRIVE_TOKENS = os.getenv("DRIVE_TOKENS", "token.json")
 
 
-
-# # este es el bueno 
+# # this is the working one
 # def generar_token_inicial():
 #     """
-#     Genera el token.json por primera vez usando credentials.json
-#     Solo necesitas ejecutar esto UNA VEZ
+#     Generates token.json for the first time using credentials.json
+#     Only need to run this ONCE
 #     """
 #     SCOPES = [
 #         # "https://www.googleapis.com/auth/spreadsheets",
@@ -237,39 +236,39 @@
 #         "https://www.googleapis.com/auth/drive.file",
 #         "https://www.googleapis.com/auth/drive.readonly"
 #     ]
-    
+
 #     CREDENTIALS_PATH = os.path.join(
 #         os.path.dirname(__file__), DRIVE_CREDENTIALS
 #     )
 #     TOKENS_PATH = os.path.join(
 #         os.path.dirname(__file__), DRIVE_TOKENS
 #     )
-    
+
 #     if not os.path.exists(CREDENTIALS_PATH):
-#         print(f"❌ ERROR: No existe el archivo {CREDENTIALS_PATH}")
-#         print(f"Descarga el archivo de credenciales de Google Cloud Console")
+#         print(f"ERROR: File {CREDENTIALS_PATH} does not exist")
+#         print(f"Download the credentials file from Google Cloud Console")
 #         return None
-    
-#     print("🔐 Iniciando proceso de autorización...")
-#     print("Se abrirá tu navegador para autorizar la aplicación")
-    
+
+#     print("Starting authorization process...")
+#     print("Your browser will open to authorize the application")
+
 #     try:
 #         flow = InstalledAppFlow.from_client_secrets_file(
 #             CREDENTIALS_PATH, SCOPES
 #         )
-#         # Esto abre el navegador para autorizar
+#         # This opens browser to authorize
 #         creds = flow.run_local_server(port=8080)
-        
-#         # Guardar el token generado
+
+#         # Save generated token
 #         with open(TOKENS_PATH, "w") as token:
 #             token.write(creds.to_json())
-        
-#         print(f"✅ Token generado exitosamente: {TOKENS_PATH}")
-#         print("Ahora puedes usar obtener_servicio() normalmente")
+
+#         print(f"Token generated successfully: {TOKENS_PATH}")
+#         print("Now you can use obtener_servicio() normally")
 #         return creds
-        
+
 #     except Exception as e:
-#         print(f"❌ ERROR generando token: {e}")
+#         print(f"ERROR generating token: {e}")
 #         return None
 
 # def obtener_servicio(tipo_servicio="sheets"):
@@ -283,165 +282,165 @@
 #         "https://www.googleapis.com/auth/drive.file",
 #         "https://www.googleapis.com/auth/drive.readonly"
 #     ]
-    
+
 #     CREDENTIALS_PATH = os.path.join(
 #         os.path.dirname(__file__), DRIVE_CREDENTIALS
 #     )
 #     TOKENS_PATH = os.path.join(
 #         os.path.dirname(__file__), DRIVE_TOKENS
 #     )
-    
+
 #     creds = None
-    
-#     # Si existe el token, usarlo
+
+#     # If token exists, use it
 #     if os.path.exists(TOKENS_PATH):
 #         creds = Credentials.from_authorized_user_file(TOKENS_PATH, SCOPES)
-    
-#     # Si no hay credenciales válidas, generarlas
+
+#     # If no valid credentials, generate them
 #     if not creds or not creds.valid:
 #         if creds and creds.expired and creds.refresh_token:
-#             print("🔄 Token expirado, refrescando...")
+#             print("Token expired, refreshing...")
 #             creds.refresh(Request())
-            
-#             # Guardar token actualizado
+
+#             # Save updated token
 #             with open(TOKENS_PATH, "w") as token:
 #                 token.write(creds.to_json())
-#             print("✅ Token refrescado")
+#             print("Token refreshed")
 #         else:
-#             # Primera vez: generar token
-#             print("⚠️ No existe token válido. Generando uno nuevo...")
+#             # First time: generate token
+#             print("No valid token. Generating new one...")
 #             if not os.path.exists(CREDENTIALS_PATH):
-#                 print(f"❌ ERROR: No existe {CREDENTIALS_PATH}")
+#                 print(f"ERROR: {CREDENTIALS_PATH} does not exist")
 #                 return None
-            
+
 #             flow = InstalledAppFlow.from_client_secrets_file(
 #                 CREDENTIALS_PATH, SCOPES
 #             )
 #             creds = flow.run_local_server(port=8080)
-            
+
 #             with open(TOKENS_PATH, "w") as token:
 #                 token.write(creds.to_json())
-#             print("✅ Token generado exitosamente")
-    
+#             print("Token generated successfully")
+
 #     try:
 #         if tipo_servicio == "sheets":
 #             return build("sheets", "v4", credentials=creds)
 #         elif tipo_servicio == "drive":
 #             return build("drive", "v3", credentials=creds)
 #         else:
-#             print(f"❌ Tipo no reconocido: {tipo_servicio}")
+#             print(f"Unknown type: {tipo_servicio}")
 #             return None
-            
+
 #     except HttpError as error:
-#         print(f"❌ Error HTTP: {error}")
+#         print(f"HTTP Error: {error}")
 #         return None
 
 # def listar_todos_los_archivos_drive():
 #     """
-#     Lista TODOS los archivos en tu Google Drive
+#     List ALL files in your Google Drive
 #     """
 #     service = obtener_servicio(tipo_servicio="drive")
-    
+
 #     if not service:
-#         print("❌ No se pudo obtener el servicio de Drive")
+#         print("Could not get Drive service")
 #         return []
-    
+
 #     try:
-#         print("🔍 Buscando archivos en Google Drive...")
-        
+#         print("Searching files in Google Drive...")
+
 #         results = service.files().list(
-#             pageSize=100,  # Número de resultados por página
+#             pageSize=100,  # Number of results per page
 #             fields="nextPageToken, files(id, name, mimeType, createdTime, modifiedTime, size, webViewLink, parents)"
 #         ).execute()
-        
+
 #         items = results.get('files', [])
-        
+
 #         if not items:
-#             print('⚠️ No se encontraron archivos.')
+#             print('No files found.')
 #             return []
-        
-#         print(f'\n📂 Archivos encontrados: {len(items)}\n')
+
+#         print(f'\nFiles found: {len(items)}\n')
 #         print("=" * 80)
-        
+
 #         for item in items:
-#             print(f"📄 Nombre: {item['name']}")
+#             print(f"Name: {item['name']}")
 #             print(f"   ID: {item['id']}")
-#             print(f"   Tipo: {item['mimeType']}")
+#             print(f"   Type: {item['mimeType']}")
 #             print(f"   Link: {item.get('webViewLink', 'N/A')}")
-#             print(f"   Modificado: {item.get('modifiedTime', 'N/A')}")
+#             print(f"   Modified: {item.get('modifiedTime', 'N/A')}")
 #             if 'size' in item:
 #                 size_mb = int(item['size']) / (1024 * 1024)
-#                 print(f"   Tamaño: {size_mb:.2f} MB")
+#                 print(f"   Size: {size_mb:.2f} MB")
 #             print("-" * 80)
-        
+
 #         return items
-        
+
 #     except HttpError as error:
-#         print(f'❌ Error listando archivos: {error}')
+#         print(f'Error listing files: {error}')
 #         return []
 
 # def buscar_archivos_por_tipo(mime_type=None, nombre_contiene=None):
 #     """
-#     Busca archivos específicos en Drive
+#     Search for specific files in Drive
 #     mime_type: 'application/pdf', 'application/vnd.google-apps.spreadsheet', etc.
-#     nombre_contiene: texto que debe estar en el nombre
+#     nombre_contiene: text that should be in the name
 #     """
 #     service = obtener_servicio(tipo_servicio="drive")
-    
+
 #     if not service:
 #         return []
-    
+
 #     try:
-#         # Construir query
+#         # Build query
 #         query_parts = []
-        
+
 #         if mime_type:
 #             query_parts.append(f"mimeType='{mime_type}'")
-        
+
 #         if nombre_contiene:
 #             query_parts.append(f"name contains '{nombre_contiene}'")
-        
+
 #         query = " and ".join(query_parts) if query_parts else None
-        
-#         print(f"🔍 Buscando archivos con query: {query}")
-        
+
+#         print(f"Searching files with query: {query}")
+
 #         results = service.files().list(
 #             q=query,
 #             pageSize=100,
 #             fields="files(id, name, mimeType, webViewLink, modifiedTime)"
 #         ).execute()
-        
+
 #         items = results.get('files', [])
-        
-#         print(f"✅ Encontrados: {len(items)} archivos")
-        
+
+#         print(f"Found: {len(items)} files")
+
 #         for item in items:
-#             print(f"\n📄 {item['name']}")
+#             print(f"\n{item['name']}")
 #             print(f"   ID: {item['id']}")
 #             print(f"   Link: {item.get('webViewLink', 'N/A')}")
-        
+
 #         return items
-        
+
 #     except HttpError as error:
-#         print(f'❌ Error: {error}')
+#         print(f'Error: {error}')
 #         return []
 
-# # Script de prueba
+# # Test script
 # # if __name__ == "__main__":
 # #     print("=" * 80)
-# #     print("CONFIGURACIÓN DE GOOGLE DRIVE")
+# #     print("GOOGLE DRIVE CONFIGURATION")
 # #     print("=" * 80)
-    
-# #     # Opción 1: Generar token por primera vez (solo si no existe)
+
+# #     # Option 1: Generate token for first time (only if it doesn't exist)
 # #     # generar_token_inicial()
-    
-# #     # Opción 2: Listar todos los archivos
+
+# #     # Option 2: List all files
 # #     archivos = listar_todos_los_archivos_drive()
-    
-#     # Opción 3: Buscar PDFs
+
+#     # Option 3: Search PDFs
 #     # pdfs = buscar_archivos_por_tipo(mime_type='application/pdf')
-    
-#     # Opción 4: Buscar por nombre
+
+#     # Option 4: Search by name
 #     # archivos = buscar_archivos_por_tipo(nombre_contiene='reporte')
 
 # # from google_auth_oauthlib.flow import InstalledAppFlow
@@ -454,29 +453,29 @@
 # #     "https://www.googleapis.com/auth/drive.readonly"
 # # ]
 
-# # # Crear el flow
+# # # Create the flow
 # # flow = InstalledAppFlow.from_client_secrets_file(
-# #     DRIVE_CREDENTIALS, 
+# #     DRIVE_CREDENTIALS,
 # #     SCOPES,
 # #     redirect_uri='urn:ietf:wg:oauth:2.0:oob'
 # # )
 
-# # # Generar URL de autorización
+# # # Generate authorization URL
 # # auth_url, _ = flow.authorization_url(prompt='consent', access_type='offline')
 
 # # print("=" * 80)
-# # print("🔗 ENVÍA ESTE LINK A TU CLIENTE:")
+# # print("SEND THIS LINK TO YOUR CLIENT:")
 # # print("=" * 80)
 # # print(f"\n{auth_url}\n")
 # # print("=" * 80)
 
-# # # Esperar el código del cliente
-# # codigo = input("\n📋 Pega aquí el código que te dio tu cliente: ").strip()
+# # # Wait for client's code
+# # code = input("\nPaste the code you received from your client: ").strip()
 
-# # # Intercambiar código por token
-# # flow.fetch_token(code=codigo)
+# # # Exchange code for token
+# # flow.fetch_token(code=code)
 
-# # # Guardar token
+# # # Save token
 # # with open(DRIVE_TOKENS, "w") as token:
 # #     token.write(flow.credentials.to_json())
 
@@ -486,25 +485,25 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 SCOPES = [
     "https://www.googleapis.com/auth/drive",
     "https://www.googleapis.com/auth/drive.file",
-    "https://www.googleapis.com/auth/drive.readonly"
+    "https://www.googleapis.com/auth/drive.readonly",
 ]
 
 flow = InstalledAppFlow.from_client_secrets_file(
     "DRIVE_CREDENTIALS.json",  # El JSON que te dio tu cliente
     SCOPES,
-    redirect_uri='urn:ietf:wg:oauth:2.0:oob'
+    redirect_uri="urn:ietf:wg:oauth:2.0:oob",
 )
 
-auth_url, _ = flow.authorization_url(prompt='consent', access_type='offline')
+auth_url, _ = flow.authorization_url(prompt="consent", access_type="offline")
 
-print("Envía este link a tu cliente:")
+print("Send this link to your client:")
 print(auth_url)
 
-codigo = input("Pega el código que te dio: ")
+code = input("Paste the code you received: ")
 
-flow.fetch_token(code=codigo)
+flow.fetch_token(code=code)
 
 with open("token.json", "w") as token:
     token.write(flow.credentials.to_json())
 
-print("✅ Token generado: token.json")
+print("Token generated: token.json")
