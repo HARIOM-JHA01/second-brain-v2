@@ -6,6 +6,14 @@ from src.agente_rolplay.chat_history_manager import (
     get_chat_history,
     reset_chat_history,
 )
+from src.agente_rolplay.greeting_handler import (
+    is_greeting,
+    is_help,
+    get_intro_message,
+    get_capabilities_message,
+    is_english,
+)
+from src.agente_rolplay.analytics_logger import log_chat_interaction
 from datetime import datetime
 from dotenv import load_dotenv
 from src.agente_rolplay.supabase_storage import upload_file as subir_archivo_a_drive
@@ -524,6 +532,49 @@ def process_incoming_messages(form_data, redis_client=r):
 
     print(f"Processing new message: {dedup_key}")
 
+    # Get or default language preference for this user
+    lang_key = f"user:lang:{phone_number}"
+    stored_lang = redis_client.get(lang_key)
+    current_lang = stored_lang if stored_lang else "es"
+
+    # Check for greeting or help (only for text messages without media)
+    if body and body.strip():
+        is_greet = is_greeting(body)
+        is_help_req = is_help(body)
+
+        if is_greet or is_help_req:
+            # Detect language and update preference
+            if is_english(body):
+                current_lang = "en"
+                redis_client.set(lang_key, "en", ex=86400)  # 24 hours
+
+            # Determine which message to send
+            if is_greet:
+                response_text = get_intro_message(current_lang)
+                msg_type = "greeting"
+            else:  # is_help_req
+                response_text = get_capabilities_message(current_lang)
+                msg_type = "help"
+
+            # Send response
+            send_result = send_twilio_message(from_number, response_text)
+
+            if send_result.get("success", False):
+                # Log to analytics
+                log_chat_interaction(
+                    phone_number=phone_number,
+                    user_message=body,
+                    bot_response=response_text,
+                    message_type=msg_type,
+                    language=current_lang,
+                )
+                # Mark as processed
+                redis_client.set(dedup_key, "exists", ex=600)
+                print(f"Greeting/Help response sent: {msg_type}")
+                return "Success"
+            else:
+                print(f"Failed to send greeting response: {send_result.get('error')}")
+
     # Determine message type
     message_type = "text"
     media_url = ""
@@ -817,6 +868,15 @@ def process_incoming_messages(form_data, redis_client=r):
             f"WARNING: Message not sent. Error: {send_result.get('error', 'Unknown')}"
         )
         return "SendError"
+
+    # Log to analytics
+    log_chat_interaction(
+        phone_number=phone_number,
+        user_message=body,
+        bot_response=answer_text,
+        message_type="query",
+        language=current_lang,
+    )
 
     # Only if send was successful, mark as processed
     redis_client.set(dedup_key, "exists", ex=600)
