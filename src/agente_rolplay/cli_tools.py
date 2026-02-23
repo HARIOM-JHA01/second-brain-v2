@@ -366,24 +366,11 @@ def agregar_documento_a_qdrant(file_id, mime_type, nombre, ruta, ruta_temporal):
                         " | ".join([str(cell) if cell else "" for cell in row]) + "\n"
                     )
 
-        # Google Doc (export from Drive)
+        # Google Doc - Not supported without Google Drive
+        # Users should convert Google Docs to PDF/DOCX before uploading
         elif mime_type == "application/vnd.google-apps.document":
-            from google_drive import obtener_servicio
-
-            service = obtener_servicio()
-            request = service.files().export_media(
-                fileId=file_id, mimeType="text/plain"
-            )
-            from io import BytesIO
-            from googleapiclient.http import MediaIoBaseDownload
-
-            fh = BytesIO()
-            downloader = MediaIoBaseDownload(fh, request)
-            done = False
-            while not done:
-                status, done = downloader.next_chunk()
-            fh.seek(0)
-            text = fh.read().decode("utf-8")
+            print("Google Docs require conversion to PDF/DOCX before uploading")
+            return False
 
         # IF NONE OF THESE
         else:

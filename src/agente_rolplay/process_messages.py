@@ -8,7 +8,7 @@ from src.agente_rolplay.chat_history_manager import (
 )
 from datetime import datetime
 from dotenv import load_dotenv
-from src.agente_rolplay.google_drive import subir_archivo_a_drive
+from src.agente_rolplay.supabase_storage import upload_file as subir_archivo_a_drive
 from src.agente_rolplay.helpers import borrar_metadata
 from twilio.rest import Client
 
@@ -377,8 +377,7 @@ def process_incoming_messages_functional(form_data, redis_client=r):
             redis_client.set(dedup_key, "exists", ex=600)
             return "DocumentError"
 
-        # Upload to Google Drive
-        from google_drive import subir_archivo_a_drive
+        # Upload to Supabase Storage
 
         folder_id = "1M0TmERmETfEM8flmzwGgfKC7IkrVZaoD"
 
@@ -696,8 +695,7 @@ def process_incoming_messages(form_data, redis_client=r):
             redis_client.set(dedup_key, "exists", ex=600)
             return "DocumentError"
 
-        # Upload to Google Drive
-        from google_drive import subir_archivo_a_drive
+        # Upload to Supabase Storage
 
         result = subir_archivo_a_drive(
             ruta_archivo_local=temp_path,
