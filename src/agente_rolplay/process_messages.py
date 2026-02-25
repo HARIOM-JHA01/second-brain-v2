@@ -817,7 +817,7 @@ def process_incoming_messages(form_data, redis_client=r):
         print("ERROR PRINTING USER CONVERSATION DICT")
 
     # Get history and generate response
-    messages = get_chat_history(chat_history_id, telefono=phone_number)
+    messages = get_chat_history(chat_history_id, phone=phone_number)
     answer_data = responder_usuario(
         messages,
         data,

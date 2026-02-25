@@ -564,7 +564,7 @@ def procesar_mensajes_entrantes_funcional(form_data, redis_client=r):
         print("ERROR AL IMPRIMIR DICT CONVERSATION USER SUPABASE")
 
     # Obtener historial y generar respuesta
-    messages = get_chat_history(id_chat_history, telefono=phone_number)
+    messages = get_chat_history(id_chat_history, phone=phone_number)
     answer_data = responder_usuario(
         messages,
         data,
@@ -976,7 +976,7 @@ def procesar_mensajes_entrantes(form_data, redis_client=r):
         print("ERROR AL IMPRIMIR DICT CONVERSATION USER SUPABASE")
 
     # Obtener historial y generar respuesta
-    messages = get_chat_history(id_chat_history, telefono=phone_number)
+    messages = get_chat_history(id_chat_history, phone=phone_number)
     answer_data = responder_usuario(
         messages,
         data,

@@ -165,7 +165,7 @@ def process_audio_job(self, job_dict: dict) -> dict:
         # Get history
         id_chat_history = f"fp-chatHistory:{from_number}"
         id_phone_number = f"fp-idPhone:{phone_number}"
-        messages = get_chat_history(id_chat_history, telefono=phone_number)
+        messages = get_chat_history(id_chat_history, phone=phone_number)
 
         # 3. GENERATE RESPONSE WITH AGENT
         logger.info(f"Generating response...")
