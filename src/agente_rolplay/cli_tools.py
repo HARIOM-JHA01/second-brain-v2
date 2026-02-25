@@ -4,9 +4,11 @@ from anthropic import Anthropic
 from datetime import datetime
 from dotenv import load_dotenv
 from openai import OpenAI
-from qdrant_client import models, QdrantClient
-from qdrant_client.models import PointStruct
-from src.agente_rolplay.system_prompt import prompt_clasificador_saludo_inicial
+from pinecone import Pinecone, ServerlessSpec
+from src.agente_rolplay.system_prompt import (
+    prompt_clasificador_saludo_inicial,
+    system_prompt_categorize,
+)
 
 import json
 import os
@@ -22,13 +24,32 @@ openai_api_key = os.getenv("OPENAI_API_KEY")
 OPENAI_EMBEDDINGS_MODEL = os.getenv("OPENAI_EMBEDDINGS_MODEL")
 VECTOR_DIMENSION = int(os.getenv("VECTOR_DIMENSION", 1024))
 N_SIMILARITY = int(os.getenv("N_SIMILARITY", 3))
-QDRANT_URL = os.getenv("QDRANT_URL")
-QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
-QDRANT_COLLECTION_NAME = os.getenv("QDRANT_COLLECTION_NAME")
+PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
+PINECONE_ENVIRONMENT = os.getenv("PINECONE_ENVIRONMENT", "us-east-1")
+PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX_NAME", "rolplay-knowledge")
 
 client = Anthropic(api_key=anthropic_api_key)
 openai_client = OpenAI(api_key=openai_api_key)
-qdrant_client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+pinecone_client = Pinecone(api_key=PINECONE_API_KEY)
+
+
+def get_pinecone_index():
+    """Get or create Pinecone index"""
+    try:
+        if PINECONE_INDEX_NAME not in pinecone_client.list_indexes().names():
+            pinecone_client.create_index(
+                name=PINECONE_INDEX_NAME,
+                dimension=VECTOR_DIMENSION,
+                metric="cosine",
+                spec=ServerlessSpec(cloud="aws", region=PINECONE_ENVIRONMENT),
+            )
+        return pinecone_client.Index(PINECONE_INDEX_NAME)
+    except Exception as e:
+        print(f"Error with Pinecone index: {e}")
+        return None
+
+
+index = get_pinecone_index()
 
 dict_clientes_datos = {}
 
@@ -62,77 +83,116 @@ def create_embeddings(
     return {"answer": response.data[0].embedding}
 
 
-def insert_info_business(
-    sections,
-    client_qdrant=qdrant_client,
-    COLLECTION=QDRANT_COLLECTION_NAME,
-    dim=VECTOR_DIMENSION,
-):
-    collections = client_qdrant.get_collections().collections
-    collection_names = [collection.name for collection in collections]
-
-    if COLLECTION not in collection_names:
-        client_qdrant.create_collection(
-            collection_name=COLLECTION,
-            vectors_config={"embeddings": {"size": dim, "distance": "Cosine"}},
-        )
-        print(f"Collection '{COLLECTION}' created successfully.")
-
-    points = []
-
-    for index, section in enumerate(sections):
-        vector = create_embeddings(section["texto"])
-
-        point = PointStruct(
-            id=index,
-            vector={"embeddings": vector["answer"]},
-            payload={"nombre": section["nombre"], "texto": section["texto"]},
-        )
-
-        points.append(point)
-
-    client_qdrant.upsert(collection_name=COLLECTION, points=points)
-    print(f"{len(points)} sections inserted into Qdrant.")
-
-
-def get_text_by_relevance(
-    query, client=qdrant_client, collection=QDRANT_COLLECTION_NAME, n=N_SIMILARITY
-):
+def categorize_document(text, max_chars=3000):
     """
-    Search relevant texts in Qdrant using query_points (new API)
+    Categorize a document using the LLM based on its content.
+    Returns the category as a string (e.g., 'proposal', 'service', 'meeting').
     """
     try:
-        # Generate embedding for the query
-        embedding = create_embeddings(query)
+        truncated_text = text[:max_chars]
 
-        # NEW API: query_points instead of search
-        search_result = client.query_points(
-            collection_name=collection,
-            query=embedding["answer"],  # Direct vector, no tuple
-            using="embeddings",  # Vector name
-            limit=n,
-            with_payload=True,
+        response = client.messages.create(
+            model=MODEL_NAME,
+            max_tokens=50,
+            system=system_prompt_categorize,
+            messages=[
+                {
+                    "role": "user",
+                    "content": f"Clasifica este documento:\n\n{truncated_text}",
+                }
+            ],
+            temperature=0.0,
         )
 
-        print(f"Search successful: {len(search_result.points)} results")
+        category = response.content[0].text.strip().lower()
 
-        # Process results
+        valid_categories = [
+            "proposal",
+            "service",
+            "integration",
+            "meeting",
+            "contract",
+            "invoice",
+            "technical",
+            "company_info",
+            "contact",
+            "faq",
+            "policy",
+            "project",
+            "other",
+        ]
+
+        if category in valid_categories:
+            return category
+        else:
+            return "other"
+
+    except Exception as e:
+        print(f"Error categorizing document: {e}")
+        return "other"
+
+
+def insert_info_business(
+    sections,
+    index_obj=index,
+    dim=VECTOR_DIMENSION,
+):
+    """Insert business information into Pinecone"""
+    if index_obj is None:
+        print("Pinecone index not available")
+        return
+
+    vectors = []
+    for index, section in enumerate(sections):
+        vector = create_embeddings(section["texto"])
+        vectors.append(
+            {
+                "id": str(index),
+                "values": vector["answer"],
+                "metadata": {"nombre": section["nombre"], "texto": section["texto"]},
+            }
+        )
+
+    index_obj.upsert(vectors=vectors)
+    print(f"{len(vectors)} sections inserted into Pinecone.")
+
+
+def get_text_by_relevance(query, index_obj=index, n=N_SIMILARITY):
+    """
+    Search relevant texts in Pinecone using vector similarity
+    """
+    if index_obj is None:
+        print("Pinecone index not available")
+        return []
+
+    try:
+        embedding = create_embeddings(query)
+
+        search_result = index_obj.query(
+            vector=embedding["answer"],
+            top_k=n,
+            include_metadata=True,
+        )
+
+        print(f"Search successful: {len(search_result['matches'])} results")
+
         relevant_texts = []
-        for scored_point in search_result.points:
+        for match in search_result["matches"]:
             relevant_texts.append(
                 {
-                    "texto": scored_point.payload.get("texto", ""),
-                    "nombre": scored_point.payload.get("nombre", ""),
-                    "ruta": scored_point.payload.get("ruta", ""),
-                    "file_id": scored_point.payload.get("file_id", ""),
-                    "score": scored_point.score,
+                    "texto": match["metadata"].get("texto", ""),
+                    "nombre": match["metadata"].get("nombre", ""),
+                    "ruta": match["metadata"].get("ruta", ""),
+                    "file_id": match["metadata"].get("file_id", ""),
+                    "score": match["score"],
+                    "category": match["metadata"].get("category", "other"),
                 }
             )
 
         return relevant_texts
 
     except Exception as e:
-        print(f"Error in Qdrant search: {e}")
+        print(f"Error in Pinecone search: {e}")
         import traceback
 
         traceback.print_exc()
@@ -148,35 +208,26 @@ def get_mexico_city_time():
     return formatted_time
 
 
-def agregar_punto_individual(
-    texto, nombre, client_qdrant=qdrant_client, COLLECTION=QDRANT_COLLECTION_NAME
-):
+def agregar_punto_individual(texto, nombre, index_obj=index):
+    """Add a single point to Pinecone"""
     try:
-        # Get the last ID from the collection
-        result = client_qdrant.scroll(
-            collection_name=COLLECTION,
-            limit=1,
-            with_payload=False,
-            with_vectors=False,
-            order_by="id",
-        )
+        if index_obj is None:
+            return {"success": False, "message": "Pinecone index not available"}
 
-        # If there are points, take the last ID and add 1, otherwise start at 0
-        if result[0]:
-            last_id = max([point.id for point in result[0]]) if result[0] else -1
-            new_id = last_id + 1
-        else:
-            new_id = 0
+        import uuid
 
+        new_id = str(uuid.uuid4())
         vector = create_embeddings(texto)
 
-        point = PointStruct(
-            id=new_id,
-            vector={"embeddings": vector["answer"]},
-            payload={"nombre": nombre, "texto": texto},
+        index_obj.upsert(
+            vectors=[
+                {
+                    "id": new_id,
+                    "values": vector["answer"],
+                    "metadata": {"nombre": nombre, "texto": texto},
+                }
+            ]
         )
-
-        client_qdrant.upsert(collection_name=COLLECTION, points=[point])
 
         return {
             "success": True,
@@ -188,69 +239,43 @@ def agregar_punto_individual(
         return {"success": False, "message": f"Error: {str(e)}"}
 
 
-def insert_datos_pauta(
-    sections,
-    client_qdrant=qdrant_client,
-    COLLECTION=QDRANT_COLLECTION_NAME,
-    dim=VECTOR_DIMENSION,
-):
-    collections = client_qdrant.get_collections().collections
-    collection_names = [collection.name for collection in collections]
+def insert_datos_pauta(sections, index_obj=index, dim=VECTOR_DIMENSION):
+    """Insert pauta data into Pinecone"""
+    if index_obj is None:
+        print("Pinecone index not available")
+        return
 
-    if COLLECTION not in collection_names:
-        client_qdrant.create_collection(
-            collection_name=COLLECTION,
-            vectors_config={"embeddings": {"size": dim, "distance": "Cosine"}},
-        )
-        print(f"Collection '{COLLECTION}' created successfully.")
-
-    points = []
+    vectors = []
     for index, section in enumerate(sections):
         vector = create_embeddings(section["texto_embeddings"])
-
-        point = PointStruct(
-            id=index,
-            vector={"embeddings": vector["answer"]},
-            payload=section["datos_completos_punto"],
-            # payload={
-            #     "nombre": section["nombre"],
-            #     "texto": section["texto"]
-            # }
+        vectors.append(
+            {
+                "id": str(index),
+                "values": vector["answer"],
+                "metadata": section["datos_completos_punto"],
+            }
         )
-        points.append(point)
 
-    client_qdrant.upsert(collection_name=COLLECTION, points=points)
-    print(f"{len(points)} sections inserted into Qdrant.")
+    index_obj.upsert(vectors=vectors)
+    print(f"{len(vectors)} sections inserted into Pinecone.")
 
 
-# ======================================
 def insertar_documentos_drive_a_qdrant(
     json_path="textos_drive_extraidos.json",
-    client_qdrant=qdrant_client,
-    COLLECTION=QDRANT_COLLECTION_NAME,
+    index_obj=index,
     dim=VECTOR_DIMENSION,
 ):
     """
-    Insert documents extracted from Google Drive into Qdrant
+    Insert documents extracted from Google Drive into Pinecone
 
     Args:
         json_path (str): Path to JSON file with extracted texts
-        client_qdrant: Qdrant client
-        COLLECTION (str): Collection name
+        index_obj: Pinecone index
         dim (int): Embedding dimension
     """
-    collections = client_qdrant.get_collections().collections
-    collection_names = [collection.name for collection in collections]
-
-    if COLLECTION not in collection_names:
-        client_qdrant.create_collection(
-            collection_name=COLLECTION,
-            vectors_config={"embeddings": {"size": dim, "distance": "Cosine"}},
-        )
-        print(f"Collection '{COLLECTION}' created successfully.")
-
-    else:
-        print(f"Collection '{COLLECTION}' already exists.")
+    if index_obj is None:
+        print("Pinecone index not available")
+        return 0
 
     print(f"Loading documents from: {json_path}")
     with open(json_path, "r", encoding="utf-8") as f:
@@ -258,7 +283,7 @@ def insertar_documentos_drive_a_qdrant(
 
     print(f"Total documents to process: {len(documents)}")
 
-    points = []
+    vectors = []
 
     for index, doc in enumerate(documents):
         print(f"Processing [{index + 1}/{len(documents)}]: {doc['nombre']}")
@@ -273,37 +298,43 @@ def insertar_documentos_drive_a_qdrant(
         try:
             vector = create_embeddings(truncated_text)
 
-            # Create point with full payload
-            point = PointStruct(
-                id=index,
-                vector={"embeddings": vector["answer"]},
-                payload={
-                    "file_id": doc["file_id"],
-                    "nombre": doc["nombre"],
-                    "ruta": doc["ruta"],
-                    "mime_type": doc["mime_type"],
-                    "texto": doc["texto"],  # Full text in payload
-                    "num_caracteres": doc["num_caracteres"],
-                    "num_palabras": doc["num_palabras"],
-                },
-            )
+            # Auto-categorize the document
+            print(f"  Categorizing document...")
+            category = categorize_document(doc["texto"])
+            print(f"  Document category: {category}")
 
-            points.append(point)
+            # Create vector with metadata
+            vectors.append(
+                {
+                    "id": str(index),
+                    "values": vector["answer"],
+                    "metadata": {
+                        "file_id": doc["file_id"],
+                        "nombre": doc["nombre"],
+                        "ruta": doc["ruta"],
+                        "mime_type": doc["mime_type"],
+                        "texto": doc["texto"],
+                        "num_caracteres": doc["num_caracteres"],
+                        "num_palabras": doc["num_palabras"],
+                        "category": category,
+                    },
+                }
+            )
             print(f"  Embedding generated for: {doc['nombre']}")
 
         except Exception as e:
             print(f"  Error generating embedding for {doc['nombre']}: {e}")
             continue
 
-    # Insert all points into Qdrant
-    if points:
-        print(f"\nInserting {len(points)} documents into Qdrant...")
-        client_qdrant.upsert(collection_name=COLLECTION, points=points)
-        print(f"{len(points)} documents inserted successfully into Qdrant.")
+    # Insert all vectors into Pinecone
+    if vectors:
+        print(f"\nInserting {len(vectors)} documents into Pinecone...")
+        index_obj.upsert(vectors=vectors)
+        print(f"{len(vectors)} documents inserted successfully into Pinecone.")
     else:
-        print("No points to insert.")
+        print("No vectors to insert.")
 
-    return len(points)
+    return len(vectors)
 
 
 def agregar_documento_a_qdrant(file_id, mime_type, nombre, ruta, ruta_temporal):
@@ -384,31 +415,42 @@ def agregar_documento_a_qdrant(file_id, mime_type, nombre, ruta, ruta_temporal):
 
         print(f"Text extracted: {len(text)} characters")
 
+        # Auto-categorize the document
+        print("Categorizing document...")
+        category = categorize_document(text)
+        print(f"Document category: {category}")
+
         # Generate embedding
         text_for_embedding = f"{nombre}\n\n{text[:8000]}"
         embedding = create_embeddings(text_for_embedding)
 
-        # Create point
-        point_id = int(time.time())
-        point = PointStruct(
-            id=point_id,
-            vector={"embeddings": embedding["answer"]},
-            payload={
-                "file_id": file_id,
-                "nombre": nombre,
-                "ruta": ruta,
-                "mime_type": mime_type,
-                "texto": text,
-                "num_caracteres": len(text),
-                "fecha_subida": datetime.now(
-                    pytz.timezone("America/Mexico_City")
-                ).isoformat(),
-            },
-        )
+        # Create vector with metadata
+        import uuid
 
-        # Insert into Qdrant
-        qdrant_client.upsert(collection_name=QDRANT_COLLECTION_NAME, points=[point])
-        print(f"Added to Qdrant with ID: {point_id}")
+        vector_id = str(uuid.uuid4())
+
+        # Insert into Pinecone
+        index.upsert(
+            vectors=[
+                {
+                    "id": vector_id,
+                    "values": embedding["answer"],
+                    "metadata": {
+                        "file_id": file_id,
+                        "nombre": nombre,
+                        "ruta": ruta,
+                        "mime_type": mime_type,
+                        "texto": text,
+                        "num_caracteres": len(text),
+                        "category": category,
+                        "fecha_subida": datetime.now(
+                            pytz.timezone("America/Mexico_City")
+                        ).isoformat(),
+                    },
+                }
+            ]
+        )
+        print(f"Added to Pinecone with ID: {vector_id}")
         return True
 
     except Exception as e:
@@ -419,7 +461,7 @@ def agregar_documento_a_qdrant(file_id, mime_type, nombre, ruta, ruta_temporal):
 if __name__ == "__main__":
     insertar_documentos_drive_a_qdrant()
 
-    # Process to insert spreadsheet data into Qdrant
+    # Process to insert spreadsheet data into Pinecone
     # file_path = "datos_pauta.xlsx"
     # datos_embeddear = read_spreadsheets_data_and_generate_dict_embeds(file_path)
     # insert_datos_pauta(datos_embeddear)

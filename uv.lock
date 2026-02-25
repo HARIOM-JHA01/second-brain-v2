@@ -74,6 +74,7 @@ dependencies = [
     { name = "openpyxl" },
     { name = "packaging" },
     { name = "pillow" },
+    { name = "pinecone" },
     { name = "portalocker" },
     { name = "propcache" },
     { name = "proto-plus" },
@@ -180,6 +181,7 @@ requires-dist = [
     { name = "openpyxl", specifier = "==3.1.5" },
     { name = "packaging", specifier = "==25.0" },
     { name = "pillow", specifier = "==11.3.0" },
+    { name = "pinecone", specifier = ">=7.0.1" },
     { name = "portalocker", specifier = "==3.2.0" },
     { name = "propcache", specifier = "==0.4.1" },
     { name = "proto-plus", specifier = "==1.26.1" },
@@ -1864,6 +1866,31 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/f0/77/bc6f92a3e8e6e46c0ca78abfffec0037845800ea38c73483760362804c41/pillow-11.3.0-cp314-cp314t-win32.whl", hash = "sha256:118ca10c0d60b06d006be10a501fd6bbdfef559251ed31b794668ed569c87e12", size = 6377370, upload-time = "2025-07-01T09:15:46.673Z" },
     { url = "https://files.pythonhosted.org/packages/4a/82/3a721f7d69dca802befb8af08b7c79ebcab461007ce1c18bd91a5d5896f9/pillow-11.3.0-cp314-cp314t-win_amd64.whl", hash = "sha256:8924748b688aa210d79883357d102cd64690e56b923a186f35a82cbc10f997db", size = 7121500, upload-time = "2025-07-01T09:15:48.512Z" },
     { url = "https://files.pythonhosted.org/packages/89/c7/5572fa4a3f45740eaab6ae86fcdf7195b55beac1371ac8c619d880cfe948/pillow-11.3.0-cp314-cp314t-win_arm64.whl", hash = "sha256:79ea0d14d3ebad43ec77ad5272e6ff9bba5b679ef73375ea760261207fa8e0aa", size = 2512835, upload-time = "2025-07-01T09:15:50.399Z" },
+]
+
+[[package]]
+name = "pinecone"
+version = "7.0.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "certifi" },
+    { name = "pinecone-plugin-interface" },
+    { name = "python-dateutil" },
+    { name = "typing-extensions" },
+    { name = "urllib3", marker = "python_full_version < '4'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/bc/9d/07a7f2136ce04cabd21d69c057dc2915867082b0047e6873e424388d4475/pinecone-7.0.1.tar.gz", hash = "sha256:49ff7b0f5be4a2ddec5aaa709758a9f2df56baa58ad46507d081409e246a81ec", size = 207930, upload-time = "2025-05-21T19:39:01.218Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/81/88/896221e991077d353e61991b759f46d75f3b4298eb5a4aa6534c1371f4b0/pinecone-7.0.1-py3-none-any.whl", hash = "sha256:ce7b0dab3c9f7d81e75b24c13fcbca4a51371e08021faaecaf0cd9a45ca1be6c", size = 516590, upload-time = "2025-05-21T19:38:59.117Z" },
+]
+
+[[package]]
+name = "pinecone-plugin-interface"
+version = "0.0.7"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/f4/fb/e8a4063264953ead9e2b24d9b390152c60f042c951c47f4592e9996e57ff/pinecone_plugin_interface-0.0.7.tar.gz", hash = "sha256:b8e6675e41847333aa13923cc44daa3f85676d7157324682dc1640588a982846", size = 3370, upload-time = "2024-06-05T01:57:52.093Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/3b/1d/a21fdfcd6d022cb64cef5c2a29ee6691c6c103c4566b41646b080b7536a5/pinecone_plugin_interface-0.0.7-py3-none-any.whl", hash = "sha256:875857ad9c9fc8bbc074dbe780d187a2afd21f5bfe0f3b08601924a61ef1bba8", size = 6249, upload-time = "2024-06-05T01:57:50.583Z" },
 ]
 
 [[package]]

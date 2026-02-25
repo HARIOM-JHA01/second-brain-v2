@@ -94,8 +94,43 @@ def responder_usuario(
             )
             print(f"RAG response: {ans}")
             # content = str(get_text_by_relevance(tool_input['consulta']))
-            content = str(get_text_by_relevance(ans))
-            print(f"Content obtained from RAG: {content}")
+            results = get_text_by_relevance(ans)
+            print(f"Content obtained from RAG: {results}")
+
+            category_icons = {
+                "proposal": "📄",
+                "service": "🛠️",
+                "integration": "🔗",
+                "meeting": "📝",
+                "contract": "📜",
+                "invoice": "💰",
+                "technical": "⚙️",
+                "company_info": "🏢",
+                "contact": "📱",
+                "faq": "❓",
+                "policy": "🔒",
+                "project": "📋",
+                "other": "📌",
+            }
+
+            grouped = {}
+            for item in results:
+                cat = item.get("category", "other")
+                if cat not in grouped:
+                    grouped[cat] = []
+                grouped[cat].append(
+                    f"- {item.get('nombre', 'Documento')}: {item.get('texto', '')[:200]}"
+                )
+
+            sections = []
+            for cat, items in grouped.items():
+                icon = category_icons.get(cat, "📌")
+                sections.append(f"## {icon} {cat.upper()}\n" + "\n".join(items))
+
+            content = "\n\n".join(sections)
+
+            if len(content) > 1500:
+                content = content[:1500] + "..."
 
         elif "actualizar_drive" in tool_name.lower():
             print("Drive update tool")
