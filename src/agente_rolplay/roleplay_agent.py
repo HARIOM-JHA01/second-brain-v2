@@ -7,7 +7,7 @@ from src.agente_rolplay.cli_tools import (
     get_mexico_city_time,
     anthropic_completion,
 )
-from src.agente_rolplay.supabase_storage import upload_file as subir_archivo_a_drive
+from src.agente_rolplay.supabase_storage import upload_file as upload_to_supabase
 from src.agente_rolplay.system_prompt import PROMPT_CORE, system_prompt_rag
 from src.agente_rolplay.tools import tools
 from src.agente_rolplay.helpers import get_metadata, save_metadata
