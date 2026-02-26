@@ -846,6 +846,62 @@ def process_incoming_messages(form_data, redis_client=r):
         redis_client.set(dedup_key, "exists", ex=600)
         return "DocumentProcessed"
 
+    # Process image messages (upload to Supabase like documents)
+    if message_type == "image":
+        print(f"Image received: {media_url}")
+
+        # Generate automatic name
+        timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+        base_name = f"image_{phone_number}_{timestamp_str}"
+
+        extensions = {
+            "image/jpeg": "jpg",
+            "image/png": "png",
+            "image/gif": "gif",
+            "image/webp": "webp",
+        }
+        extension = extensions.get(media_content_type, "jpg")
+
+        # Notify user
+        send_twilio_message(from_number, f"Uploading image to Knowledge Base...")
+
+        # Download file from Twilio
+        temp_path = download_document_from_twilio(
+            media_url=media_url, file_name=base_name, file_type=extension
+        )
+
+        if not temp_path:
+            send_twilio_message(
+                from_number, "Sorry, there was an error downloading your image."
+            )
+            redis_client.set(dedup_key, "exists", ex=600)
+            return "ImageError"
+
+        # Upload to Supabase Storage
+        result = upload_to_supabase(
+            local_file_path=temp_path,
+        )
+
+        # Clean up temporary file
+        try:
+            os.remove(temp_path)
+            print(f"Temporary file deleted: {temp_path}")
+        except:
+            pass
+
+        # Respond to user
+        if result and result.get("success"):
+            message = f"Image '{base_name}.{extension}' uploaded to Knowledge Base!\n"
+            message += f"Link: {result['web_view_link']}"
+
+            send_twilio_message(from_number, message)
+        else:
+            error_message = result.get("error", "Unknown") if result else "Unknown"
+            send_twilio_message(from_number, f"Error uploading image: {error_message}")
+
+        redis_client.set(dedup_key, "exists", ex=600)
+        return "ImageProcessed"
+
     # Check if number exists in cache
     if not redis_client.exists(id_phone_number):
         user_data = {"Usuario": "", "Telefono": phone_number}
