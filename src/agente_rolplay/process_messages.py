@@ -890,8 +890,7 @@ def process_incoming_messages(form_data, redis_client=r):
 
         # Respond to user
         if result and result.get("success"):
-            message = f"Image '{base_name}.{extension}' uploaded to Knowledge Base!\n"
-            message += f"Link: {result['secure_url']}"
+            message = f"Image uploaded to Knowledge Base! ✅"
 
             send_twilio_message(from_number, message)
         else:
