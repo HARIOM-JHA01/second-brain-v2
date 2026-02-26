@@ -17,6 +17,7 @@ from src.agente_rolplay.analytics_logger import log_chat_interaction
 from datetime import datetime
 from dotenv import load_dotenv
 from src.agente_rolplay.supabase_storage import upload_file as upload_to_supabase
+from src.agente_rolplay.cloudinary_storage import upload_file_to_cloudinary
 from src.agente_rolplay.helpers import borrar_metadata
 from twilio.rest import Client
 
@@ -877,10 +878,8 @@ def process_incoming_messages(form_data, redis_client=r):
             redis_client.set(dedup_key, "exists", ex=600)
             return "ImageError"
 
-        # Upload to Supabase Storage
-        result = upload_to_supabase(
-            local_file_path=temp_path,
-        )
+        # Upload to Cloudinary
+        result = upload_file_to_cloudinary(temp_path, folder="knowledgebase")
 
         # Clean up temporary file
         try:
@@ -892,7 +891,7 @@ def process_incoming_messages(form_data, redis_client=r):
         # Respond to user
         if result and result.get("success"):
             message = f"Image '{base_name}.{extension}' uploaded to Knowledge Base!\n"
-            message += f"Link: {result['web_view_link']}"
+            message += f"Link: {result['secure_url']}"
 
             send_twilio_message(from_number, message)
         else:
