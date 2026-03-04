@@ -1,11 +1,13 @@
 # python3 main.py
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request, Form, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import JSONResponse, Response, HTMLResponse
+from google_auth_oauthlib.flow import Flow
 from src.agente_rolplay.process_messages import procesar_mensajes_entrantes
-from typing import Optional
+from src.agente_rolplay.cli_tools import get_text_by_relevance, anthropic_completion
+from src.agente_rolplay.system_prompt import system_prompt_rag
 
 import os
 import redis
@@ -17,19 +19,8 @@ redis_host = os.getenv("REDIS_HOST")
 redis_port = os.getenv("REDIS_PORT")
 redis_password = os.getenv("REDIS_PASSWORD")
 
-# main.py - ADD AT THE BEGINNING (after imports and before creating the app)
-
-from fastapi import FastAPI, Request, Form, Response
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from google_auth_oauthlib.flow import Flow
-import os
-import uvicorn
-
-# ADD THIS GLOBAL VARIABLE
 oauth_states = {}
 
-# Variable global for SCOPES
 SCOPES = [
     "https://www.googleapis.com/auth/drive",
     "https://www.googleapis.com/auth/drive.file",
@@ -54,26 +45,11 @@ r = redis.Redis(
     password=redis_password,
 )
 
-app = FastAPI()
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 
 @app.api_route("/", methods=["GET", "HEAD"])
 def index():
     """Welcome route"""
     return "La API del Agente con Twilio funciona correctamente."
-
-
-from fastapi import FastAPI, Request, Form, Response
-from fastapi.responses import Response
-from src.agente_rolplay.process_messages import procesar_mensajes_entrantes
 
 
 @app.post("/api/v1/webhook")
@@ -82,15 +58,20 @@ async def webhook_post(request: Request):
     Receives messages from Twilio WhatsApp
     """
     try:
-        # Get form data (NOT JSON)
         form_data = await request.form()
         mensaje_data = dict(form_data)
 
         print("POST received from Twilio:", mensaje_data)
 
-        # Process the message
         procesar_mensajes_entrantes(mensaje_data)
 
+        return Response(content="", status_code=200)
+
+    except Exception as e:
+        print(f"ERROR: {e}")
+        import traceback
+
+        traceback.print_exc()
         return Response(content="", status_code=200)
 
     except Exception as e:
@@ -126,8 +107,6 @@ def health_check():
 
 
 # app.py - ADD THESE IMPORTS
-from google_auth_oauthlib.flow import Flow
-import json
 
 # ADD THIS GLOBAL VARIABLE
 SCOPES = [
@@ -182,7 +161,7 @@ async def callback_autorizacion(request: Request):
     try:
         # Get the code from URL
         code = request.query_params.get("code")
-        state = request.query_params.get("state")
+        _state = request.query_params.get("state")
         error = request.query_params.get("error")
 
         # If user cancelled or there was an error
@@ -213,7 +192,7 @@ async def callback_autorizacion(request: Request):
         )
 
         # Exchange code for token
-        print(f"Exchanging code for token...")
+        print("Exchanging code for token...")
         flow.fetch_token(code=code)
         creds = flow.credentials
 
@@ -294,9 +273,6 @@ def verificar_token():
         )
 
 
-from fastapi.responses import HTMLResponse
-
-
 @app.get("/privacy", response_class=HTMLResponse)
 def privacy_policy():
     """
@@ -372,10 +348,6 @@ def privacy_policy():
     """
     return html_content
 
-
-from src.agente_rolplay.cli_tools import get_text_by_relevance, anthropic_completion
-from src.agente_rolplay.system_prompt import system_prompt_rag
-from fastapi import Header, HTTPException
 
 API_KEY = os.getenv("GPT_ACTIONS_API_KEY")
 

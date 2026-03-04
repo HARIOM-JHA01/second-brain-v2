@@ -6,7 +6,6 @@ from dotenv import load_dotenv
 from openai import OpenAI
 from pinecone import Pinecone, ServerlessSpec
 from src.agente_rolplay.system_prompt import (
-    prompt_clasificador_saludo_inicial,
     system_prompt_categorize,
 )
 
@@ -299,7 +298,7 @@ def insertar_documentos_drive_a_qdrant(
             vector = create_embeddings(truncated_text)
 
             # Auto-categorize the document
-            print(f"  Categorizing document...")
+            print("  Categorizing document...")
             category = categorize_document(doc["texto"])
             print(f"  Document category: {category}")
 
@@ -408,9 +407,9 @@ def agregar_documento_a_qdrant(file_id, mime_type, nombre, ruta, ruta_temporal):
             print(f"Unsupported file type for extraction: {mime_type}")
             return False
 
-        print(f" TEXT: ", text)
+        print(" TEXT: ", text)
         if not text or len(text.strip()) < 10:
-            print(f"Text too short or empty")
+            print("Text too short or empty")
             return False
 
         print(f"Text extracted: {len(text)} characters")

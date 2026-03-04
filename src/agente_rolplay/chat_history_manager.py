@@ -112,7 +112,7 @@ def reset_chat_history(chat_history_id, redis_client=redis_client):
         similar_keys = redis_client.keys(pattern)
 
         if similar_keys:
-            print(f"Similar keys found:")
+            print("Similar keys found:")
             for key in similar_keys:
                 print(f"   - {key}")
 
@@ -162,7 +162,7 @@ def listar_chat_histories(redis_client=redis_client):
         try:
             messages = json.loads(content) if content else []
             num_messages = len(messages)
-        except:
+        except Exception:
             num_messages = "N/A"
 
         print(f"Phone: {phone}")

@@ -1,9 +1,0 @@
-MEET VENTAS METAS A CUMPLIR
-
-1.- Checar la plataforma de loyalty thrive de zoho 
-para poder conectar el webhook .
-
-2.- Pendientes de recibir la proxima semana los elmentos
-para el dia miercoles
-
-3.- El procesamiento del flujo para que envien el video y se pueda calificar 

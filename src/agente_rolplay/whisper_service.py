@@ -93,7 +93,7 @@ def transcribe_audio_from_url(
             # Simple approximation: 128 kbps * 1024 bytes/sec
             duration_seconds = max(1, (len(audio_data) / (128 * 1024)))
             duration_seconds = int(duration_seconds)
-        except:
+        except Exception:
             duration_seconds = 0
 
         print(f"Estimated duration: {duration_seconds}s")

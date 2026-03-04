@@ -116,7 +116,7 @@ def process_audio_job(self, job_dict: dict) -> dict:
         message_sid = job_dict.get("message_sid")
 
         # 1. TRANSCRIBE AUDIO
-        logger.info(f"Transcribing audio...")
+        logger.info("Transcribing audio...")
         transcription_result = transcribe_audio_from_url(
             media_url=media_url, phone=phone_number, provider="openai"
         )
@@ -146,7 +146,7 @@ def process_audio_job(self, job_dict: dict) -> dict:
         logger.info(f"Transcription successful: {transcript_text[:80]}...")
 
         # 2. INJECT INTO CHAT PIPELINE
-        logger.info(f"Injecting transcription into pipeline...")
+        logger.info("Injecting transcription into pipeline...")
 
         # Build data compatible with responder_usuario
         data = {
@@ -168,7 +168,7 @@ def process_audio_job(self, job_dict: dict) -> dict:
         messages = get_chat_history(id_chat_history, phone=phone_number)
 
         # 3. GENERATE RESPONSE WITH AGENT
-        logger.info(f"Generating response...")
+        logger.info("Generating response...")
         answer_data = responder_usuario(
             messages,
             data,
@@ -180,7 +180,7 @@ def process_audio_job(self, job_dict: dict) -> dict:
         logger.info(f"Response generated: {str(answer_data.get('answer', ''))[:80]}...")
 
         # 4. SEND RESPONSE TO USER
-        logger.info(f"Sending response...")
+        logger.info("Sending response...")
         resultado_envio = enviar_mensaje_twilio(
             from_number, str(answer_data.get("answer", "Sin respuesta"))
         )
@@ -196,7 +196,7 @@ def process_audio_job(self, job_dict: dict) -> dict:
             }
 
         # 5. SAVE TO CHAT HISTORY
-        logger.info(f"Saving to history...")
+        logger.info("Saving to history...")
         add_to_chat_history(id_chat_history, transcript_text, "user", phone_number)
         add_to_chat_history(
             id_chat_history, answer_data.get("answer", ""), "assistant", phone_number

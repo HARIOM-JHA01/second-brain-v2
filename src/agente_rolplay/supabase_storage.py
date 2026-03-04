@@ -1,6 +1,4 @@
 import os
-import io
-import json
 from dotenv import load_dotenv
 from supabase import create_client, Client
 from typing import List, Dict, Optional

@@ -107,7 +107,6 @@ def get_analytics_summary(days: int = 7) -> dict:
         dict with summary statistics
     """
     try:
-        import time
         from datetime import timedelta
 
         log_path = get_log_path()
@@ -151,7 +150,7 @@ def get_analytics_summary(days: int = 7) -> dict:
                     day_key = entry_time.strftime("%Y-%m-%d")
                     stats["by_day"][day_key] = stats["by_day"].get(day_key, 0) + 1
 
-                except:
+                except Exception:
                     continue
 
         stats["unique_users"] = len(stats["unique_users"])
@@ -189,7 +188,7 @@ def get_user_history(phone_number: str, limit: int = 100) -> list:
                         history.append(entry)
                         if len(history) >= limit:
                             break
-                except:
+                except Exception:
                     continue
 
         return list(reversed(history))
