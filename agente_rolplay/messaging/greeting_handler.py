@@ -240,6 +240,30 @@ def get_file_upload_message(lang: str = "es") -> str:
     return FILE_UPLOAD_MESSAGES.get(lang, FILE_UPLOAD_MESSAGES["es"])
 
 
+# Prefixes that signal the user is providing a correction or new fact
+FACT_PREFIXES = (
+    # English
+    "no,", "actually,", "wait,", "correction:", "fyi,", "fyi:", "note:", "note,",
+    "just so you know,", "by the way,", "btw,", "btw:", "heads up,", "heads up:",
+    "to clarify,", "to be clear,",
+    # Spanish
+    "en realidad,", "de hecho,", "corrección:", "correccion:", "por cierto,",
+    "nota:", "espera,", "ojo,", "ojo:", "aviso:", "aclarando,", "para aclarar,",
+    "quiero corregir,", "déjame corregir,", "deja me corregir,",
+)
+
+
+def is_session_fact(text: str) -> bool:
+    """
+    Detect if the user is providing a correction or new contextual fact.
+    Example: "No, Sanfer is a client now" → True
+    """
+    if not text or len(text.strip()) < 5:
+        return False
+    cleaned = text.strip().lower()
+    return any(cleaned.startswith(prefix) for prefix in FACT_PREFIXES)
+
+
 RESET_PHRASES = {
     # Spanish
     "borrar memoria",

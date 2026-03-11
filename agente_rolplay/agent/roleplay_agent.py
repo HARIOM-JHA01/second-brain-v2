@@ -28,8 +28,17 @@ user_id = USER_ID
 # ----- ----- ----- AGENT HELPER FUNCTIONS ----- ----- -----
 
 
-def construir_system_prompt(PROMPT_CORE=PROMPT_CORE, response_language: str = "es"):
+def construir_system_prompt(
+    PROMPT_CORE=PROMPT_CORE,
+    response_language: str = "es",
+    session_facts: list = None,
+):
     prompt = PROMPT_CORE
+    if session_facts:
+        facts_block = "\n\n# SESSION FACTS (user-provided corrections — treat as ground truth)\n"
+        for fact in session_facts:
+            facts_block += f"- {fact}\n"
+        prompt += facts_block
     if response_language == "en":
         prompt += (
             "\n\nLANGUAGE OVERRIDE: The user is speaking English. "
@@ -54,6 +63,7 @@ def responder_usuario(
     id_conversacion,
     id_phone_number,
     response_language="es",
+    session_facts=None,
     model_name=MODEL_NAME,
     user_id=user_id,
     anthropic_client=client,
@@ -65,7 +75,10 @@ def responder_usuario(
     new_messages = messages + [{"role": "user", "content": data["body"]}]
 
     # 5. Build system prompt according to phase
-    system_prompt = construir_system_prompt(response_language=response_language)
+    system_prompt = construir_system_prompt(
+        response_language=response_language,
+        session_facts=session_facts,
+    )
 
     response = anthropic_client.messages.create(
         system=system_prompt,

@@ -87,6 +87,40 @@ def num_tokens(text, model="gpt-4o"):
     return len(encoding.encode(text))
 
 
+def store_session_fact(phone_number: str, fact: str):
+    """
+    Store a user-provided session fact in Redis.
+    Facts persist for 24h and are injected into the agent's system prompt.
+    """
+    try:
+        key = f"session_facts:{phone_number}"
+        existing = redis_client.get(key)
+        facts = json.loads(existing) if existing else []
+        if fact not in facts:
+            facts.append(fact)
+        redis_client.set(key, json.dumps(facts), ex=CHAT_HISTORY_TTL)
+    except Exception as e:
+        print(f"Error storing session fact: {e}")
+
+
+def get_session_facts(phone_number: str) -> list:
+    """Return list of user-provided session facts for this phone number."""
+    try:
+        data = redis_client.get(f"session_facts:{phone_number}")
+        return json.loads(data) if data else []
+    except Exception as e:
+        print(f"Error getting session facts: {e}")
+        return []
+
+
+def clear_session_facts(phone_number: str):
+    """Delete all session facts for this phone number."""
+    try:
+        redis_client.delete(f"session_facts:{phone_number}")
+    except Exception as e:
+        print(f"Error clearing session facts: {e}")
+
+
 def reset_chat_history(chat_history_id, redis_client=redis_client):
     """
     Deletes chat history from Redis (improved version)

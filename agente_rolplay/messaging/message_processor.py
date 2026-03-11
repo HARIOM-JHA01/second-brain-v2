@@ -15,11 +15,15 @@ from agente_rolplay.messaging.chat_history_manager import (
     add_to_chat_history,
     get_chat_history,
     reset_chat_history,
+    store_session_fact,
+    get_session_facts,
+    clear_session_facts,
 )
 from agente_rolplay.messaging.greeting_handler import (
     is_greeting,
     is_help,
     is_reset_request,
+    is_session_fact,
     get_intro_message,
     get_capabilities_message,
     get_file_upload_message,
@@ -453,6 +457,7 @@ def process_incoming_messages_functional(form_data, redis_client=r):
     if body and is_reset_request(body):
         print(f"Executing memory deletion for: {phone_number}")
         reset_chat_history(phone_number)
+        clear_session_facts(phone_number)
         lang = detect_language(body)
         confirmation = get_reset_confirmation(lang)
         result = send_twilio_message(from_number, confirmation)
@@ -665,6 +670,11 @@ def process_incoming_messages_functional(form_data, redis_client=r):
     except Exception:
         print("ERROR PRINTING USER CONVERSATION DICT")
 
+    if body and is_session_fact(body):
+        store_session_fact(phone_number, body)
+        print(f"Session fact stored for {phone_number}: {body[:80]}")
+
+    session_facts = get_session_facts(phone_number)
     messages = get_chat_history(chat_history_id, phone=phone_number)
     answer_data = responder_usuario(
         messages,
@@ -673,6 +683,7 @@ def process_incoming_messages_functional(form_data, redis_client=r):
         id_conversacion=id_conversacion,
         id_phone_number=id_phone_number,
         response_language=current_lang,
+        session_facts=session_facts or None,
     )
     print("--------------------------")
     print("ANSWER DATA", answer_data)
@@ -932,6 +943,7 @@ def process_incoming_messages(form_data, redis_client=r):
     if body and is_reset_request(body):
         print(f"Executing memory deletion for: {phone_number}")
         reset_chat_history(phone_number)
+        clear_session_facts(phone_number)
         lang = detect_language(body)
         confirmation = get_reset_confirmation(lang)
         result = send_twilio_message(from_number, confirmation)
@@ -1161,6 +1173,11 @@ def process_incoming_messages(form_data, redis_client=r):
     except Exception as e:
         print(f"Error checking permissions: {e}")
 
+    if body and is_session_fact(body):
+        store_session_fact(phone_number, body)
+        print(f"Session fact stored for {phone_number}: {body[:80]}")
+
+    session_facts = get_session_facts(phone_number)
     messages = get_chat_history(chat_history_id, phone=phone_number)
     answer_data = responder_usuario(
         messages,
@@ -1169,6 +1186,7 @@ def process_incoming_messages(form_data, redis_client=r):
         id_conversacion=id_conversacion,
         id_phone_number=id_phone_number,
         response_language=current_lang,
+        session_facts=session_facts or None,
     )
     print("--------------------------")
     print("ANSWER DATA", answer_data)
