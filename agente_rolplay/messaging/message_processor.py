@@ -30,6 +30,7 @@ from agente_rolplay.messaging.twilio_client import extract_phone_from_twilio
 from agente_rolplay.storage.pinecone_client import upload_to_pinecone
 from agente_rolplay.storage.file_processor import (
     extract_text_from_file,
+    extract_image_description,
     get_file_extension,
     is_vectorizable,
     get_file_type_category,
@@ -189,6 +190,8 @@ def store_image_metadata(
     filename: str,
     cloudinary_url: str,
     redis_client,
+    vector_id: str = None,
+    vectorized: bool = False,
 ):
     """Store image metadata so image uploads are counted in KB inventory."""
     metadata = {
@@ -198,8 +201,8 @@ def store_image_metadata(
         "uploaded_at": datetime.utcnow().isoformat() + "Z",
         "uploaded_by": phone_number,
         "file_category": "image",
-        "vector_id": None,
-        "vectorized": False,
+        "vector_id": vector_id,
+        "vectorized": vectorized,
     }
     store_file_metadata(filename, metadata, redis_client)
 
@@ -559,6 +562,30 @@ def process_incoming_messages_functional(form_data, redis_client=r):
 
         result = upload_file_to_cloudinary(temp_path, folder="knowledgebase")
 
+        vector_id = None
+        vectorized = False
+        filename = f"{base_name}.{extension}"
+
+        if result and result.get("success"):
+            vision_result = extract_image_description(temp_path, media_content_type)
+            if vision_result.get("success") and vision_result.get("can_vectorize"):
+                print(f"Vectorizing image: {filename}")
+                pinecone_result = upload_to_pinecone(
+                    text=vision_result["text"],
+                    filename=filename,
+                    file_type="image",
+                    metadata={
+                        "uploaded_by": phone_number,
+                        "cloudinary_url": result.get("secure_url"),
+                    },
+                )
+                if pinecone_result.get("success"):
+                    vector_id = pinecone_result.get("vector_id")
+                    vectorized = True
+                    print(f"Image vectorized: {filename} id={vector_id}")
+            else:
+                print(f"Image vision extraction failed: {vision_result.get('error')}")
+
         try:
             os.remove(temp_path)
             print(f"Temporary file deleted: {temp_path}")
@@ -566,12 +593,13 @@ def process_incoming_messages_functional(form_data, redis_client=r):
             pass
 
         if result and result.get("success"):
-            filename = f"{base_name}.{extension}"
             store_image_metadata(
                 phone_number=phone_number,
                 filename=filename,
                 cloudinary_url=result.get("secure_url"),
                 redis_client=redis_client,
+                vector_id=vector_id,
+                vectorized=vectorized,
             )
             redis_client.set(
                 f"last_uploaded_file:{phone_number}", filename, ex=86400 * 7
@@ -998,6 +1026,30 @@ def process_incoming_messages(form_data, redis_client=r):
 
         result = upload_file_to_cloudinary(temp_path, folder="knowledgebase")
 
+        vector_id = None
+        vectorized = False
+        filename = f"{base_name}.{extension}"
+
+        if result and result.get("success"):
+            vision_result = extract_image_description(temp_path, media_content_type)
+            if vision_result.get("success") and vision_result.get("can_vectorize"):
+                print(f"Vectorizing image: {filename}")
+                pinecone_result = upload_to_pinecone(
+                    text=vision_result["text"],
+                    filename=filename,
+                    file_type="image",
+                    metadata={
+                        "uploaded_by": phone_number,
+                        "cloudinary_url": result.get("secure_url"),
+                    },
+                )
+                if pinecone_result.get("success"):
+                    vector_id = pinecone_result.get("vector_id")
+                    vectorized = True
+                    print(f"Image vectorized: {filename} id={vector_id}")
+            else:
+                print(f"Image vision extraction failed: {vision_result.get('error')}")
+
         try:
             os.remove(temp_path)
             print(f"Temporary file deleted: {temp_path}")
@@ -1005,12 +1057,13 @@ def process_incoming_messages(form_data, redis_client=r):
             pass
 
         if result and result.get("success"):
-            filename = f"{base_name}.{extension}"
             store_image_metadata(
                 phone_number=phone_number,
                 filename=filename,
                 cloudinary_url=result.get("secure_url"),
                 redis_client=redis_client,
+                vector_id=vector_id,
+                vectorized=vectorized,
             )
             redis_client.set(
                 f"last_uploaded_file:{phone_number}", filename, ex=86400 * 7

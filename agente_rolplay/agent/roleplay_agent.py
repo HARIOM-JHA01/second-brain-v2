@@ -135,10 +135,13 @@ def responder_usuario(
             else:
                 lines = []
                 for item in results:
-                    lines.append(
+                    line = (
                         f"- {item.get('filename', 'document')} (score {item.get('score', 0):.3f}): "
                         f"{item.get('text_preview', '')[:260]}"
                     )
+                    if item.get("cloudinary_url"):
+                        line += f"\n  Image URL: {item['cloudinary_url']}"
+                    lines.append(line)
                 content = "\n".join(lines)
 
         elif "actualizar_drive" in tool_name.lower():
