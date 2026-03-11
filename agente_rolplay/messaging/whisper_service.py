@@ -11,7 +11,7 @@ import tempfile
 import time
 import traceback
 
-from src.agente_rolplay.config import OPENAI_API_KEY, TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN
+from agente_rolplay.config import OPENAI_API_KEY, TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 

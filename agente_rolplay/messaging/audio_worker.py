@@ -6,21 +6,21 @@ Usage:
     celery -A audio_worker worker --loglevel=info --concurrency=1 --queues=audio
 """
 
-from src.agente_rolplay.roleplay_agent import responder_usuario
+from agente_rolplay.agent.roleplay_agent import responder_usuario
 from celery import Celery, Task
-from src.agente_rolplay.chat_history_manager import (
+from agente_rolplay.messaging.chat_history_manager import (
     add_to_chat_history,
     get_chat_history,
 )
 from datetime import datetime
-from src.agente_rolplay.process_messages import enviar_mensaje_twilio
-from src.agente_rolplay.whisper_service import transcribe_audio_from_url
+from agente_rolplay.messaging.process_messages import enviar_mensaje_twilio
+from agente_rolplay.messaging.whisper_service import transcribe_audio_from_url
 
 import json
 import redis
 import logging
 
-from src.agente_rolplay.config import (
+from agente_rolplay.config import (
     REDIS_HOST,
     REDIS_PASSWORD,
     REDIS_PORT,

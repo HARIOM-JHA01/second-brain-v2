@@ -1,4 +1,4 @@
-from src.agente_rolplay import message_processor as mp
+from agente_rolplay.messaging import message_processor as mp
 
 
 class FakeRedis:

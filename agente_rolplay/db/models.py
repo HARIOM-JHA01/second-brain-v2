@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, JSON
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
-from src.agente_rolplay.database import Base
+from agente_rolplay.db.database import Base
 
 
 class Organization(Base):

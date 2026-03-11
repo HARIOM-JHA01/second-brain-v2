@@ -4,7 +4,7 @@ import json
 import redis
 import tiktoken
 
-from src.agente_rolplay.config import (
+from agente_rolplay.config import (
     REDIS_HOST,
     REDIS_PASSWORD,
     REDIS_PORT,

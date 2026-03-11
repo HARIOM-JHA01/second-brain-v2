@@ -1,19 +1,19 @@
 # python3 roleplay_agent.py
 
 from anthropic import Anthropic
-from src.agente_rolplay.cli_tools import (
+from agente_rolplay.agent.cli_tools import (
     get_mexico_city_time,
     anthropic_completion,
 )
-from src.agente_rolplay.config import (
+from agente_rolplay.config import (
     ANTHROPIC_API_KEY,
     ANTHROPIC_MODEL_NAME,
     USER_ID,
     WEBHOOK_RENDER as WEBHOOK_RENDER_RAW,
 )
-from src.agente_rolplay.pinecone_client import search_knowledge_base
-from src.agente_rolplay.system_prompt import PROMPT_CORE, system_prompt_rag
-from src.agente_rolplay.tools import tools
+from agente_rolplay.storage.pinecone_client import search_knowledge_base
+from agente_rolplay.agent.system_prompt import PROMPT_CORE, system_prompt_rag
+from agente_rolplay.agent.tools import tools
 
 import re
 import time
@@ -151,7 +151,7 @@ def responder_usuario(
             if "UNKNOWN" in file_name.upper() or "UNKNOWN" in document_type.upper():
                 content = "Error: Debes proporcionar tanto el nombre del archivo como el tipo de documento."
             else:
-                from src.agente_rolplay.process_messages import r
+                from agente_rolplay.messaging.process_messages import r
 
                 # Extract phone from context (it's in data or messages)
                 telefono = (

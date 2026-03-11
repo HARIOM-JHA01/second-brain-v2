@@ -2,7 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-from src.agente_rolplay.config import DATABASE_URL
+from agente_rolplay.config import DATABASE_URL
 
 engine = create_engine(DATABASE_URL)
 
@@ -20,6 +20,6 @@ def get_db():
 
 
 def init_db():
-    from src.agente_rolplay import models
+    from agente_rolplay.db import models
 
     Base.metadata.create_all(bind=engine)

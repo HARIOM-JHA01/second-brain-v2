@@ -6,17 +6,17 @@ import time
 import redis
 from anthropic import Anthropic
 
-from src.agente_rolplay.twilio_client import (
+from agente_rolplay.messaging.twilio_client import (
     send_twilio_message,
     download_document_from_twilio,
 )
-from src.agente_rolplay.roleplay_agent import responder_usuario
-from src.agente_rolplay.chat_history_manager import (
+from agente_rolplay.agent.roleplay_agent import responder_usuario
+from agente_rolplay.messaging.chat_history_manager import (
     add_to_chat_history,
     get_chat_history,
     reset_chat_history,
 )
-from src.agente_rolplay.greeting_handler import (
+from agente_rolplay.messaging.greeting_handler import (
     is_greeting,
     is_help,
     get_intro_message,
@@ -24,18 +24,18 @@ from src.agente_rolplay.greeting_handler import (
     get_file_upload_message,
     is_english,
 )
-from src.agente_rolplay.analytics_logger import log_chat_interaction
-from src.agente_rolplay.cloudinary_storage import upload_file_to_cloudinary
-from src.agente_rolplay.twilio_client import extract_phone_from_twilio
-from src.agente_rolplay.pinecone_client import upload_to_pinecone
-from src.agente_rolplay.file_processor import (
+from agente_rolplay.storage.analytics_logger import log_chat_interaction
+from agente_rolplay.storage.cloudinary_storage import upload_file_to_cloudinary
+from agente_rolplay.messaging.twilio_client import extract_phone_from_twilio
+from agente_rolplay.storage.pinecone_client import upload_to_pinecone
+from agente_rolplay.storage.file_processor import (
     extract_text_from_file,
     get_file_extension,
     is_vectorizable,
     get_file_type_category,
 )
 
-from src.agente_rolplay.config import (
+from agente_rolplay.config import (
     ANTHROPIC_API_KEY,
     REDIS_HOST,
     REDIS_PASSWORD,
@@ -126,7 +126,7 @@ def detect_file_upload_intent(user_message: str, phone_number: str) -> bool:
     try:
         client = Anthropic(api_key=ANTHROPIC_API_KEY)
 
-        prompt = f"""Classify the user's message intent. 
+        prompt = f"""Classify the user's message intent.
 Message: "{user_message}"
 
 Reply with ONLY ONE WORD:
@@ -501,7 +501,7 @@ def process_incoming_messages_functional(form_data, redis_client=r):
         }
 
         try:
-            from src.agente_rolplay.audio_worker import process_audio_job
+            from agente_rolplay.messaging.audio_worker import process_audio_job
 
             result = process_audio_job.apply_async(
                 args=[audio_job],
@@ -690,7 +690,7 @@ def process_incoming_messages(form_data, redis_client=r):
         return "NoCommand"
 
     try:
-        from src.agente_rolplay.whatsapp_auth import (
+        from agente_rolplay.db.whatsapp_auth import (
             lookup_whatsapp_user,
             check_query_permission,
             BLOCKED_RESPONSE,
@@ -940,7 +940,7 @@ def process_incoming_messages(form_data, redis_client=r):
         }
 
         try:
-            from src.agente_rolplay.audio_worker import process_audio_job
+            from agente_rolplay.messaging.audio_worker import process_audio_job
 
             result = process_audio_job.apply_async(
                 args=[audio_job],
@@ -1054,7 +1054,7 @@ def process_incoming_messages(form_data, redis_client=r):
 
     permission_check_result = None
     try:
-        from src.agente_rolplay.whatsapp_auth import (
+        from agente_rolplay.db.whatsapp_auth import (
             check_query_permission,
             BLOCKED_RESPONSE,
         )

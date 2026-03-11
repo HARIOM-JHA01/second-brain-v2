@@ -119,8 +119,8 @@ dependencies = [
 ]
 
 [project.scripts]
-agente-rolplay = "src.agente_rolplay.main:main"
+agente-rolplay = "agente_rolplay.main:app"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["src.*"]
+include = ["agente_rolplay*"]

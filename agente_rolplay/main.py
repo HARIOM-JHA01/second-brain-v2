@@ -7,13 +7,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from src.agente_rolplay.config import PORT
-from src.agente_rolplay.routers import auth, pages, rag, roles, users, webhook
+from agente_rolplay.config import PORT
+from agente_rolplay.routers import auth, pages, rag, roles, users, webhook
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    from src.agente_rolplay.database import init_db
+    from agente_rolplay.db.database import init_db
 
     init_db()
     yield

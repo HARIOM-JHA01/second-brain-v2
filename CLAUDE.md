@@ -9,10 +9,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 uv sync
 
 # Run the FastAPI server
-uv run uvicorn src.agente_rolplay.main:app --reload --host 0.0.0.0 --port 5001
+uv run uvicorn agente_rolplay.main:app --reload --host 0.0.0.0 --port 5001
 
 # Run the Celery audio worker (separate terminal)
-celery -A audio_worker worker --loglevel=info --concurrency=1 --queues=audio
+celery -A agente_rolplay.messaging.audio_worker worker --loglevel=info --concurrency=1 --queues=audio
 
 # Run tests
 pytest tests/ -v
@@ -47,22 +47,22 @@ POST /api/v1/webhook (Twilio form data)
 
 | File | Role |
 |------|------|
-| `src/agente_rolplay/main.py` | FastAPI app, webhook endpoints, Google Drive OAuth, dashboard pages |
-| `src/agente_rolplay/message_processor.py` | Core message routing logic; two variants: `process_incoming_messages` (with auth) and `process_incoming_messages_functional` (without) |
-| `src/agente_rolplay/process_messages.py` | Thin alias layer re-exporting from `message_processor` and `twilio_client` with Spanish names |
-| `src/agente_rolplay/roleplay_agent.py` | Anthropic Claude agent loop; handles tool calls |
-| `src/agente_rolplay/tools.py` | Claude tool definitions: `informacion_general`, `actualizar_drive`, `saludar_cliente` |
-| `src/agente_rolplay/pinecone_client.py` | Pinecone vector DB; embeddings via OpenAI `text-embedding-3-small` |
-| `src/agente_rolplay/cloudinary_storage.py` | File/image upload to Cloudinary |
-| `src/agente_rolplay/chat_history_manager.py` | Conversation history stored in Redis (TTL 1h, max 12 messages) |
-| `src/agente_rolplay/audio_worker.py` | Celery task: download audio → Whisper transcription → agent → reply |
-| `src/agente_rolplay/whatsapp_auth.py` | WhatsApp user lookup by phone number; LLM-based query classification for permission gating |
-| `src/agente_rolplay/greeting_handler.py` | Pattern-based greeting/help detection; bilingual (ES/EN) static messages |
-| `src/agente_rolplay/database.py` | SQLAlchemy engine + `get_db()` dependency |
-| `src/agente_rolplay/models.py` | SQLAlchemy models: `User`, `Organization`, `Profile`, `Role`, `Document` |
-| `src/agente_rolplay/auth.py` | JWT auth (python-jose), password hashing (passlib/bcrypt) |
-| `src/agente_rolplay/routers/` | FastAPI routers for auth, users, roles |
-| `src/agente_rolplay/file_processor.py` | Text extraction from PDF, DOCX, PPTX, XLSX for vectorization |
+| `agente_rolplay/main.py` | FastAPI app, webhook endpoints, Google Drive OAuth, dashboard pages |
+| `agente_rolplay/message_processor.py` | Core message routing logic; two variants: `process_incoming_messages` (with auth) and `process_incoming_messages_functional` (without) |
+| `agente_rolplay/process_messages.py` | Thin alias layer re-exporting from `message_processor` and `twilio_client` with Spanish names |
+| `agente_rolplay/roleplay_agent.py` | Anthropic Claude agent loop; handles tool calls |
+| `agente_rolplay/tools.py` | Claude tool definitions: `informacion_general`, `actualizar_drive`, `saludar_cliente` |
+| `agente_rolplay/pinecone_client.py` | Pinecone vector DB; embeddings via OpenAI `text-embedding-3-small` |
+| `agente_rolplay/cloudinary_storage.py` | File/image upload to Cloudinary |
+| `agente_rolplay/chat_history_manager.py` | Conversation history stored in Redis (TTL 1h, max 12 messages) |
+| `agente_rolplay/audio_worker.py` | Celery task: download audio → Whisper transcription → agent → reply |
+| `agente_rolplay/whatsapp_auth.py` | WhatsApp user lookup by phone number; LLM-based query classification for permission gating |
+| `agente_rolplay/greeting_handler.py` | Pattern-based greeting/help detection; bilingual (ES/EN) static messages |
+| `agente_rolplay/database.py` | SQLAlchemy engine + `get_db()` dependency |
+| `agente_rolplay/models.py` | SQLAlchemy models: `User`, `Organization`, `Profile`, `Role`, `Document` |
+| `agente_rolplay/auth.py` | JWT auth (python-jose), password hashing (passlib/bcrypt) |
+| `agente_rolplay/routers/` | FastAPI routers for auth, users, roles |
+| `agente_rolplay/file_processor.py` | Text extraction from PDF, DOCX, PPTX, XLSX for vectorization |
 
 ### Data Stores
 

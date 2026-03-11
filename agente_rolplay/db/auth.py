@@ -5,7 +5,7 @@ import bcrypt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
-from src.agente_rolplay.config import ACCESS_TOKEN_EXPIRE_MINUTES, ALGORITHM, SECRET_KEY
+from agente_rolplay.config import ACCESS_TOKEN_EXPIRE_MINUTES, ALGORITHM, SECRET_KEY
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
@@ -56,7 +56,7 @@ def get_current_user(
     if user_id is None:
         raise credentials_exception
 
-    from src.agente_rolplay.models import User
+    from agente_rolplay.db.models import User
     from uuid import UUID
 
     try:

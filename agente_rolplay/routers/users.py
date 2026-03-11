@@ -3,16 +3,16 @@ from sqlalchemy.orm import Session
 from uuid import UUID
 from typing import List
 
-from src.agente_rolplay.database import get_db
-from src.agente_rolplay.models import User, Profile, Organization, Role
-from src.agente_rolplay.schemas import (
+from agente_rolplay.db.database import get_db
+from agente_rolplay.db.models import User, Profile, Organization, Role
+from agente_rolplay.db.schemas import (
     ProfileResponse,
     ProfileCreate,
     ProfileUpdate,
     ProfileWithUser,
     RoleResponse,
 )
-from src.agente_rolplay.auth import get_current_user
+from agente_rolplay.db.auth import get_current_user
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 

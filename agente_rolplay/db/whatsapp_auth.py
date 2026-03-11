@@ -3,9 +3,9 @@ from typing import Optional, Dict, Any, List
 from uuid import UUID
 from anthropic import Anthropic
 
-from src.agente_rolplay.config import ANTHROPIC_API_KEY
-from src.agente_rolplay.database import SessionLocal
-from src.agente_rolplay.models import Profile, Role, Organization
+from agente_rolplay.config import ANTHROPIC_API_KEY
+from agente_rolplay.db.database import SessionLocal
+from agente_rolplay.db.models import Profile, Role, Organization
 
 anthropic_client = Anthropic(api_key=ANTHROPIC_API_KEY)
 

@@ -7,16 +7,16 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from datetime import timedelta
 
-from src.agente_rolplay.database import get_db
-from src.agente_rolplay.models import User, Organization, Profile, Role
-from src.agente_rolplay.schemas import (
+from agente_rolplay.db.database import get_db
+from agente_rolplay.db.models import User, Organization, Profile, Role
+from agente_rolplay.db.schemas import (
     SignupRequest,
     LoginRequest,
     Token,
     UserResponse,
     OrganizationResponse,
 )
-from src.agente_rolplay.auth import (
+from agente_rolplay.db.auth import (
     verify_password,
     get_password_hash,
     create_access_token,

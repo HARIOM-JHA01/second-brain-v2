@@ -3,7 +3,7 @@ import traceback
 from fastapi import APIRouter, Request
 from fastapi.responses import Response
 
-from src.agente_rolplay.process_messages import procesar_mensajes_entrantes
+from agente_rolplay.messaging.process_messages import procesar_mensajes_entrantes
 
 router = APIRouter()
 

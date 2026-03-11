@@ -1,9 +1,9 @@
-from src.agente_rolplay.twilio_client import (
+from agente_rolplay.messaging.twilio_client import (
     send_twilio_message,
     send_twilio_document,
     download_document_from_twilio,
 )
-from src.agente_rolplay.message_processor import (
+from agente_rolplay.messaging.message_processor import (
     process_incoming_messages_functional,
     process_incoming_messages,
 )

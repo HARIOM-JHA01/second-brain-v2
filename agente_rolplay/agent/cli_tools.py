@@ -4,7 +4,7 @@ from anthropic import Anthropic
 from datetime import datetime
 from openai import OpenAI
 from pinecone import Pinecone, ServerlessSpec
-from src.agente_rolplay.config import (
+from agente_rolplay.config import (
     ANTHROPIC_API_KEY,
     ANTHROPIC_MODEL_NAME,
     N_SIMILARITY,
@@ -15,7 +15,7 @@ from src.agente_rolplay.config import (
     PINECONE_INDEX_NAME,
     VECTOR_DIMENSION,
 )
-from src.agente_rolplay.system_prompt import (
+from agente_rolplay.agent.system_prompt import (
     system_prompt_categorize,
 )
 

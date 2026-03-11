@@ -79,7 +79,7 @@ CAPABILITIES_MESSAGES = {
     "en": """Sure! Here are my capabilities:
 
 📄 **Documents** - I can extract information from PDFs, DOCX, XLSX you upload
-💾 **Memory** - I can answer questions about your Second Brain  
+💾 **Memory** - I can answer questions about your Second Brain
 💬 **Chat** - I can have conversations about your Knowledge Base
 
 How can I help you? 😊""",

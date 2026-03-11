@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
 
-from src.agente_rolplay.cli_tools import anthropic_completion, get_text_by_relevance
-from src.agente_rolplay.config import GPT_ACTIONS_API_KEY
-from src.agente_rolplay.system_prompt import system_prompt_rag
+from agente_rolplay.agent.cli_tools import anthropic_completion, get_text_by_relevance
+from agente_rolplay.config import GPT_ACTIONS_API_KEY
+from agente_rolplay.agent.system_prompt import system_prompt_rag
 
 router = APIRouter()
 
