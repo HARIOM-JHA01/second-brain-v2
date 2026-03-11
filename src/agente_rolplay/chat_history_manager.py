@@ -1,28 +1,22 @@
 # python3 chat_history.py
 
 import json
-import os
 import redis
 import tiktoken
-from dotenv import load_dotenv
 
-load_dotenv()
-
-openai_api_key = os.getenv("OPENAI_API_KEY")
+from src.agente_rolplay.config import (
+    REDIS_HOST,
+    REDIS_PASSWORD,
+    REDIS_PORT,
+)
 
 # Redis connection configuration
-redis_host = os.getenv("REDIS_HOST")
-redis_port = os.getenv("REDIS_PORT")
-redis_password = os.getenv("REDIS_PASSWORD")
-
-TIEMPO_NUEVO = int(os.getenv("TIEMPO_NUEVO")) if os.getenv("TIEMPO_NUEVO") else 60 * 10
-
 redis_client = redis.Redis(
-    host=redis_host,
-    port=redis_port,
+    host=REDIS_HOST,
+    port=REDIS_PORT,
     decode_responses=True,
     username="default",
-    password=redis_password,
+    password=REDIS_PASSWORD,
 )
 
 MAX_MESSAGES_IN_MEMORY = 12  # Only last 15 messages by default

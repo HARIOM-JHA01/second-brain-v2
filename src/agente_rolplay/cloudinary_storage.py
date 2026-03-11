@@ -1,18 +1,21 @@
-import os
 import cloudinary
 import cloudinary.uploader
-from dotenv import load_dotenv
 
-load_dotenv()
+from src.agente_rolplay.config import CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET, CLOUDINARY_CLOUD_NAME
 
 cloudinary.config(
-    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
-    api_key=os.getenv("CLOUDINARY_API_KEY"),
-    api_secret=os.getenv("CLOUDINARY_API_SECRET"),
+    cloud_name=CLOUDINARY_CLOUD_NAME,
+    api_key=CLOUDINARY_API_KEY,
+    api_secret=CLOUDINARY_API_SECRET,
 )
 
 
-def upload_to_cloudinary(file_path, public_id=None, folder=None):
+def upload_to_cloudinary(
+    file_path: str,
+    public_id: str = None,
+    folder: str = None,
+    resource_type: str = "auto",
+):
     """
     Upload a file to Cloudinary.
 
@@ -20,14 +23,13 @@ def upload_to_cloudinary(file_path, public_id=None, folder=None):
         file_path (str): Local path to the file
         public_id (str, optional): Custom public ID for the file
         folder (str, optional): Folder in Cloudinary to upload to
+        resource_type (str): Resource type - "auto", "image", "video", "raw" (default: "auto")
 
     Returns:
         dict: Upload result with URL and details
     """
     try:
-        upload_params = {
-            "resource_type": "image",
-        }
+        upload_params = {}
 
         if public_id:
             upload_params["public_id"] = public_id
@@ -35,7 +37,9 @@ def upload_to_cloudinary(file_path, public_id=None, folder=None):
         if folder:
             upload_params["folder"] = folder
 
-        result = cloudinary.uploader.upload(file_path, **upload_params)
+        result = cloudinary.uploader.upload(
+            file_path, resource_type=resource_type, **upload_params
+        )
 
         return {
             "success": True,
@@ -46,6 +50,7 @@ def upload_to_cloudinary(file_path, public_id=None, folder=None):
             "width": result.get("width"),
             "height": result.get("height"),
             "bytes": result.get("bytes"),
+            "resource_type": result.get("resource_type"),
         }
 
     except Exception as e:
@@ -53,7 +58,7 @@ def upload_to_cloudinary(file_path, public_id=None, folder=None):
         return {"success": False, "error": str(e)}
 
 
-def upload_file_to_cloudinary(file_path, folder="knowledgebase"):
+def upload_file_to_cloudinary(file_path: str, folder: str = "knowledgebase"):
     """
     Upload a file to Cloudinary with folder support.
 
@@ -64,4 +69,4 @@ def upload_file_to_cloudinary(file_path, folder="knowledgebase"):
     Returns:
         dict: Upload result with URL and details
     """
-    return upload_to_cloudinary(file_path, folder=folder)
+    return upload_to_cloudinary(file_path, folder=folder, resource_type="auto")

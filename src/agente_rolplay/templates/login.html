@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login - Second Brain</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Inter", sans-serif;
+        background: #0a0a0f;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .bg-gradient {
+        position: fixed;
+        inset: 0;
+        background:
+          radial-gradient(
+            ellipse at 30% 30%,
+            rgba(99, 102, 241, 0.15) 0%,
+            transparent 50%
+          ),
+          radial-gradient(
+            ellipse at 70% 70%,
+            rgba(139, 92, 246, 0.15) 0%,
+            transparent 50%
+          );
+        z-index: -1;
+      }
+      .login-card {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 20px;
+        padding: 2.5rem;
+        width: 100%;
+        max-width: 400px;
+      }
+      h2 {
+        color: #fff;
+        text-align: center;
+        margin-bottom: 2rem;
+        font-size: 1.5rem;
+      }
+      .form-group {
+        margin-bottom: 1.25rem;
+      }
+      label {
+        display: block;
+        color: rgba(255, 255, 255, 0.7);
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+        font-weight: 500;
+      }
+      input {
+        width: 100%;
+        padding: 0.875rem 1rem;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        color: #fff;
+        font-size: 1rem;
+        outline: none;
+        transition: border-color 0.2s;
+      }
+      input:focus {
+        border-color: #6366f1;
+      }
+      .btn {
+        width: 100%;
+        padding: 0.875rem;
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        border: none;
+        border-radius: 10px;
+        color: white;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+      }
+      .footer {
+        text-align: center;
+        margin-top: 1.5rem;
+        color: rgba(255, 255, 255, 0.5);
+        font-size: 0.9rem;
+      }
+      .footer a {
+        color: #6366f1;
+        text-decoration: none;
+      }
+      .footer a:hover {
+        text-decoration: underline;
+      }
+      .logo {
+        text-align: center;
+        margin-bottom: 1.5rem;
+      }
+      .logo span {
+        font-size: 1.75rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="bg-gradient"></div>
+    <div class="login-card">
+      <div class="logo">
+        <span>Second Brain</span>
+      </div>
+      <h2>Welcome back</h2>
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            required
+            placeholder="you@example.com"
+          />
+        </div>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input
+            type="password"
+            id="password"
+            name="password"
+            required
+            placeholder="••••••••"
+          />
+        </div>
+        <button type="submit" class="btn">Sign In</button>
+      </form>
+      <div id="errorMessage" style="color: #ff6b6b; margin-top: 1rem; display: none;"></div>
+      <div class="footer">
+        Don't have an account? <a href="/signup">Create one</a>
+      </div>
+    </div>
+    <script>
+      document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = {
+          email: document.getElementById('email').value,
+          password: document.getElementById('password').value
+        };
+        try {
+          const response = await fetch('/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData)
+          });
+          const data = await response.json();
+          if (response.ok) {
+            localStorage.setItem('access_token', data.access_token);
+            window.location.href = '/dashboard';
+          } else {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = data.detail || 'Login failed';
+            errorDiv.style.display = 'block';
+          }
+        } catch (err) {
+          const errorDiv = document.getElementById('errorMessage');
+          errorDiv.textContent = 'An error occurred';
+          errorDiv.style.display = 'block';
+        }
+      });
+    </script>
+  </body>
+</html>

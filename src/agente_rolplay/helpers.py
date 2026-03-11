@@ -1,7 +1,6 @@
 # python3 utils.py
 
 from datetime import datetime
-from dotenv import load_dotenv
 
 import json
 import os
@@ -9,22 +8,19 @@ import redis
 import requests
 import tiktoken
 
-load_dotenv()
-
-INSTANCIA_ULTRAMSG = os.getenv("INSTANCIA_ULTRAMSG")
-TOKEN_ULTRAMSG = os.getenv("TOKEN_ULTRAMSG")
-WEBHOOK_RENDER = os.getenv("WEBHOOK_RENDER")
-
-redis_host = os.getenv("REDIS_HOST")
-redis_port = os.getenv("REDIS_PORT")
-redis_password = os.getenv("REDIS_PASSWORD")
+from src.agente_rolplay.config import (
+    REDIS_HOST,
+    REDIS_PASSWORD,
+    REDIS_PORT,
+    WEBHOOK_RENDER,
+)
 
 redis_metadata_client = redis.Redis(
-    host=redis_host,
-    port=redis_port,
+    host=REDIS_HOST,
+    port=REDIS_PORT,
     decode_responses=True,
     username="default",
-    password=redis_password,
+    password=REDIS_PASSWORD,
 )
 
 # NEW: TTL of 24 hours (instead of 10 minutes)

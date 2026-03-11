@@ -85,6 +85,11 @@ CAPABILITIES_MESSAGES = {
 How can I help you? 😊""",
 }
 
+FILE_UPLOAD_MESSAGES = {
+    "es": "Perfecto, envíame el archivo que deseas subir y lo subiré al Knowledge Base.",
+    "en": "Sure, send me the file you want to upload and I'll add it to the Knowledge Base.",
+}
+
 
 def is_greeting(text: str) -> bool:
     """Check if text is a greeting."""
@@ -228,6 +233,11 @@ def get_intro_message(lang: str = "es") -> str:
 def get_capabilities_message(lang: str = "es") -> str:
     """Get capabilities message in specified language."""
     return CAPABILITIES_MESSAGES.get(lang, CAPABILITIES_MESSAGES["es"])
+
+
+def get_file_upload_message(lang: str = "es") -> str:
+    """Get file upload request message in specified language."""
+    return FILE_UPLOAD_MESSAGES.get(lang, FILE_UPLOAD_MESSAGES["es"])
 
 
 def should_show_intro(text: str, has_chat_history: bool = False) -> Tuple[bool, bool]:

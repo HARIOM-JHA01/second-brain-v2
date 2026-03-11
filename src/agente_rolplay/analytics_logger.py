@@ -3,12 +3,8 @@ import os
 import threading
 from datetime import datetime
 from typing import Optional
-from dotenv import load_dotenv
 
-load_dotenv()
-
-LOG_DIR = os.getenv("ANALYTICS_LOG_DIR", "./logs")
-LOG_FILE = os.getenv("ANALYTICS_LOG_FILE", "chat_analytics.jsonl")
+from src.agente_rolplay.config import ANALYTICS_LOG_DIR as LOG_DIR, ANALYTICS_LOG_FILE as LOG_FILE
 
 ANALYTICS_LOCK = threading.Lock()
 

@@ -1,0 +1,180 @@
+{% extends "dashboard.html" %}
+
+{% block dashboard_content %}
+<div class="page-header">
+    <h1>Users</h1>
+    <button class="btn btn-primary" onclick="document.getElementById('addUserModal').classList.add('show')">
+        Add User
+    </button>
+</div>
+
+<table>
+    <thead>
+        <tr>
+            <th>Username</th>
+            <th>Email</th>
+            <th>WhatsApp</th>
+            <th>Role</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody id="usersTable">
+        <tr>
+            <td colspan="6" style="text-align: center;">Loading...</td>
+        </tr>
+    </tbody>
+</table>
+
+<div id="addUserModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Add User</h2>
+            <button class="close" onclick="document.getElementById('addUserModal').classList.remove('show')">&times;</button>
+        </div>
+        <form id="addUserForm">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" required>
+            </div>
+            <div class="form-group">
+                <label for="whatsapp_number">WhatsApp Number</label>
+                <input type="text" id="whatsapp_number" name="whatsapp_number" placeholder="+1234567890" required>
+            </div>
+            <div class="form-group">
+                <label for="role_id">Role</label>
+                <select id="role_id" name="role_id" required>
+                    <option value="">Select a role</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Add User</button>
+        </form>
+    </div>
+</div>
+
+<script>
+let users = [];
+let roles = [];
+
+async function loadUsers() {
+    try {
+        const response = await fetch('/api/users', {
+            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+        });
+        if (response.status === 401) {
+            window.location.href = '/login';
+            return;
+        }
+        users = await response.json();
+        renderUsers();
+    } catch (error) {
+        console.error('Error loading users:', error);
+    }
+}
+
+async function loadRoles() {
+    try {
+        const response = await fetch('/api/roles', {
+            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+        });
+        roles = await response.json();
+        
+        const select = document.getElementById('role_id');
+        roles.forEach(role => {
+            const option = document.createElement('option');
+            option.value = role.id;
+            option.textContent = role.name;
+            select.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error loading roles:', error);
+    }
+}
+
+function renderUsers() {
+    const tbody = document.getElementById('usersTable');
+    if (users.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No users found</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = users.map(user => `
+        <tr>
+            <td>${user.username || '-'}</td>
+            <td>${user.user?.email || '-'}</td>
+            <td>${user.whatsapp_number || '-'}</td>
+            <td>${user.role?.name || '-'}</td>
+            <td>
+                <span class="badge ${user.is_active ? 'badge-active' : 'badge-inactive'}">
+                    ${user.is_active ? 'Active' : 'Inactive'}
+                </span>
+            </td>
+            <td class="actions">
+                ${user.is_active 
+                    ? `<button class="btn btn-sm btn-danger" onclick="revokeAccess('${user.id}')">Revoke</button>`
+                    : `<button class="btn btn-sm btn-success" onclick="reactivateUser('${user.id}')">Reactivate</button>`
+                }
+            </td>
+        </tr>
+    `).join('');
+}
+
+async function revokeAccess(userId) {
+    if (!confirm('Are you sure you want to revoke access for this user?')) return;
+    
+    try {
+        await fetch(`/api/users/${userId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+        });
+        loadUsers();
+    } catch (error) {
+        console.error('Error revoking access:', error);
+    }
+}
+
+async function reactivateUser(userId) {
+    try {
+        await fetch(`/api/users/${userId}/reactivate`, {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+        });
+        loadUsers();
+    } catch (error) {
+        console.error('Error reactivating user:', error);
+    }
+}
+
+document.getElementById('addUserForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const formData = {
+        username: document.getElementById('username').value,
+        whatsapp_number: document.getElementById('whatsapp_number').value,
+        role_id: document.getElementById('role_id').value,
+        user_id: crypto.randomUUID(),
+        org_id: null
+    };
+    
+    try {
+        await fetch('/api/users', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + localStorage.getItem('token')
+            },
+            body: JSON.stringify(formData)
+        });
+        
+        document.getElementById('addUserModal').classList.remove('show');
+        document.getElementById('addUserForm').reset();
+        loadUsers();
+    } catch (error) {
+        console.error('Error adding user:', error);
+    }
+});
+
+loadUsers();
+loadRoles();
+</script>
+{% endblock %}

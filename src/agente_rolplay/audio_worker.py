@@ -13,24 +13,21 @@ from src.agente_rolplay.chat_history_manager import (
     get_chat_history,
 )
 from datetime import datetime
-from dotenv import load_dotenv
 from src.agente_rolplay.process_messages import enviar_mensaje_twilio
 from src.agente_rolplay.whisper_service import transcribe_audio_from_url
 
 import json
-import os
 import redis
 import logging
 
-load_dotenv()
+from src.agente_rolplay.config import (
+    REDIS_HOST,
+    REDIS_PASSWORD,
+    REDIS_PORT,
+    VOICE_NOTES_ENABLED,
+)
 
 # ===== CONFIGURATION =====
-VOICE_NOTES_ENABLED = os.getenv("VOICE_NOTES_ENABLED", "false").lower() == "true"
-REDIS_HOST = os.getenv("REDIS_HOST")
-REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
-REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
-
-# Redis Broker for Celery
 CELERY_BROKER_URL = f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/0"
 CELERY_RESULT_BACKEND = f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/1"
 

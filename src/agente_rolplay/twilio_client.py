@@ -1,14 +1,10 @@
 from twilio.rest import Client
-from dotenv import load_dotenv
 import os
 import requests
 import time
+import re
 
-load_dotenv()
-
-TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
-TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
-TWILIO_SANDBOX_NUMBER = os.getenv("TWILIO_SANDBOX_NUMBER")
+from src.agente_rolplay.config import TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_SANDBOX_NUMBER
 
 twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
@@ -28,7 +24,27 @@ def download_document_from_twilio(media_url, file_name, file_type):
         temp_dir = "./temp_uploads"
         os.makedirs(temp_dir, exist_ok=True)
 
+        # Prefer original filename from Twilio response headers when available.
         full_name = f"{file_name}.{file_type}"
+        content_disposition = response.headers.get("Content-Disposition", "")
+        if content_disposition:
+            # Handle filename*=UTF-8''<name> and filename="<name>"
+            match_utf8 = re.search(r"filename\\*=UTF-8''([^;]+)", content_disposition)
+            match_plain = re.search(r'filename="?([^";]+)"?', content_disposition)
+            raw_filename = None
+            if match_utf8:
+                raw_filename = match_utf8.group(1)
+            elif match_plain:
+                raw_filename = match_plain.group(1)
+
+            if raw_filename:
+                raw_filename = requests.utils.unquote(raw_filename).strip()
+                safe_name = os.path.basename(raw_filename).replace("/", "_")
+                if "." not in safe_name:
+                    safe_name = f"{safe_name}.{file_type}"
+                if safe_name:
+                    full_name = safe_name
+
         temp_path = os.path.join(temp_dir, full_name)
 
         with open(temp_path, "wb") as f:

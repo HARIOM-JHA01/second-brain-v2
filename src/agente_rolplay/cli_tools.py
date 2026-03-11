@@ -2,33 +2,33 @@
 
 from anthropic import Anthropic
 from datetime import datetime
-from dotenv import load_dotenv
 from openai import OpenAI
 from pinecone import Pinecone, ServerlessSpec
+from src.agente_rolplay.config import (
+    ANTHROPIC_API_KEY,
+    ANTHROPIC_MODEL_NAME,
+    N_SIMILARITY,
+    OPENAI_API_KEY,
+    OPENAI_EMBEDDINGS_MODEL,
+    PINECONE_API_KEY,
+    PINECONE_ENV as PINECONE_ENVIRONMENT,
+    PINECONE_INDEX_NAME,
+    VECTOR_DIMENSION,
+)
 from src.agente_rolplay.system_prompt import (
     system_prompt_categorize,
 )
 
 import json
-import os
 
 # import pandas as pd
 import pytz
 import time
 
-load_dotenv()
-anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
-MODEL_NAME = os.getenv("ANTHROPIC_MODEL_NAME")
-openai_api_key = os.getenv("OPENAI_API_KEY")
-OPENAI_EMBEDDINGS_MODEL = os.getenv("OPENAI_EMBEDDINGS_MODEL")
-VECTOR_DIMENSION = int(os.getenv("VECTOR_DIMENSION", 1024))
-N_SIMILARITY = int(os.getenv("N_SIMILARITY", 3))
-PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
-PINECONE_ENVIRONMENT = os.getenv("PINECONE_ENVIRONMENT", "us-east-1")
-PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX_NAME", "rolplay-knowledge")
+MODEL_NAME = ANTHROPIC_MODEL_NAME
 
-client = Anthropic(api_key=anthropic_api_key)
-openai_client = OpenAI(api_key=openai_api_key)
+client = Anthropic(api_key=ANTHROPIC_API_KEY)
+openai_client = OpenAI(api_key=OPENAI_API_KEY)
 pinecone_client = Pinecone(api_key=PINECONE_API_KEY)
 
 

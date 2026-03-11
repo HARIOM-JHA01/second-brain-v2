@@ -109,6 +109,13 @@ dependencies = [
     "uvicorn==0.38.0",
     "xlsxwriter==3.2.9",
     "yarl==1.22.0",
+    "sqlalchemy>=2.0.0",
+    "psycopg2-binary>=2.9.0",
+    "python-jose[cryptography]>=3.3.0",
+    "passlib[bcrypt]>=1.7.4",
+    "jinja2>=3.1.0",
+    "itsdangerous>=2.1.0",
+    "email-validator>=2.0.0",
 ]
 
 [project.scripts]

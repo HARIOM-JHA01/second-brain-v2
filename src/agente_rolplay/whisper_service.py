@@ -3,7 +3,6 @@ Audio transcription module using OpenAI Whisper API.
 Converts WhatsApp voice notes to text.
 """
 
-from dotenv import load_dotenv
 from openai import OpenAI
 
 import os
@@ -12,11 +11,7 @@ import tempfile
 import time
 import traceback
 
-load_dotenv()
-
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
-TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
+from src.agente_rolplay.config import OPENAI_API_KEY, TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 

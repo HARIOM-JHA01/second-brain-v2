@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Second Brain - AI-Powered WhatsApp Assistant</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+      }
+      body {
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+          background: #0a0a0f;
+          color: #fff;
+          min-height: 100vh;
+          overflow-x: hidden;
+      }
+
+      /* Animated background */
+      .bg-gradient {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          z-index: -1;
+          background:
+              radial-gradient(ellipse at 20% 20%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
+              radial-gradient(ellipse at 80% 80%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
+              radial-gradient(ellipse at 50% 50%, rgba(59, 130, 246, 0.1) 0%, transparent 70%);
+      }
+
+      .navbar {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 1.5rem 4rem;
+          backdrop: rgba(10, 10, 15, 0.8);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+          position: fixed;
+          width: 100%;
+          top: 0;
+          z-index: 100;
+      }
+
+      .logo {
+          font-size: 1.5rem;
+          font-weight: 800;
+          background: linear-gradient(135deg, #6366f1, #8b5cf6);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          letter-spacing: -0.5px;
+      }
+
+      .nav-links {
+          display: flex;
+          gap: 2rem;
+          align-items: center;
+      }
+
+      .nav-links a {
+          color: rgba(255, 255, 255, 0.7);
+          text-decoration: none;
+          font-weight: 500;
+          font-size: 0.95rem;
+          transition: color 0.2s;
+      }
+
+      .nav-links a:hover {
+          color: #fff;
+      }
+
+      .btn {
+          padding: 0.75rem 1.5rem;
+          border-radius: 8px;
+          font-weight: 600;
+          font-size: 0.95rem;
+          text-decoration: none;
+          transition: all 0.2s;
+          cursor: pointer;
+          border: none;
+      }
+
+      .btn-primary {
+          background: linear-gradient(135deg, #6366f1, #8b5cf6);
+          color: white;
+          box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+      }
+
+      .btn-primary:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+      }
+
+      .btn-outline {
+          background: transparent;
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          color: white;
+      }
+
+      .btn-outline:hover {
+          background: rgba(255, 255, 255, 0.1);
+          border-color: rgba(255, 255, 255, 0.4);
+      }
+
+      /* Hero section */
+      .hero {
+          min-height: 100vh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 8rem 4rem 4rem;
+          text-align: center;
+      }
+
+      .hero-content {
+          max-width: 900px;
+      }
+
+      .hero h1 {
+          font-size: 4rem;
+          font-weight: 800;
+          line-height: 1.1;
+          margin-bottom: 1.5rem;
+          letter-spacing: -1px;
+      }
+
+      .hero h1 span {
+          background: linear-gradient(135deg, #6366f1, #8b5cf6, #ec4899);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+      }
+
+      .hero p {
+          font-size: 1.25rem;
+          color: rgba(255, 255, 255, 0.6);
+          margin-bottom: 2.5rem;
+          max-width: 600px;
+          margin-left: auto;
+          margin-right: auto;
+          line-height: 1.7;
+      }
+
+      .hero-buttons {
+          display: flex;
+          gap: 1rem;
+          justify-content: center;
+          flex-wrap: wrap;
+      }
+
+      .hero-buttons .btn {
+          padding: 1rem 2rem;
+          font-size: 1rem;
+      }
+
+      /* WhatsApp preview */
+      .phone-preview {
+          margin-top: 4rem;
+          position: relative;
+      }
+
+      .phone-mockup {
+          width: 320px;
+          height: 650px;
+          background: #1a1a24;
+          border-radius: 40px;
+          border: 4px solid #2a2a3a;
+          margin: 0 auto;
+          padding: 20px;
+          box-shadow:
+              0 25px 50px rgba(0, 0, 0, 0.5),
+              0 0 100px rgba(99, 102, 241, 0.2);
+      }
+
+      .phone-screen {
+          background: #0d0d14;
+          height: 100%;
+          border-radius: 25px;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+      }
+
+      .chat-bubble {
+          max-width: 80%;
+          padding: 12px 16px;
+          border-radius: 18px;
+          margin: 8px 0;
+          font-size: 0.9rem;
+          line-height: 1.5;
+      }
+
+      .chat-bubble.user {
+          background: linear-gradient(135deg, #6366f1, #8b5cf6);
+          align-self: flex-end;
+          border-bottom-right-radius: 4px;
+          margin-left: auto;
+      }
+
+      .chat-bubble.bot {
+          background: #1e1e2a;
+          align-self: flex-start;
+          border-bottom-left-radius: 4px;
+      }
+
+      /* Features section */
+      .features {
+          padding: 6rem 4rem;
+          background: rgba(255, 255, 255, 0.02);
+      }
+
+      .features-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+          gap: 2rem;
+          max-width: 1200px;
+          margin: 0 auto;
+      }
+
+      .feature-card {
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.05);
+          border-radius: 16px;
+          padding: 2rem;
+          transition: all 0.3s;
+      }
+
+      .feature-card:hover {
+          transform: translateY(-5px);
+          background: rgba(255, 255, 255, 0.05);
+          border-color: rgba(99, 102, 241, 0.3);
+      }
+
+      .feature-icon {
+          width: 50px;
+          height: 50px;
+          background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.2));
+          border-radius: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 1.5rem;
+          margin-bottom: 1rem;
+      }
+
+      .feature-card h3 {
+          font-size: 1.25rem;
+          margin-bottom: 0.75rem;
+          color: #fff;
+      }
+
+      .feature-card p {
+          color: rgba(255, 255, 255, 0.5);
+          line-height: 1.6;
+      }
+
+      /* CTA section */
+      .cta {
+          padding: 6rem 4rem;
+          text-align: center;
+      }
+
+      .cta h2 {
+          font-size: 2.5rem;
+          margin-bottom: 1rem;
+      }
+
+      .cta p {
+          color: rgba(255, 255, 255, 0.6);
+          margin-bottom: 2rem;
+          font-size: 1.1rem;
+      }
+
+      /* Footer */
+      footer {
+          padding: 2rem 4rem;
+          border-top: 1px solid rgba(255, 255, 255, 0.05);
+          text-align: center;
+          color: rgba(255, 255, 255, 0.4);
+          font-size: 0.9rem;
+      }
+
+      @media (max-width: 768px) {
+          .navbar {
+              padding: 1rem 2rem;
+          }
+          .hero {
+              padding: 6rem 2rem 3rem;
+          }
+          .hero h1 {
+              font-size: 2.5rem;
+          }
+          .features, .cta {
+              padding: 4rem 2rem;
+          }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="bg-gradient"></div>
+
+    <nav class="navbar">
+      <div class="logo">Second Brain</div>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="/login">Login</a>
+        <a href="/signup" class="btn btn-primary">Get Started</a>
+      </div>
+    </nav>
+
+    <section class="hero">
+      <div class="hero-content">
+        <h1>Your AI-Powered<br /><span>WhatsApp Assistant</span></h1>
+        <p>
+          Transform your WhatsApp experience with intelligent automation. Upload
+          documents, get AI-powered responses, and manage your team — all
+          through WhatsApp.
+        </p>
+
+        <div class="hero-buttons">
+          <a href="/signup" class="btn btn-primary">Start Here</a>
+          <a href="#features" class="btn btn-outline">Learn More</a>
+        </div>
+
+        <div class="phone-preview">
+          <div class="phone-mockup">
+            <div class="phone-screen" style="padding: 15px">
+              <div class="chat-bubble bot">
+                Hello! I'm your AI assistant. How can I help you today?
+              </div>
+              <div class="chat-bubble user">
+                Can you help me analyze our Q4 financial report?
+              </div>
+              <div class="chat-bubble bot">
+                Of course! I've analyzed the documents in your knowledge base.
+                Here's what I found...
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="features" id="features">
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">🤖</div>
+          <h3>AI-Powered Responses</h3>
+          <p>
+            Powered by Claude, the bot understands context and provides
+            intelligent, relevant answers to any question.
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">📄</div>
+          <h3>Document Intelligence</h3>
+          <p>
+            Upload documents via WhatsApp. The bot indexes them and makes your
+            entire knowledge base searchable.
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">👥</div>
+          <h3>Team Management</h3>
+          <p>
+            Add team members, assign roles, and control access levels. Perfect
+            for organizations of any size.
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">🔒</div>
+          <h3>Role-Based Security</h3>
+          <p>
+            Define custom roles with specific permissions. Control who can
+            access sensitive information.
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">💬</div>
+          <h3>Multi-Language Support</h3>
+          <p>
+            Supports English and Spanish. The bot automatically detects language
+            and responds accordingly.
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">⚡</div>
+          <h3>Voice & Media</h3>
+          <p>
+            Process voice messages, images, and documents. Get AI transcription
+            and analysis instantly.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="cta">
+      <h2>Ready to transform your workflow?</h2>
+      <p>Start your free trial today. No credit card required.</p>
+      <a href="/signup" class="btn btn-primary" style="padding: 1rem 3rem"
+        >Create Free Account</a
+      >
+    </section>
+
+    <footer>
+      <p>&copy; 2026 Second Brain. All rights reserved.</p>
+    </footer>
+  </body>
+</html>

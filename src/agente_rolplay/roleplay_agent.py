@@ -1,35 +1,45 @@
 # python3 roleplay_agent.py
 
 from anthropic import Anthropic
-from dotenv import load_dotenv
 from src.agente_rolplay.cli_tools import (
-    get_text_by_relevance,
     get_mexico_city_time,
     anthropic_completion,
 )
+from src.agente_rolplay.config import (
+    ANTHROPIC_API_KEY,
+    ANTHROPIC_MODEL_NAME,
+    USER_ID,
+    WEBHOOK_RENDER as WEBHOOK_RENDER_RAW,
+)
+from src.agente_rolplay.pinecone_client import search_knowledge_base
 from src.agente_rolplay.system_prompt import PROMPT_CORE, system_prompt_rag
 from src.agente_rolplay.tools import tools
 
-import os
+import re
 import time
 
-load_dotenv()
+MODEL_NAME = ANTHROPIC_MODEL_NAME
 
-anthropic_api_key: str = os.getenv("ANTHROPIC_API_KEY")
-MODEL_NAME = os.getenv("ANTHROPIC_MODEL_NAME")
+client = Anthropic(api_key=ANTHROPIC_API_KEY)
+WEBHOOK_RENDER = WEBHOOK_RENDER_RAW if WEBHOOK_RENDER_RAW != "zz" else ""
 
-client = Anthropic(api_key=anthropic_api_key)
-WEBHOOK_RENDER = (
-    os.getenv("WEBHOOK_RENDER") if os.getenv("WEBHOOK_RENDER") != "zz" else ""
-)
-
-user_id = os.getenv("USER_ID") if os.getenv("USER_ID") is not None else "default_user"
+user_id = USER_ID
 
 # ----- ----- ----- AGENT HELPER FUNCTIONS ----- ----- -----
 
 
-def construir_system_prompt(PROMPT_CORE=PROMPT_CORE):
+def construir_system_prompt(PROMPT_CORE=PROMPT_CORE, response_language: str = "es"):
     prompt = PROMPT_CORE
+    if response_language == "en":
+        prompt += (
+            "\n\nLANGUAGE OVERRIDE: The user is speaking English. "
+            "You must answer in English."
+        )
+    else:
+        prompt += (
+            "\n\nLANGUAGE OVERRIDE: El usuario está hablando en español. "
+            "Debes responder en español."
+        )
     prompt += f"\n\nCurrent date: {get_mexico_city_time()}"
     return prompt
 
@@ -43,6 +53,7 @@ def responder_usuario(
     telefono,
     id_conversacion,
     id_phone_number,
+    response_language="es",
     model_name=MODEL_NAME,
     user_id=user_id,
     anthropic_client=client,
@@ -54,7 +65,7 @@ def responder_usuario(
     new_messages = messages + [{"role": "user", "content": data["body"]}]
 
     # 5. Build system prompt according to phase
-    system_prompt = construir_system_prompt()
+    system_prompt = construir_system_prompt(response_language=response_language)
 
     response = anthropic_client.messages.create(
         system=system_prompt,
@@ -78,56 +89,57 @@ def responder_usuario(
 
         if "informacion_general" in tool_name.lower():
             print("Using general information tool")
-            ans = (
-                anthropic_completion(
-                    system_prompt=system_prompt_rag,
-                    messages=[{"role": "user", "content": data["body"]}],
-                    # model=model_name,
-                    # max_tokens=1000,
-                    # temperature=0.1
+            raw_query = tool_input.get("consulta") or data.get("body", "")
+            optimized_query = raw_query
+
+            try:
+                optimized_query = (
+                    anthropic_completion(
+                        system_prompt=system_prompt_rag,
+                        messages=[{"role": "user", "content": raw_query}],
+                    )
+                    .content[0]
+                    .text.strip()
                 )
-                .content[0]
-                .text.strip()
+            except Exception:
+                optimized_query = raw_query
+
+            text_lower = raw_query.lower()
+            filename_filter = None
+            file_match = re.search(r"\b[\w\-. ]+\.(pdf|docx|pptx|txt|xlsx)\b", raw_query, re.I)
+            if file_match:
+                filename_filter = file_match.group(0).strip()
+            elif any(
+                marker in text_lower
+                for marker in ["this document", "this file", "that document", "that file"]
+            ):
+                filename_filter = data.get("last_uploaded_filename")
+
+            results = search_knowledge_base(
+                query=optimized_query,
+                top_k=5,
+                filename_filter=filename_filter,
             )
-            print(f"RAG response: {ans}")
-            # content = str(get_text_by_relevance(tool_input['consulta']))
-            results = get_text_by_relevance(ans)
+
+            if not results and optimized_query != raw_query:
+                results = search_knowledge_base(
+                    query=raw_query,
+                    top_k=5,
+                    filename_filter=filename_filter,
+                )
+
             print(f"Content obtained from RAG: {results}")
 
-            category_icons = {
-                "proposal": "📄",
-                "service": "🛠️",
-                "integration": "🔗",
-                "meeting": "📝",
-                "contract": "📜",
-                "invoice": "💰",
-                "technical": "⚙️",
-                "company_info": "🏢",
-                "contact": "📱",
-                "faq": "❓",
-                "policy": "🔒",
-                "project": "📋",
-                "other": "📌",
-            }
-
-            grouped = {}
-            for item in results:
-                cat = item.get("category", "other")
-                if cat not in grouped:
-                    grouped[cat] = []
-                grouped[cat].append(
-                    f"- {item.get('nombre', 'Documento')}: {item.get('texto', '')[:200]}"
-                )
-
-            sections = []
-            for cat, items in grouped.items():
-                icon = category_icons.get(cat, "📌")
-                sections.append(f"## {icon} {cat.upper()}\n" + "\n".join(items))
-
-            content = "\n\n".join(sections)
-
-            if len(content) > 1500:
-                content = content[:1500] + "..."
+            if not results:
+                content = "No relevant knowledge-base documents found for this query."
+            else:
+                lines = []
+                for item in results:
+                    lines.append(
+                        f"- {item.get('filename', 'document')} (score {item.get('score', 0):.3f}): "
+                        f"{item.get('text_preview', '')[:260]}"
+                    )
+                content = "\n".join(lines)
 
         elif "actualizar_drive" in tool_name.lower():
             print("Drive update tool")
