@@ -9,6 +9,7 @@ from anthropic import Anthropic
 from agente_rolplay.messaging.twilio_client import (
     send_twilio_message,
     download_document_from_twilio,
+    get_media_content_length,
 )
 from agente_rolplay.agent.roleplay_agent import responder_usuario
 from agente_rolplay.messaging.chat_history_manager import (
@@ -58,6 +59,36 @@ r = redis.Redis(
     username="default",
     password=REDIS_PASSWORD,
 )
+
+# --- Limits ---
+MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024  # 50 MB
+RATE_LIMIT_MAX = 10        # max messages per window
+RATE_LIMIT_WINDOW = 60     # seconds
+
+FILE_TOO_LARGE_MSG = {
+    "es": "Lo siento, el archivo es demasiado grande. El tamaño máximo permitido es 50 MB.",
+    "en": "Sorry, the file is too large. The maximum allowed size is 50 MB.",
+}
+RATE_LIMIT_MSG = {
+    "es": "Has enviado demasiados mensajes. Por favor espera un momento e intenta de nuevo.",
+    "en": "You've sent too many messages. Please wait a moment and try again.",
+}
+
+
+def _is_rate_limited(phone_number: str, redis_client) -> bool:
+    """
+    Sliding-window rate limiter: max RATE_LIMIT_MAX messages per RATE_LIMIT_WINDOW seconds.
+    Returns True if the user has exceeded the limit.
+    """
+    key = f"rate_limit:{phone_number}"
+    count = redis_client.get(key)
+    if count is None:
+        redis_client.setex(key, RATE_LIMIT_WINDOW, 1)
+        return False
+    if int(count) >= RATE_LIMIT_MAX:
+        return True
+    redis_client.incr(key)
+    return False
 
 
 def is_knowledge_base_inventory_query(user_message: str) -> bool:
@@ -254,6 +285,12 @@ def handle_file_upload(
         extension = os.path.splitext(filename)[1][1:]
         redis_client.delete(existing_file_key)
         print(f"Using renamed file: {filename}")
+
+    file_size = get_media_content_length(media_url)
+    if file_size and file_size > MAX_FILE_SIZE_BYTES:
+        send_twilio_message(from_number, FILE_TOO_LARGE_MSG["es"])
+        redis_client.set(dedup_key, "exists", ex=600)
+        return "FileTooLarge"
 
     send_twilio_message(from_number, f"Uploading '{filename}'...")
 
@@ -557,6 +594,12 @@ def process_incoming_messages_functional(form_data, redis_client=r):
         }
         extension = extensions.get(media_content_type, "jpg")
 
+        file_size = get_media_content_length(media_url)
+        if file_size and file_size > MAX_FILE_SIZE_BYTES:
+            send_twilio_message(from_number, FILE_TOO_LARGE_MSG["es"])
+            redis_client.set(dedup_key, "exists", ex=600)
+            return "FileTooLarge"
+
         send_twilio_message(from_number, "Uploading image to Knowledge Base...")
 
         temp_path = download_document_from_twilio(
@@ -669,6 +712,13 @@ def process_incoming_messages_functional(form_data, redis_client=r):
         print("USER CONVERSATION DICT", user_conversation_dict)
     except Exception:
         print("ERROR PRINTING USER CONVERSATION DICT")
+
+    if _is_rate_limited(phone_number, redis_client):
+        print(f"Rate limit exceeded for {phone_number}")
+        lang = detect_language(body) if body else "es"
+        send_twilio_message(from_number, RATE_LIMIT_MSG[lang])
+        redis_client.set(dedup_key, "exists", ex=600)
+        return "RateLimited"
 
     if body and is_session_fact(body):
         store_session_fact(phone_number, body)
@@ -1043,6 +1093,12 @@ def process_incoming_messages(form_data, redis_client=r):
         }
         extension = extensions.get(media_content_type, "jpg")
 
+        file_size = get_media_content_length(media_url)
+        if file_size and file_size > MAX_FILE_SIZE_BYTES:
+            send_twilio_message(from_number, FILE_TOO_LARGE_MSG["es"])
+            redis_client.set(dedup_key, "exists", ex=600)
+            return "FileTooLarge"
+
         send_twilio_message(from_number, "Uploading image to Knowledge Base...")
 
         temp_path = download_document_from_twilio(
@@ -1172,6 +1228,13 @@ def process_incoming_messages(form_data, redis_client=r):
                     return "Blocked"
     except Exception as e:
         print(f"Error checking permissions: {e}")
+
+    if _is_rate_limited(phone_number, redis_client):
+        print(f"Rate limit exceeded for {phone_number}")
+        lang = detect_language(body) if body else "es"
+        send_twilio_message(from_number, RATE_LIMIT_MSG[lang])
+        redis_client.set(dedup_key, "exists", ex=600)
+        return "RateLimited"
 
     if body and is_session_fact(body):
         store_session_fact(phone_number, body)

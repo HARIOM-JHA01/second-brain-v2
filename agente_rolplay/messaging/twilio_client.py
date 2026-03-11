@@ -9,6 +9,20 @@ from agente_rolplay.config import TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_
 twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
 
+def get_media_content_length(media_url: str) -> int:
+    """
+    Return the Content-Length (bytes) of a Twilio media URL via HEAD request.
+    Returns 0 if the header is absent or the request fails.
+    """
+    try:
+        response = requests.head(
+            media_url, auth=(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN), timeout=10
+        )
+        return int(response.headers.get("Content-Length", 0))
+    except Exception:
+        return 0
+
+
 def download_document_from_twilio(media_url, file_name, file_type):
     try:
         print(f"Downloading from Twilio: {media_url}")
