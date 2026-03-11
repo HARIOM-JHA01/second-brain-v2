@@ -51,6 +51,16 @@ from agente_rolplay.config import (
     REDIS_PASSWORD,
     REDIS_PORT,
     VOICE_NOTES_ENABLED,
+    MAX_FILE_SIZE_BYTES,
+    RATE_LIMIT_MAX_MESSAGES,
+    RATE_LIMIT_WINDOW_SECONDS,
+    ACRONYM_PENDING_TTL,
+    DEDUP_KEY_TTL,
+    USER_SESSION_TTL,
+    USER_LANG_TTL,
+    LAST_UPLOADED_FILE_TTL,
+    FILE_METADATA_TTL,
+    TWILIO_MESSAGE_MAX_LENGTH,
 )
 
 r = redis.Redis(
@@ -60,11 +70,6 @@ r = redis.Redis(
     username="default",
     password=REDIS_PASSWORD,
 )
-
-# --- Limits ---
-MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024  # 50 MB
-RATE_LIMIT_MAX = 10        # max messages per window
-RATE_LIMIT_WINDOW = 60     # seconds
 
 FILE_TOO_LARGE_MSG = {
     "es": "Lo siento, el archivo es demasiado grande. El tamaño máximo permitido es 50 MB.",
@@ -90,20 +95,19 @@ ACRONYM_CLARIFICATION_MSG = {
         "Or just tell me what it stands for and I'll answer right away."
     ),
 }
-ACRONYM_PENDING_TTL = 300  # seconds to wait for clarification
 
 
 def _is_rate_limited(phone_number: str, redis_client) -> bool:
     """
-    Sliding-window rate limiter: max RATE_LIMIT_MAX messages per RATE_LIMIT_WINDOW seconds.
+    Sliding-window rate limiter: max RATE_LIMIT_MAX_MESSAGES per RATE_LIMIT_WINDOW_SECONDS.
     Returns True if the user has exceeded the limit.
     """
     key = f"rate_limit:{phone_number}"
     count = redis_client.get(key)
     if count is None:
-        redis_client.setex(key, RATE_LIMIT_WINDOW, 1)
+        redis_client.setex(key, RATE_LIMIT_WINDOW_SECONDS, 1)
         return False
-    if int(count) >= RATE_LIMIT_MAX:
+    if int(count) >= RATE_LIMIT_MAX_MESSAGES:
         return True
     redis_client.incr(key)
     return False
@@ -237,7 +241,7 @@ def check_filename_exists(filename: str, redis_client) -> bool:
 def store_file_metadata(filename: str, metadata: dict, redis_client):
     """Store file metadata in Redis."""
     file_key = f"file_metadata:{filename}"
-    redis_client.set(file_key, json.dumps(metadata), ex=86400 * 30)
+    redis_client.set(file_key, json.dumps(metadata), ex=FILE_METADATA_TTL)
     redis_client.sadd("all_uploaded_files", filename)
 
 
@@ -307,7 +311,7 @@ def handle_file_upload(
     file_size = get_media_content_length(media_url)
     if file_size and file_size > MAX_FILE_SIZE_BYTES:
         send_twilio_message(from_number, FILE_TOO_LARGE_MSG["es"])
-        redis_client.set(dedup_key, "exists", ex=600)
+        redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
         return "FileTooLarge"
 
     send_twilio_message(from_number, f"Uploading '{filename}'...")
@@ -320,7 +324,7 @@ def handle_file_upload(
         send_twilio_message(
             from_number, "Sorry, there was an error downloading your file."
         )
-        redis_client.set(dedup_key, "exists", ex=600)
+        redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
         return "DownloadError"
 
     # If Twilio returns a real filename in headers, keep metadata/user messaging aligned.
@@ -347,7 +351,7 @@ def handle_file_upload(
                 except Exception:
                     pass
                 send_twilio_message(from_number, PASSWORD_PROTECTED_MSG)
-                redis_client.set(dedup_key, "exists", ex=600)
+                redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
                 return "PasswordProtected"
 
             if extract_result.get("success") and extract_result.get("can_vectorize"):
@@ -387,7 +391,7 @@ def handle_file_upload(
         }
 
         store_file_metadata(filename, metadata, redis_client)
-        redis_client.set(f"last_uploaded_file:{phone_number}", filename, ex=86400 * 7)
+        redis_client.set(f"last_uploaded_file:{phone_number}", filename, ex=LAST_UPLOADED_FILE_TTL)
 
         message = f"File '{filename}' uploaded successfully!\n\n"
         if vectorized:
@@ -402,7 +406,7 @@ def handle_file_upload(
         )
         send_twilio_message(from_number, f"Error uploading file: {error_msg}")
 
-    redis_client.set(dedup_key, "exists", ex=600)
+    redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
     return "FileProcessed"
 
 
@@ -457,7 +461,7 @@ def process_incoming_messages_functional(form_data, redis_client=r):
     lang_key = f"user:lang:{phone_number}"
     if body and body.strip():
         current_lang = detect_language(body)
-        redis_client.set(lang_key, current_lang, ex=86400)
+        redis_client.set(lang_key, current_lang, ex=USER_LANG_TTL)
     else:
         current_lang = redis_client.get(lang_key) or "es"
 
@@ -465,7 +469,7 @@ def process_incoming_messages_functional(form_data, redis_client=r):
         if is_knowledge_base_inventory_query(body):
             response_text = get_knowledge_base_count_message(redis_client, "en")
             send_twilio_message(from_number, response_text)
-            redis_client.set(dedup_key, "exists", ex=600)
+            redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
             return "Success"
 
         if redis_client.get(file_upload_pending_key) == "pending":
@@ -475,16 +479,16 @@ def process_incoming_messages_functional(form_data, redis_client=r):
                 send_twilio_message(
                     from_number, "Please send me the file you want to upload."
                 )
-                redis_client.set(dedup_key, "exists", ex=600)
+                redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
                 return "Success"
 
         upload_intent = detect_file_upload_intent(body, phone_number)
         if upload_intent:
-            redis_client.set(file_upload_pending_key, "pending", ex=600)
+            redis_client.set(file_upload_pending_key, "pending", ex=DEDUP_KEY_TTL)
             send_twilio_message(
                 from_number, "Please send me the file you want to upload."
             )
-            redis_client.set(dedup_key, "exists", ex=600)
+            redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
             return "Success"
 
     message_type = "text"
@@ -531,7 +535,7 @@ def process_incoming_messages_functional(form_data, redis_client=r):
         confirmation = get_reset_confirmation(lang)
         result = send_twilio_message(from_number, confirmation)
         if result.get("success", False):
-            redis_client.set(dedup_key, "exists", ex=600)
+            redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
             print(f"Memory deletion processed: {dedup_key}")
         return result
 
@@ -568,7 +572,7 @@ def process_incoming_messages_functional(form_data, redis_client=r):
 
         if not redis_client.exists(id_phone_number):
             user_data = {"Usuario": "", "Telefono": phone_number}
-            redis_client.set(id_phone_number, json.dumps(user_data), ex=600)
+            redis_client.set(id_phone_number, json.dumps(user_data), ex=DEDUP_KEY_TTL)
         else:
             user_data = json.loads(redis_client.get(id_phone_number))
 
@@ -629,7 +633,7 @@ def process_incoming_messages_functional(form_data, redis_client=r):
         file_size = get_media_content_length(media_url)
         if file_size and file_size > MAX_FILE_SIZE_BYTES:
             send_twilio_message(from_number, FILE_TOO_LARGE_MSG["es"])
-            redis_client.set(dedup_key, "exists", ex=600)
+            redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
             return "FileTooLarge"
 
         send_twilio_message(from_number, "Uploading image to Knowledge Base...")
@@ -642,7 +646,7 @@ def process_incoming_messages_functional(form_data, redis_client=r):
             send_twilio_message(
                 from_number, "Sorry, there was an error downloading your image."
             )
-            redis_client.set(dedup_key, "exists", ex=600)
+            redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
             return "ImageError"
 
         result = upload_file_to_cloudinary(temp_path, folder="knowledgebase")
@@ -697,7 +701,7 @@ def process_incoming_messages_functional(form_data, redis_client=r):
             error_message = result.get("error", "Unknown") if result else "Unknown"
             send_twilio_message(from_number, f"Error uploading image: {error_message}")
 
-        redis_client.set(dedup_key, "exists", ex=600)
+        redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
         return "ImageProcessed"
 
     if message_type in ("video", "media"):
@@ -710,7 +714,7 @@ def process_incoming_messages_functional(form_data, redis_client=r):
             "• Voice notes\n\n"
             "Please send one of those formats.",
         )
-        redis_client.set(dedup_key, "exists", ex=600)
+        redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
         return "UnsupportedMedia"
 
     id_phone_number = f"fp-idPhone:{phone_number}"
@@ -721,7 +725,7 @@ def process_incoming_messages_functional(form_data, redis_client=r):
     if not redis_client.exists(id_phone_number):
         user_data = {"Usuario": "", "Telefono": phone_number}
         data["user_data"] = user_data
-        redis_client.set(id_phone_number, json.dumps(user_data), ex=600)
+        redis_client.set(id_phone_number, json.dumps(user_data), ex=DEDUP_KEY_TTL)
     else:
         print(id_phone_number)
         data["user_data"] = json.loads(redis_client.get(id_phone_number))
@@ -749,7 +753,7 @@ def process_incoming_messages_functional(form_data, redis_client=r):
         print(f"Rate limit exceeded for {phone_number}")
         lang = detect_language(body) if body else "es"
         send_twilio_message(from_number, RATE_LIMIT_MSG[lang])
-        redis_client.set(dedup_key, "exists", ex=600)
+        redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
         return "RateLimited"
 
     # Acronym disambiguation
@@ -777,7 +781,7 @@ def process_incoming_messages_functional(form_data, redis_client=r):
                 acronym=_acronym, options=_options
             )
             send_twilio_message(from_number, _clarification)
-            redis_client.set(dedup_key, "exists", ex=600)
+            redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
             return "AcronymClarification"
 
     if body and is_session_fact(body):
@@ -820,7 +824,7 @@ def process_incoming_messages_functional(form_data, redis_client=r):
         )
         return "SendError"
 
-    redis_client.set(dedup_key, "exists", ex=600)
+    redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
     print(f"Message marked as processed: {dedup_key}")
 
     add_to_chat_history(chat_history_id, body, "user", phone_number)
@@ -895,7 +899,7 @@ def process_incoming_messages(form_data, redis_client=r):
     lang_key = f"user:lang:{phone_number}"
     if body and body.strip():
         current_lang = detect_language(body)
-        redis_client.set(lang_key, current_lang, ex=86400)
+        redis_client.set(lang_key, current_lang, ex=USER_LANG_TTL)
     else:
         current_lang = redis_client.get(lang_key) or "es"
 
@@ -911,7 +915,7 @@ def process_incoming_messages(form_data, redis_client=r):
                     message_type="kb_inventory",
                     language=current_lang,
                 )
-                redis_client.set(dedup_key, "exists", ex=600)
+                redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
                 return "Success"
 
         is_greet = is_greeting(body)
@@ -939,7 +943,7 @@ def process_incoming_messages(form_data, redis_client=r):
                     message_type=msg_type,
                     language=current_lang,
                 )
-                redis_client.set(dedup_key, "exists", ex=600)
+                redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
                 print(f"Greeting/Help response sent: {msg_type}")
                 return "Success"
             else:
@@ -960,7 +964,7 @@ def process_incoming_messages(form_data, redis_client=r):
                 send_twilio_message(
                     from_number, "OK, send me the new file to replace the existing one."
                 )
-                redis_client.set(dedup_key, "exists", ex=600)
+                redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
                 return "Success"
             elif user_response == "rename":
                 redis_client.delete(pending_action_key)
@@ -968,13 +972,13 @@ def process_incoming_messages(form_data, redis_client=r):
                     from_number, "OK, what name would you like to give this file?"
                 )
                 redis_client.set(pending_rename_key, "waiting_for_name", ex=300)
-                redis_client.set(dedup_key, "exists", ex=600)
+                redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
                 return "Success"
             else:
                 send_twilio_message(
                     from_number, "Please respond with 'update' or 'rename'."
                 )
-                redis_client.set(dedup_key, "exists", ex=600)
+                redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
                 return "Success"
 
         if redis_client.get(pending_rename_key) == "waiting_for_name":
@@ -983,7 +987,7 @@ def process_incoming_messages(form_data, redis_client=r):
                 send_twilio_message(
                     from_number, "Please include the file extension (e.g., report.pdf)"
                 )
-                redis_client.set(dedup_key, "exists", ex=600)
+                redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
                 return "Success"
 
             redis_client.set(f"pending_rename:{phone_number}", new_filename, ex=300)
@@ -991,7 +995,7 @@ def process_incoming_messages(form_data, redis_client=r):
             send_twilio_message(
                 from_number, f"Got it! Now send me the file '{new_filename}'."
             )
-            redis_client.set(dedup_key, "exists", ex=600)
+            redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
             return "Success"
 
         file_upload_pending_key = f"file_upload_pending:{phone_number}"
@@ -1002,15 +1006,15 @@ def process_incoming_messages(form_data, redis_client=r):
                 else:
                     upload_msg = get_file_upload_message(current_lang)
                     send_twilio_message(from_number, upload_msg)
-                    redis_client.set(dedup_key, "exists", ex=600)
+                    redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
                     return "Success"
 
             upload_intent = detect_file_upload_intent(body, phone_number)
             if upload_intent:
-                redis_client.set(file_upload_pending_key, "pending", ex=600)
+                redis_client.set(file_upload_pending_key, "pending", ex=DEDUP_KEY_TTL)
                 upload_msg = get_file_upload_message(current_lang)
                 send_twilio_message(from_number, upload_msg)
-                redis_client.set(dedup_key, "exists", ex=600)
+                redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
                 return "Success"
 
     message_type = "text"
@@ -1057,7 +1061,7 @@ def process_incoming_messages(form_data, redis_client=r):
         confirmation = get_reset_confirmation(lang)
         result = send_twilio_message(from_number, confirmation)
         if result.get("success", False):
-            redis_client.set(dedup_key, "exists", ex=600)
+            redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
             print(f"Memory deletion processed: {dedup_key}")
         return result
 
@@ -1094,7 +1098,7 @@ def process_incoming_messages(form_data, redis_client=r):
 
         if not redis_client.exists(id_phone_number):
             user_data = {"Usuario": "", "Telefono": phone_number}
-            redis_client.set(id_phone_number, json.dumps(user_data), ex=600)
+            redis_client.set(id_phone_number, json.dumps(user_data), ex=DEDUP_KEY_TTL)
         else:
             user_data = json.loads(redis_client.get(id_phone_number))
 
@@ -1155,7 +1159,7 @@ def process_incoming_messages(form_data, redis_client=r):
         file_size = get_media_content_length(media_url)
         if file_size and file_size > MAX_FILE_SIZE_BYTES:
             send_twilio_message(from_number, FILE_TOO_LARGE_MSG["es"])
-            redis_client.set(dedup_key, "exists", ex=600)
+            redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
             return "FileTooLarge"
 
         send_twilio_message(from_number, "Uploading image to Knowledge Base...")
@@ -1168,7 +1172,7 @@ def process_incoming_messages(form_data, redis_client=r):
             send_twilio_message(
                 from_number, "Sorry, there was an error downloading your image."
             )
-            redis_client.set(dedup_key, "exists", ex=600)
+            redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
             return "ImageError"
 
         result = upload_file_to_cloudinary(temp_path, folder="knowledgebase")
@@ -1222,7 +1226,7 @@ def process_incoming_messages(form_data, redis_client=r):
             error_message = result.get("error", "Unknown") if result else "Unknown"
             send_twilio_message(from_number, f"Error uploading image: {error_message}")
 
-        redis_client.set(dedup_key, "exists", ex=600)
+        redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
         return "ImageProcessed"
 
     if message_type in ("video", "media"):
@@ -1235,13 +1239,13 @@ def process_incoming_messages(form_data, redis_client=r):
             "• Voice notes\n\n"
             "Please send one of those formats.",
         )
-        redis_client.set(dedup_key, "exists", ex=600)
+        redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
         return "UnsupportedMedia"
 
     if not redis_client.exists(id_phone_number):
         user_data = {"Usuario": "", "Telefono": phone_number}
         data["user_data"] = user_data
-        redis_client.set(id_phone_number, json.dumps(user_data), ex=600)
+        redis_client.set(id_phone_number, json.dumps(user_data), ex=DEDUP_KEY_TTL)
     else:
         print(id_phone_number)
         data["user_data"] = json.loads(redis_client.get(id_phone_number))
@@ -1283,7 +1287,7 @@ def process_incoming_messages(form_data, redis_client=r):
                         f"Query blocked for {phone_number}: {permission_check_result.get('query_type')}"
                     )
                     send_twilio_message(from_number, BLOCKED_RESPONSE)
-                    redis_client.set(dedup_key, "exists", ex=600)
+                    redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
                     return "Blocked"
     except Exception as e:
         print(f"Error checking permissions: {e}")
@@ -1292,7 +1296,7 @@ def process_incoming_messages(form_data, redis_client=r):
         print(f"Rate limit exceeded for {phone_number}")
         lang = detect_language(body) if body else "es"
         send_twilio_message(from_number, RATE_LIMIT_MSG[lang])
-        redis_client.set(dedup_key, "exists", ex=600)
+        redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
         return "RateLimited"
 
     # Acronym disambiguation
@@ -1320,7 +1324,7 @@ def process_incoming_messages(form_data, redis_client=r):
                 acronym=_acronym, options=_options
             )
             send_twilio_message(from_number, _clarification)
-            redis_client.set(dedup_key, "exists", ex=600)
+            redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
             return "AcronymClarification"
 
     if body and is_session_fact(body):
@@ -1357,15 +1361,13 @@ def process_incoming_messages(form_data, redis_client=r):
 
     answer_text = str(answer_data["answer"])
 
-    MAX_LENGTH = 1520
-
-    if len(answer_text) > MAX_LENGTH:
+    if len(answer_text) > TWILIO_MESSAGE_MAX_LENGTH:
         answer_text = (
-            answer_text[:MAX_LENGTH]
+            answer_text[:TWILIO_MESSAGE_MAX_LENGTH]
             + "\n\n... (truncated response)\nAsk a more specific question for details."
         )
         print(
-            f"Response truncated from {len(answer_data['answer'])} to {MAX_LENGTH} characters"
+            f"Response truncated from {len(answer_data['answer'])} to {TWILIO_MESSAGE_MAX_LENGTH} characters"
         )
 
     send_result = send_twilio_message(
@@ -1387,7 +1389,7 @@ def process_incoming_messages(form_data, redis_client=r):
         language=current_lang,
     )
 
-    redis_client.set(dedup_key, "exists", ex=600)
+    redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
     print(f"Message marked as processed: {dedup_key}")
 
     add_to_chat_history(chat_history_id, body, "user", phone_number)

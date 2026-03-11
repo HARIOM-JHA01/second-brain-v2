@@ -8,6 +8,8 @@ from agente_rolplay.config import (
     REDIS_HOST,
     REDIS_PASSWORD,
     REDIS_PORT,
+    CHAT_HISTORY_TTL,
+    MAX_MESSAGES_IN_MEMORY,
 )
 
 # Redis connection configuration
@@ -19,8 +21,6 @@ redis_client = redis.Redis(
     password=REDIS_PASSWORD,
 )
 
-MAX_MESSAGES_IN_MEMORY = 12
-CHAT_HISTORY_TTL = 86400  # 24 hours — context window per user session
 
 
 def add_to_chat_history(id_chat_history, message, role, phone):

@@ -1,6 +1,8 @@
 import re
 from typing import Tuple
 
+from agente_rolplay.config import HAIKU_MODEL_NAME
+
 GREETING_PATTERNS = [
     # Spanish greetings
     r"^hola$",
@@ -277,7 +279,7 @@ def detect_ambiguous_acronym(message: str, api_key: str) -> tuple:
 
         client = anthropic.Anthropic(api_key=api_key)
         response = client.messages.create(
-            model="claude-haiku-4-5-20251001",
+            model=HAIKU_MODEL_NAME,
             max_tokens=120,
             messages=[{"role": "user", "content": _ACRONYM_PROMPT.format(message=message)}],
         )

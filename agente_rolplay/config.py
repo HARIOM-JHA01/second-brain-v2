@@ -54,3 +54,34 @@ USER_ID = os.getenv("USER_ID", "default_user")
 # --- Analytics ---
 ANALYTICS_LOG_DIR = os.getenv("ANALYTICS_LOG_DIR", "./logs")
 ANALYTICS_LOG_FILE = os.getenv("ANALYTICS_LOG_FILE", "chat_analytics.jsonl")
+
+# --- Chat History ---
+CHAT_HISTORY_TTL = int(os.getenv("CHAT_HISTORY_TTL", 86400))        # 24 hours
+MAX_MESSAGES_IN_MEMORY = int(os.getenv("MAX_MESSAGES_IN_MEMORY", 12))
+
+# --- Rate Limiting ---
+RATE_LIMIT_MAX_MESSAGES = int(os.getenv("RATE_LIMIT_MAX_MESSAGES", 10))
+RATE_LIMIT_WINDOW_SECONDS = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", 60))
+
+# --- File Upload ---
+MAX_FILE_SIZE_MB = int(os.getenv("MAX_FILE_SIZE_MB", 50))
+MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
+
+# --- Redis TTLs ---
+DEDUP_KEY_TTL = int(os.getenv("DEDUP_KEY_TTL", 600))               # 10 min
+USER_SESSION_TTL = int(os.getenv("USER_SESSION_TTL", 600))          # 10 min
+USER_LANG_TTL = int(os.getenv("USER_LANG_TTL", 86400))              # 24 hours
+LAST_UPLOADED_FILE_TTL = int(os.getenv("LAST_UPLOADED_FILE_TTL", 86400 * 7))   # 7 days
+FILE_METADATA_TTL = int(os.getenv("FILE_METADATA_TTL", 86400 * 30)) # 30 days
+ACRONYM_PENDING_TTL = int(os.getenv("ACRONYM_PENDING_TTL", 300))    # 5 min
+
+# --- Agent ---
+AGENT_MAX_TOKENS = int(os.getenv("AGENT_MAX_TOKENS", 4096))
+HAIKU_MODEL_NAME = os.getenv("HAIKU_MODEL_NAME", "claude-haiku-4-5-20251001")
+IMAGE_DESCRIPTION_MAX_TOKENS = int(os.getenv("IMAGE_DESCRIPTION_MAX_TOKENS", 1024))
+TWILIO_MESSAGE_MAX_LENGTH = int(os.getenv("TWILIO_MESSAGE_MAX_LENGTH", 1520))
+
+# --- RAG ---
+MIN_RELEVANCE_SCORE = float(os.getenv("MIN_RELEVANCE_SCORE", 0.35))
+CHUNK_MAX_TOKENS = int(os.getenv("CHUNK_MAX_TOKENS", 7000))
+CHUNK_OVERLAP_TOKENS = int(os.getenv("CHUNK_OVERLAP_TOKENS", 400))

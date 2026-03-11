@@ -10,6 +10,8 @@ from agente_rolplay.config import (
     ANTHROPIC_MODEL_NAME,
     USER_ID,
     WEBHOOK_RENDER as WEBHOOK_RENDER_RAW,
+    AGENT_MAX_TOKENS,
+    MIN_RELEVANCE_SCORE,
 )
 from agente_rolplay.storage.pinecone_client import search_knowledge_base
 from agente_rolplay.agent.system_prompt import PROMPT_CORE, system_prompt_rag
@@ -19,6 +21,14 @@ import re
 import time
 
 MODEL_NAME = ANTHROPIC_MODEL_NAME
+
+_NO_CONTEXT_CONTENT = (
+    "NO_CONTEXT_FOUND: The knowledge base contains no relevant information for this query "
+    "(no documents matched or all similarity scores were below the relevance threshold).\n\n"
+    "MANDATORY: Do NOT speculate, invent, or infer an answer. "
+    "Tell the user honestly that this information is not available in the knowledge base. "
+    "Suggest they upload the relevant document so you can answer accurately next time."
+)
 
 client = Anthropic(api_key=ANTHROPIC_API_KEY)
 WEBHOOK_RENDER = WEBHOOK_RENDER_RAW if WEBHOOK_RENDER_RAW != "zz" else ""
@@ -84,7 +94,7 @@ def responder_usuario(
         system=system_prompt,
         model=model_name,
         messages=new_messages,
-        max_tokens=4096,
+        max_tokens=AGENT_MAX_TOKENS,
         tools=tools,
         tool_choice={"type": "any"},
     )
@@ -141,10 +151,13 @@ def responder_usuario(
                     filename_filter=filename_filter,
                 )
 
-            print(f"Content obtained from RAG: {results}")
+            # Drop results below relevance threshold to prevent hallucination
+            results = [r for r in results if r.get("score", 0) >= MIN_RELEVANCE_SCORE]
+
+            print(f"Content obtained from RAG ({len(results)} above threshold): {results}")
 
             if not results:
-                content = "No relevant knowledge-base documents found for this query."
+                content = _NO_CONTEXT_CONTENT
             else:
                 lines = []
                 for item in results:
@@ -211,7 +224,7 @@ def responder_usuario(
                     system=system_prompt,
                     model=model_name,
                     messages=new_messages,
-                    max_tokens=4096,
+                    max_tokens=AGENT_MAX_TOKENS,
                     temperature=0.1,
                 )
                 .content[0]
@@ -230,7 +243,7 @@ def responder_usuario(
             system=system_prompt,
             model=model_name,
             messages=new_messages,
-            max_tokens=4096,
+            max_tokens=AGENT_MAX_TOKENS,
             tools=tools,
         )
         input_tokens += response.usage.input_tokens
