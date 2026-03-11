@@ -26,7 +26,7 @@ from agente_rolplay.db.auth import (
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-templates = Jinja2Templates(directory="src/agente_rolplay/templates")
+templates = Jinja2Templates(directory="agente_rolplay/templates")
 
 DEFAULT_ROLES = [
     {
@@ -205,6 +205,8 @@ async def login(request: Request, db: Session = Depends(get_db)):
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     )
 
+    request.session["user_id"] = str(user.id)
+
     return {"access_token": access_token, "token_type": "bearer"}
 
 
@@ -214,7 +216,8 @@ def get_me(current_user: User = Depends(get_current_user)):
 
 
 @router.get("/logout")
-def logout():
+def logout(request: Request):
+    request.session.clear()
     response = RedirectResponse(url="/login")
     response.delete_cookie(key="access_token")
     return response

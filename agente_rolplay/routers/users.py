@@ -11,6 +11,7 @@ from agente_rolplay.db.schemas import (
     ProfileUpdate,
     ProfileWithUser,
     RoleResponse,
+    UserResponse,
 )
 from agente_rolplay.db.auth import get_current_user
 

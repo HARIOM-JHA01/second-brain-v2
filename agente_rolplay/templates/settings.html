@@ -1,0 +1,292 @@
+{% extends "dashboard.html" %}
+
+{% block extra_head %}
+{{ super() }}
+<style>
+  .settings-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    align-items: start;
+  }
+  @media (max-width: 900px) {
+    .settings-grid { grid-template-columns: 1fr; }
+  }
+  .settings-card {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  .settings-card h3 {
+    font-size: 1rem;
+    color: #1a1a2e;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #eee;
+  }
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 0.9rem;
+  }
+  .info-row:last-child { border-bottom: none; }
+  .info-label { color: #666; }
+  .info-value { color: #1a1a2e; font-weight: 500; }
+  .role-item {
+    border: 1px solid #eee;
+    border-radius: 6px;
+    margin-bottom: 0.75rem;
+    overflow: hidden;
+  }
+  .role-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: #f8f9fa;
+    cursor: pointer;
+    user-select: none;
+  }
+  .role-header:hover { background: #f0f1f3; }
+  .role-name { font-weight: 600; color: #1a1a2e; }
+  .role-body {
+    display: none;
+    padding: 1rem;
+    border-top: 1px solid #eee;
+  }
+  .role-body.open { display: block; }
+  .perm-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+  .perm-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+  }
+  .perm-row input[type="checkbox"] { cursor: pointer; }
+  .perm-label { color: #444; }
+  .save-role-btn {
+    padding: 0.35rem 0.9rem;
+    background: #4361ee;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85rem;
+  }
+  .save-role-btn:hover { background: #3451db; }
+  .save-role-btn:disabled { background: #aaa; cursor: not-allowed; }
+  .chevron { transition: transform 0.2s; font-size: 0.75rem; color: #888; }
+  .chevron.open { transform: rotate(180deg); }
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+<div class="page-header">
+  <h1>Settings</h1>
+</div>
+
+<div class="settings-grid">
+
+  <!-- Account Info -->
+  <div class="settings-card">
+    <h3>Account</h3>
+    <div id="accountInfo"><div style="color:#888;font-size:.9rem;">Loading...</div></div>
+  </div>
+
+  <!-- Organization Roles -->
+  <div class="settings-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;padding-bottom:0.75rem;border-bottom:1px solid #eee;">
+      <h3 style="margin:0;padding:0;border:none;">Roles &amp; Permissions</h3>
+      <button class="btn btn-primary btn-sm" onclick="document.getElementById('addRoleModal').classList.add('show')">+ Add Role</button>
+    </div>
+    <div id="rolesList"><div style="color:#888;font-size:.9rem;">Loading...</div></div>
+  </div>
+
+</div>
+
+<div id="addRoleModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Add Role</h2>
+      <button class="close" onclick="document.getElementById('addRoleModal').classList.remove('show')">&times;</button>
+    </div>
+    <form id="addRoleForm">
+      <div class="form-group">
+        <label for="newRoleName">Role Name</label>
+        <input type="text" id="newRoleName" name="name" required placeholder="e.g. Analyst">
+      </div>
+      <div class="form-group">
+        <label>Permissions</label>
+        <div class="perm-grid" style="margin-top:.5rem;">
+          <label class="perm-row"><input type="checkbox" id="newPerm-query_financial"><span class="perm-label">query:financial</span></label>
+          <label class="perm-row"><input type="checkbox" id="newPerm-query_strategic"><span class="perm-label">query:strategic</span></label>
+          <label class="perm-row"><input type="checkbox" id="newPerm-query_sensitive"><span class="perm-label">query:sensitive</span></label>
+          <label class="perm-row"><input type="checkbox" id="newPerm-document_read"><span class="perm-label">document:read</span></label>
+          <label class="perm-row"><input type="checkbox" id="newPerm-document_upload"><span class="perm-label">document:upload</span></label>
+          <label class="perm-row"><input type="checkbox" id="newPerm-user_manage"><span class="perm-label">user:manage</span></label>
+        </div>
+      </div>
+      <button type="submit" id="createRoleBtn" class="btn btn-primary" style="width:100%;">Create Role</button>
+    </form>
+  </div>
+</div>
+
+<script>
+const PERMISSION_KEYS = [
+  'query:financial',
+  'query:strategic',
+  'query:sensitive',
+  'document:read',
+  'document:upload',
+  'user:manage',
+];
+
+const token = localStorage.getItem('access_token');
+if (!token) window.location.href = '/login';
+
+async function authFetch(url, opts = {}) {
+  return fetch(url, {
+    ...opts,
+    headers: { 'Authorization': 'Bearer ' + token, ...(opts.headers || {}) }
+  });
+}
+
+// --- Account ---
+(async () => {
+  const r = await authFetch('/auth/me');
+  const el = document.getElementById('accountInfo');
+  if (!r.ok) { el.innerHTML = '<span style="color:#c33;">Could not load account</span>'; return; }
+  const me = await r.json();
+  el.innerHTML = `
+    <div class="info-row"><span class="info-label">Email</span><span class="info-value">${me.email}</span></div>
+    <div class="info-row"><span class="info-label">Member since</span><span class="info-value">${new Date(me.created_at).toLocaleDateString()}</span></div>
+  `;
+})();
+
+// --- Roles ---
+loadRoles();
+
+document.getElementById('addRoleForm').addEventListener('submit', createRole);
+
+function toggleRole(roleId) {
+  const body = document.getElementById('body-' + roleId);
+  const chev = document.getElementById('chev-' + roleId);
+  body.classList.toggle('open');
+  chev.classList.toggle('open');
+}
+
+async function createRole(e) {
+  e.preventDefault();
+  const name = document.getElementById('newRoleName').value.trim();
+  if (!name) return;
+
+  const permissions = PERMISSION_KEYS.map(key => ({
+    [key]: document.getElementById('newPerm-' + key.replace(':', '_')).checked
+  }));
+
+  const btn = document.getElementById('createRoleBtn');
+  btn.disabled = true;
+
+  const r = await authFetch('/api/roles', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, permissions, org_id: '00000000-0000-0000-0000-000000000000' })
+  });
+
+  btn.disabled = false;
+  if (r.ok) {
+    document.getElementById('addRoleModal').classList.remove('show');
+    document.getElementById('addRoleForm').reset();
+    loadRoles();
+  } else {
+    const err = await r.json().catch(() => ({}));
+    alert('Error creating role: ' + (err.detail || r.status));
+  }
+}
+
+async function loadRoles() {
+  const el = document.getElementById('rolesList');
+  el.innerHTML = '<div style="color:#888;font-size:.9rem;">Loading...</div>';
+  const r = await authFetch('/api/roles');
+  if (!r.ok) { el.innerHTML = '<span style="color:#c33;">Could not load roles</span>'; return; }
+  const roles = await r.json();
+  if (!roles.length) { el.innerHTML = '<span style="color:#888;">No roles found</span>'; return; }
+
+  el.innerHTML = roles.map(role => {
+    const permsMap = {};
+    (role.permissions || []).forEach(p => {
+      const [k, v] = Object.entries(p)[0];
+      permsMap[k] = v;
+    });
+
+    const checkboxes = PERMISSION_KEYS.map(key => `
+      <label class="perm-row">
+        <input type="checkbox" data-role="${role.id}" data-perm="${key}" ${permsMap[key] ? 'checked' : ''}>
+        <span class="perm-label">${key}</span>
+      </label>
+    `).join('');
+
+    return `
+      <div class="role-item">
+        <div class="role-header" onclick="toggleRole('${role.id}')">
+          <span class="role-name">${role.name}</span>
+          <span class="chevron" id="chev-${role.id}">&#9660;</span>
+        </div>
+        <div class="role-body" id="body-${role.id}">
+          <div class="perm-grid">${checkboxes}</div>
+          <button class="save-role-btn" onclick="saveRole('${role.id}', '${role.name}')">Save</button>
+          <button class="save-role-btn" style="background:#dc3545;margin-left:.5rem;" onclick="deleteRole('${role.id}', '${role.name}')">Delete</button>
+          <span id="msg-${role.id}" style="margin-left:.5rem;font-size:.8rem;color:#3c3;display:none;">Saved!</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function deleteRole(roleId, roleName) {
+  if (!confirm(`Delete role "${roleName}"? This cannot be undone.`)) return;
+  const r = await authFetch(`/api/roles/${roleId}`, { method: 'DELETE' });
+  if (r.ok) {
+    loadRoles();
+  } else {
+    alert('Error deleting role');
+  }
+}
+
+async function saveRole(roleId, roleName) {
+  const permissions = PERMISSION_KEYS.map(key => {
+    const cb = document.querySelector(`input[data-role="${roleId}"][data-perm="${key}"]`);
+    return { [key]: cb ? cb.checked : false };
+  });
+
+  const btn = document.querySelector(`button[onclick="saveRole('${roleId}', '${roleName}')"]`);
+  btn.disabled = true;
+
+  const r = await authFetch(`/api/roles/${roleId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: roleName, permissions, org_id: '00000000-0000-0000-0000-000000000000' })
+  });
+
+  btn.disabled = false;
+  const msg = document.getElementById('msg-' + roleId);
+  if (r.ok) {
+    msg.textContent = 'Saved!';
+    msg.style.color = '#3c3';
+  } else {
+    msg.textContent = 'Error saving';
+    msg.style.color = '#c33';
+  }
+  msg.style.display = 'inline';
+  setTimeout(() => { msg.style.display = 'none'; }, 2500);
+}
+</script>
+{% endblock %}

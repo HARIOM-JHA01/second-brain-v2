@@ -44,7 +44,7 @@ class RoleBase(BaseModel):
 
 
 class RoleCreate(RoleBase):
-    org_id: UUID
+    org_id: Optional[UUID] = None
 
 
 class RoleResponse(RoleBase):

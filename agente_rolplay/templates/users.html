@@ -52,6 +52,33 @@
     </div>
 </div>
 
+<div id="editUserModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Edit User</h2>
+            <button class="close" onclick="document.getElementById('editUserModal').classList.remove('show')">&times;</button>
+        </div>
+        <form id="editUserForm">
+            <input type="hidden" id="edit_user_id">
+            <div class="form-group">
+                <label for="edit_username">Username</label>
+                <input type="text" id="edit_username" name="username">
+            </div>
+            <div class="form-group">
+                <label for="edit_whatsapp_number">WhatsApp Number</label>
+                <input type="text" id="edit_whatsapp_number" name="whatsapp_number" placeholder="+1234567890">
+            </div>
+            <div class="form-group">
+                <label for="edit_role_id">Role</label>
+                <select id="edit_role_id" name="role_id">
+                    <option value="">Select a role</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Save Changes</button>
+        </form>
+    </div>
+</div>
+
 <script>
 let users = [];
 let roles = [];
@@ -59,7 +86,7 @@ let roles = [];
 async function loadUsers() {
     try {
         const response = await fetch('/api/users', {
-            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('access_token') }
         });
         if (response.status === 401) {
             window.location.href = '/login';
@@ -75,16 +102,18 @@ async function loadUsers() {
 async function loadRoles() {
     try {
         const response = await fetch('/api/roles', {
-            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('access_token') }
         });
         roles = await response.json();
         
-        const select = document.getElementById('role_id');
-        roles.forEach(role => {
-            const option = document.createElement('option');
-            option.value = role.id;
-            option.textContent = role.name;
-            select.appendChild(option);
+        ['role_id', 'edit_role_id'].forEach(selectId => {
+            const select = document.getElementById(selectId);
+            roles.forEach(role => {
+                const option = document.createElement('option');
+                option.value = role.id;
+                option.textContent = role.name;
+                select.appendChild(option);
+            });
         });
     } catch (error) {
         console.error('Error loading roles:', error);
@@ -110,7 +139,8 @@ function renderUsers() {
                 </span>
             </td>
             <td class="actions">
-                ${user.is_active 
+                <button class="btn btn-sm btn-secondary" onclick="openEditModal('${user.id}')">Edit</button>
+                ${user.is_active
                     ? `<button class="btn btn-sm btn-danger" onclick="revokeAccess('${user.id}')">Revoke</button>`
                     : `<button class="btn btn-sm btn-success" onclick="reactivateUser('${user.id}')">Reactivate</button>`
                 }
@@ -125,7 +155,7 @@ async function revokeAccess(userId) {
     try {
         await fetch(`/api/users/${userId}`, {
             method: 'DELETE',
-            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('access_token') }
         });
         loadUsers();
     } catch (error) {
@@ -137,13 +167,50 @@ async function reactivateUser(userId) {
     try {
         await fetch(`/api/users/${userId}/reactivate`, {
             method: 'POST',
-            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('access_token') }
         });
         loadUsers();
     } catch (error) {
         console.error('Error reactivating user:', error);
     }
 }
+
+function openEditModal(userId) {
+    const user = users.find(u => u.id === userId);
+    if (!user) return;
+    document.getElementById('edit_user_id').value = user.id;
+    document.getElementById('edit_username').value = user.username || '';
+    document.getElementById('edit_whatsapp_number').value = user.whatsapp_number || '';
+    const roleSelect = document.getElementById('edit_role_id');
+    roleSelect.value = user.role_id || '';
+    document.getElementById('editUserModal').classList.add('show');
+}
+
+document.getElementById('editUserForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const userId = document.getElementById('edit_user_id').value;
+    const formData = {
+        username: document.getElementById('edit_username').value || null,
+        whatsapp_number: document.getElementById('edit_whatsapp_number').value || null,
+        role_id: document.getElementById('edit_role_id').value || null,
+    };
+    try {
+        const r = await fetch(`/api/users/${userId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+            },
+            body: JSON.stringify(formData)
+        });
+        if (r.ok) {
+            document.getElementById('editUserModal').classList.remove('show');
+            loadUsers();
+        }
+    } catch (error) {
+        console.error('Error updating user:', error);
+    }
+});
 
 document.getElementById('addUserForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -161,7 +228,7 @@ document.getElementById('addUserForm').addEventListener('submit', async (e) => {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + localStorage.getItem('token')
+                'Authorization': 'Bearer ' + localStorage.getItem('access_token')
             },
             body: JSON.stringify(formData)
         });

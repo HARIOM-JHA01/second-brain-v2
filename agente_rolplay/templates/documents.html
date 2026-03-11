@@ -1,0 +1,58 @@
+{% extends "dashboard.html" %}
+
+{% block dashboard_content %}
+<div class="page-header">
+  <h1>Documents</h1>
+</div>
+
+<div class="card" style="margin-bottom: 1.5rem;">
+  <h3 style="margin-bottom: 1rem; color: #1a1a2e;">Knowledge Base Files</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Filename</th>
+        <th>Type</th>
+        <th>Uploaded</th>
+        <th>URL</th>
+      </tr>
+    </thead>
+    <tbody id="docsTable">
+      <tr><td colspan="4" style="text-align:center;">Loading...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<script>
+(async () => {
+  const token = localStorage.getItem('access_token');
+  if (!token) { window.location.href = '/login'; return; }
+
+  try {
+    const r = await fetch('/api/rag/files', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    const tbody = document.getElementById('docsTable');
+    if (!r.ok) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Could not load documents</td></tr>';
+      return;
+    }
+    const files = await r.json();
+    if (!files.length) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No documents found</td></tr>';
+      return;
+    }
+    tbody.innerHTML = files.map(f => `
+      <tr>
+        <td>${f.filename || f.name || '-'}</td>
+        <td>${f.resource_type || f.format || '-'}</td>
+        <td>${f.created_at ? new Date(f.created_at).toLocaleDateString() : '-'}</td>
+        <td>${f.secure_url ? `<a href="${f.secure_url}" target="_blank">View</a>` : '-'}</td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    document.getElementById('docsTable').innerHTML =
+      '<tr><td colspan="4" style="text-align:center;">Error loading documents</td></tr>';
+  }
+})();
+</script>
+{% endblock %}

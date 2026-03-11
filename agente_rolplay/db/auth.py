@@ -39,8 +39,13 @@ def decode_token(token: str) -> Optional[dict]:
         return None
 
 
+def _get_db():
+    from agente_rolplay.db.database import get_db
+    yield from get_db()
+
+
 def get_current_user(
-    token: str = Depends(oauth2_scheme), db: Session = Depends(lambda: None)
+    token: str = Depends(oauth2_scheme), db: Session = Depends(_get_db)
 ):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,

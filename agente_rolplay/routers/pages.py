@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Request
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 router = APIRouter()
 
-templates = Jinja2Templates(directory="src/agente_rolplay/templates")
+templates = Jinja2Templates(directory="agente_rolplay/templates")
 
 
 @router.get("/privacy", response_class=HTMLResponse)
@@ -83,21 +83,30 @@ def privacy_policy():
 
 @router.get("/", tags=["pages"])
 def home():
-    return FileResponse("src/agente_rolplay/templates/index.html")
+    return FileResponse("agente_rolplay/templates/index.html")
 
 
 @router.get("/login", tags=["pages"])
 def login_page():
-    return FileResponse("src/agente_rolplay/templates/login.html")
+    return FileResponse("agente_rolplay/templates/login.html")
 
 
 @router.get("/signup", tags=["pages"])
 def signup_page():
-    return FileResponse("src/agente_rolplay/templates/signup.html")
+    return FileResponse("agente_rolplay/templates/signup.html")
+
+
+def _require_auth(request: Request):
+    if not request.session.get("user_id"):
+        return RedirectResponse(url="/login", status_code=302)
+    return None
 
 
 @router.get("/dashboard", tags=["pages"])
 def dashboard_page(request: Request):
+    redirect = _require_auth(request)
+    if redirect:
+        return redirect
     return templates.TemplateResponse(
         "dashboard.html", {"request": request, "page_title": "Dashboard"}
     )
@@ -105,18 +114,23 @@ def dashboard_page(request: Request):
 
 @router.get("/dashboard/users", tags=["pages"])
 def users_page(request: Request):
+    redirect = _require_auth(request)
+    if redirect:
+        return redirect
     return templates.TemplateResponse("users.html", {"request": request})
 
 
 @router.get("/dashboard/documents", tags=["pages"])
 def documents_page(request: Request):
-    return templates.TemplateResponse(
-        "dashboard.html", {"request": request, "page_title": "Documents"}
-    )
+    redirect = _require_auth(request)
+    if redirect:
+        return redirect
+    return templates.TemplateResponse("documents.html", {"request": request})
 
 
 @router.get("/dashboard/settings", tags=["pages"])
 def settings_page(request: Request):
-    return templates.TemplateResponse(
-        "dashboard.html", {"request": request, "page_title": "Settings"}
-    )
+    redirect = _require_auth(request)
+    if redirect:
+        return redirect
+    return templates.TemplateResponse("settings.html", {"request": request})

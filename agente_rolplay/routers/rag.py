@@ -1,9 +1,11 @@
-from fastapi import APIRouter, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from agente_rolplay.agent.cli_tools import anthropic_completion, get_text_by_relevance
 from agente_rolplay.config import GPT_ACTIONS_API_KEY
 from agente_rolplay.agent.system_prompt import system_prompt_rag
+from agente_rolplay.db.auth import get_current_user
+from agente_rolplay.db.models import User
 
 router = APIRouter()
 
@@ -33,3 +35,29 @@ async def rag_query(request: Request, authorization: str = Header(None)):
     contexto = get_text_by_relevance(ans)
 
     return JSONResponse({"answer": contexto})
+
+
+@router.get("/api/rag/files")
+def list_kb_files(current_user: User = Depends(get_current_user)):
+    try:
+        import cloudinary.api
+        result = cloudinary.api.resources(
+            type="upload",
+            prefix="knowledgebase/",
+            max_results=100,
+        )
+        files = [
+            {
+                "filename": r.get("public_id", "").split("/")[-1],
+                "public_id": r.get("public_id"),
+                "resource_type": r.get("resource_type"),
+                "format": r.get("format"),
+                "bytes": r.get("bytes"),
+                "secure_url": r.get("secure_url"),
+                "created_at": r.get("created_at"),
+            }
+            for r in result.get("resources", [])
+        ]
+        return files
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
