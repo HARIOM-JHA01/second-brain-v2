@@ -25,6 +25,7 @@ from agente_rolplay.messaging.greeting_handler import (
     is_help,
     is_reset_request,
     is_session_fact,
+    detect_ambiguous_acronym,
     get_intro_message,
     get_capabilities_message,
     get_file_upload_message,
@@ -73,6 +74,23 @@ RATE_LIMIT_MSG = {
     "es": "Has enviado demasiados mensajes. Por favor espera un momento e intenta de nuevo.",
     "en": "You've sent too many messages. Please wait a moment and try again.",
 }
+PASSWORD_PROTECTED_MSG = (
+    "🔒 The file is password protected. Please remove the password and send it again.\n\n"
+    "El archivo está protegido con contraseña. Por favor elimina la contraseña e inténtalo de nuevo."
+)
+ACRONYM_CLARIFICATION_MSG = {
+    "es": (
+        "Encontré el acrónimo *{acronym}* en tu mensaje y puede tener varios significados. "
+        "¿A cuál te refieres?\n{options}\n\n"
+        "O si es otro, escríbeme qué significa y respondo de inmediato."
+    ),
+    "en": (
+        "I noticed the acronym *{acronym}* in your message — it can mean a few different things. "
+        "Which one did you mean?\n{options}\n\n"
+        "Or just tell me what it stands for and I'll answer right away."
+    ),
+}
+ACRONYM_PENDING_TTL = 300  # seconds to wait for clarification
 
 
 def _is_rate_limited(phone_number: str, redis_client) -> bool:
@@ -323,6 +341,15 @@ def handle_file_upload(
             print(f"Vectorizing file: {filename}")
             extract_result = extract_text_from_file(temp_path, media_content_type)
 
+            if extract_result.get("password_protected"):
+                try:
+                    os.remove(temp_path)
+                except Exception:
+                    pass
+                send_twilio_message(from_number, PASSWORD_PROTECTED_MSG)
+                redis_client.set(dedup_key, "exists", ex=600)
+                return "PasswordProtected"
+
             if extract_result.get("success") and extract_result.get("can_vectorize"):
                 pinecone_result = upload_to_pinecone(
                     text=extract_result["text"],
@@ -427,7 +454,12 @@ def process_incoming_messages_functional(form_data, redis_client=r):
     print(f"Processing new message: {dedup_key}")
 
     file_upload_pending_key = f"file_upload_pending:{phone_number}"
-    current_lang = "en" if is_english(body) else "es"
+    lang_key = f"user:lang:{phone_number}"
+    if body and body.strip():
+        current_lang = detect_language(body)
+        redis_client.set(lang_key, current_lang, ex=86400)
+    else:
+        current_lang = redis_client.get(lang_key) or "es"
 
     if body and body.strip() and num_media == 0:
         if is_knowledge_base_inventory_query(body):
@@ -720,6 +752,34 @@ def process_incoming_messages_functional(form_data, redis_client=r):
         redis_client.set(dedup_key, "exists", ex=600)
         return "RateLimited"
 
+    # Acronym disambiguation
+    _acronym_pending_key = f"pending_acronym:{phone_number}"
+    _pending_acronym = redis_client.get(_acronym_pending_key)
+
+    if _pending_acronym:
+        # User is responding to our clarification request — enrich the original query
+        _pending = json.loads(_pending_acronym)
+        _original_msg = _pending["original_message"]
+        _acronym = _pending["acronym"]
+        _enriched = f"{_original_msg} [{_acronym} = {body}]"
+        data["body"] = _enriched
+        body = _enriched
+        redis_client.delete(_acronym_pending_key)
+        print(f"Acronym '{_acronym}' clarified for {phone_number}: {body[:100]}")
+    elif body:
+        _acronym, _meanings = detect_ambiguous_acronym(body, ANTHROPIC_API_KEY)
+        if _acronym:
+            _pending_data = {"original_message": body, "acronym": _acronym}
+            redis_client.setex(_acronym_pending_key, ACRONYM_PENDING_TTL, json.dumps(_pending_data))
+            _options = "\n".join(f"• {m}" for m in _meanings)
+            _lang = detect_language(body)
+            _clarification = ACRONYM_CLARIFICATION_MSG[_lang].format(
+                acronym=_acronym, options=_options
+            )
+            send_twilio_message(from_number, _clarification)
+            redis_client.set(dedup_key, "exists", ex=600)
+            return "AcronymClarification"
+
     if body and is_session_fact(body):
         store_session_fact(phone_number, body)
         print(f"Session fact stored for {phone_number}: {body[:80]}")
@@ -833,14 +893,13 @@ def process_incoming_messages(form_data, redis_client=r):
     print(f"Processing new message: {dedup_key}")
 
     lang_key = f"user:lang:{phone_number}"
-    stored_lang = redis_client.get(lang_key)
-    current_lang = stored_lang if stored_lang else "es"
+    if body and body.strip():
+        current_lang = detect_language(body)
+        redis_client.set(lang_key, current_lang, ex=86400)
+    else:
+        current_lang = redis_client.get(lang_key) or "es"
 
     if body and body.strip():
-        if is_english(body):
-            current_lang = "en"
-            redis_client.set(lang_key, "en", ex=86400)
-
         if is_knowledge_base_inventory_query(body):
             response_text = get_knowledge_base_count_message(redis_client, current_lang)
             send_result = send_twilio_message(from_number, response_text)
@@ -1235,6 +1294,34 @@ def process_incoming_messages(form_data, redis_client=r):
         send_twilio_message(from_number, RATE_LIMIT_MSG[lang])
         redis_client.set(dedup_key, "exists", ex=600)
         return "RateLimited"
+
+    # Acronym disambiguation
+    _acronym_pending_key = f"pending_acronym:{phone_number}"
+    _pending_acronym = redis_client.get(_acronym_pending_key)
+
+    if _pending_acronym:
+        # User is responding to our clarification request — enrich the original query
+        _pending = json.loads(_pending_acronym)
+        _original_msg = _pending["original_message"]
+        _acronym = _pending["acronym"]
+        _enriched = f"{_original_msg} [{_acronym} = {body}]"
+        data["body"] = _enriched
+        body = _enriched
+        redis_client.delete(_acronym_pending_key)
+        print(f"Acronym '{_acronym}' clarified for {phone_number}: {body[:100]}")
+    elif body:
+        _acronym, _meanings = detect_ambiguous_acronym(body, ANTHROPIC_API_KEY)
+        if _acronym:
+            _pending_data = {"original_message": body, "acronym": _acronym}
+            redis_client.setex(_acronym_pending_key, ACRONYM_PENDING_TTL, json.dumps(_pending_data))
+            _options = "\n".join(f"• {m}" for m in _meanings)
+            _lang = detect_language(body)
+            _clarification = ACRONYM_CLARIFICATION_MSG[_lang].format(
+                acronym=_acronym, options=_options
+            )
+            send_twilio_message(from_number, _clarification)
+            redis_client.set(dedup_key, "exists", ex=600)
+            return "AcronymClarification"
 
     if body and is_session_fact(body):
         store_session_fact(phone_number, body)

@@ -240,6 +240,61 @@ def get_file_upload_message(lang: str = "es") -> str:
     return FILE_UPLOAD_MESSAGES.get(lang, FILE_UPLOAD_MESSAGES["es"])
 
 
+# --- Acronym Disambiguation ---
+
+_ACRONYM_PATTERN = re.compile(r'\b[A-Z]{2,}\b')
+
+_ACRONYM_PROMPT = """\
+You are an acronym disambiguation assistant for a business knowledge base.
+
+Find the most ambiguous acronym in this message — one that has 2 or more genuinely different common meanings in professional/business contexts:
+
+Message: "{message}"
+
+Rules:
+- Only flag acronyms with clearly different meanings (not just synonyms)
+- Skip acronyms that are obvious from context (e.g. "send via PDF")
+- Skip single-meaning acronyms (PDF, URL, ID)
+- Return at most ONE acronym — the most ambiguous one
+
+Respond with EXACTLY one of these formats and nothing else:
+AMBIGUOUS|<ACRONYM>|<meaning1>|<meaning2>[|<meaning3>]
+CLEAR\
+"""
+
+
+def detect_ambiguous_acronym(message: str, api_key: str) -> tuple:
+    """
+    Check if a message contains an ambiguous acronym that needs clarification.
+    Uses Claude Haiku for fast, cheap classification.
+    Returns (acronym, [meanings]) if ambiguous, else (None, []).
+    """
+    if not message or not _ACRONYM_PATTERN.search(message):
+        return None, []
+
+    try:
+        import anthropic
+
+        client = anthropic.Anthropic(api_key=api_key)
+        response = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=120,
+            messages=[{"role": "user", "content": _ACRONYM_PROMPT.format(message=message)}],
+        )
+        result = response.content[0].text.strip()
+
+        if result.startswith("AMBIGUOUS|"):
+            parts = result.split("|")
+            if len(parts) >= 4:
+                return parts[1], [p.strip() for p in parts[2:] if p.strip()]
+
+        return None, []
+
+    except Exception as e:
+        print(f"Error checking acronym ambiguity: {e}")
+        return None, []
+
+
 # Prefixes that signal the user is providing a correction or new fact
 FACT_PREFIXES = (
     # English
