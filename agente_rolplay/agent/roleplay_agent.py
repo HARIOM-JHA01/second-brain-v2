@@ -148,8 +148,19 @@ def responder_usuario(
             else:
                 lines = []
                 for item in results:
+                    filename = item.get("filename", "document")
+                    score = item.get("score", 0)
+
+                    # Build citation string
+                    if item.get("page_range"):
+                        citation = f"{filename}, {item['page_range']}"
+                    elif item.get("chunk_count", 1) > 1:
+                        citation = f"{filename}, chunk {item.get('chunk_index', 0) + 1} of {item['chunk_count']}"
+                    else:
+                        citation = filename
+
                     line = (
-                        f"- {item.get('filename', 'document')} (score {item.get('score', 0):.3f}): "
+                        f"- [{citation}] (score {score:.3f}): "
                         f"{item.get('text_preview', '')[:260]}"
                     )
                     if item.get("cloudinary_url"):
