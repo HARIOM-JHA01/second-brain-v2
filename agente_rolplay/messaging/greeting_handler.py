@@ -240,6 +240,50 @@ def get_file_upload_message(lang: str = "es") -> str:
     return FILE_UPLOAD_MESSAGES.get(lang, FILE_UPLOAD_MESSAGES["es"])
 
 
+RESET_PHRASES = {
+    # Spanish
+    "borrar memoria",
+    "nueva conversación",
+    "nueva sesion",
+    "nueva sesión",
+    "empezar de nuevo",
+    "empezar desde cero",
+    "limpiar historial",
+    "limpiar chat",
+    "reiniciar chat",
+    "nuevo chat",
+    # English
+    "new chat",
+    "reset chat",
+    "clear chat",
+    "clear history",
+    "fresh start",
+    "start over",
+    "start fresh",
+    "forget everything",
+    "reset memory",
+    "new conversation",
+}
+
+RESET_CONFIRMATION = {
+    "es": "Listo, he borrado nuestro historial de conversación. ¡Comenzamos de cero! 🔄",
+    "en": "Done! I've cleared our conversation history. Fresh start! 🔄",
+}
+
+
+def is_reset_request(text: str) -> bool:
+    """Check if the user wants to start a fresh conversation."""
+    if not text:
+        return False
+    cleaned = text.strip().lower()
+    return any(phrase in cleaned for phrase in RESET_PHRASES)
+
+
+def get_reset_confirmation(lang: str = "es") -> str:
+    """Get reset confirmation message in specified language."""
+    return RESET_CONFIRMATION.get(lang, RESET_CONFIRMATION["es"])
+
+
 def should_show_intro(text: str, has_chat_history: bool = False) -> Tuple[bool, bool]:
     """
     Determine if we should show intro or capabilities.

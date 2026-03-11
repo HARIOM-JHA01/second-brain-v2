@@ -19,10 +19,13 @@ from agente_rolplay.messaging.chat_history_manager import (
 from agente_rolplay.messaging.greeting_handler import (
     is_greeting,
     is_help,
+    is_reset_request,
     get_intro_message,
     get_capabilities_message,
     get_file_upload_message,
+    get_reset_confirmation,
     is_english,
+    detect_language,
 )
 from agente_rolplay.storage.analytics_logger import log_chat_interaction
 from agente_rolplay.storage.cloudinary_storage import upload_file_to_cloudinary
@@ -447,10 +450,12 @@ def process_incoming_messages_functional(form_data, redis_client=r):
 
     print("PROCESSED DATA:", data)
 
-    if body and "borrar memoria" in body.lower():
+    if body and is_reset_request(body):
         print(f"Executing memory deletion for: {phone_number}")
         reset_chat_history(phone_number)
-        result = send_twilio_message(from_number, "Your memory has been deleted.")
+        lang = detect_language(body)
+        confirmation = get_reset_confirmation(lang)
+        result = send_twilio_message(from_number, confirmation)
         if result.get("success", False):
             redis_client.set(dedup_key, "exists", ex=600)
             print(f"Memory deletion processed: {dedup_key}")
@@ -614,6 +619,19 @@ def process_incoming_messages_functional(form_data, redis_client=r):
 
         redis_client.set(dedup_key, "exists", ex=600)
         return "ImageProcessed"
+
+    if message_type in ("video", "media"):
+        print(f"Unsupported media type received: {media_content_type}")
+        send_twilio_message(
+            from_number,
+            "Sorry, I can't process that file type. I currently support:\n"
+            "• Images (JPG, PNG, GIF, WebP)\n"
+            "• Documents (PDF, DOCX, PPTX, TXT)\n"
+            "• Voice notes\n\n"
+            "Please send one of those formats.",
+        )
+        redis_client.set(dedup_key, "exists", ex=600)
+        return "UnsupportedMedia"
 
     id_phone_number = f"fp-idPhone:{phone_number}"
     id_conversacion = (
@@ -911,10 +929,12 @@ def process_incoming_messages(form_data, redis_client=r):
 
     print("PROCESSED DATA:", data)
 
-    if body and "borrar memoria" in body.lower():
+    if body and is_reset_request(body):
         print(f"Executing memory deletion for: {phone_number}")
         reset_chat_history(phone_number)
-        result = send_twilio_message(from_number, "Your memory has been deleted.")
+        lang = detect_language(body)
+        confirmation = get_reset_confirmation(lang)
+        result = send_twilio_message(from_number, confirmation)
         if result.get("success", False):
             redis_client.set(dedup_key, "exists", ex=600)
             print(f"Memory deletion processed: {dedup_key}")
@@ -1077,6 +1097,19 @@ def process_incoming_messages(form_data, redis_client=r):
 
         redis_client.set(dedup_key, "exists", ex=600)
         return "ImageProcessed"
+
+    if message_type in ("video", "media"):
+        print(f"Unsupported media type received: {media_content_type}")
+        send_twilio_message(
+            from_number,
+            "Sorry, I can't process that file type. I currently support:\n"
+            "• Images (JPG, PNG, GIF, WebP)\n"
+            "• Documents (PDF, DOCX, PPTX, TXT)\n"
+            "• Voice notes\n\n"
+            "Please send one of those formats.",
+        )
+        redis_client.set(dedup_key, "exists", ex=600)
+        return "UnsupportedMedia"
 
     if not redis_client.exists(id_phone_number):
         user_data = {"Usuario": "", "Telefono": phone_number}

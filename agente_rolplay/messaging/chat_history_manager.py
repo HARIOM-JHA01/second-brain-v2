@@ -19,7 +19,8 @@ redis_client = redis.Redis(
     password=REDIS_PASSWORD,
 )
 
-MAX_MESSAGES_IN_MEMORY = 12  # Only last 15 messages by default
+MAX_MESSAGES_IN_MEMORY = 12
+CHAT_HISTORY_TTL = 86400  # 24 hours — context window per user session
 
 
 def add_to_chat_history(id_chat_history, message, role, phone):
@@ -41,7 +42,7 @@ def add_to_chat_history(id_chat_history, message, role, phone):
             history = history[-MAX_MESSAGES_IN_MEMORY:]
             print(f"History truncated to {MAX_MESSAGES_IN_MEMORY} messages for {phone}")
 
-        redis_client.set(id_chat_history, json.dumps(history), ex=3600)
+        redis_client.set(id_chat_history, json.dumps(history), ex=CHAT_HISTORY_TTL)
 
     except Exception as e:
         print(f"Error adding message to history: {e}")
