@@ -16,23 +16,35 @@ VECTOR_DIMENSION = int(os.getenv("VECTOR_DIMENSION", 1024))
 N_SIMILARITY = int(os.getenv("N_SIMILARITY", 3))
 
 # --- Redis ---
+_REDIS_URL = os.getenv("REDIS_URL")
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 REDIS_PASSWORD = (os.getenv("REDIS_PASSWORD") or "").strip() or None
+REDIS_SSL = os.getenv("REDIS_SSL", "false").lower() == "true"
+
+# Parse REDIS_URL if provided (e.g. Upstash rediss://default:pass@host:port)
+if _REDIS_URL:
+    from urllib.parse import urlparse as _urlparse  # noqa: PLC0415
+    _parsed = _urlparse(_REDIS_URL)
+    REDIS_HOST = _parsed.hostname
+    REDIS_PORT = _parsed.port or 6379
+    REDIS_PASSWORD = _parsed.password or None
+    REDIS_SSL = _parsed.scheme == "rediss"
 
 
 def build_redis_url(db: int) -> str:
-    """Build a Redis URL, adding auth only when REDIS_PASSWORD is configured."""
     auth = f":{quote(REDIS_PASSWORD)}@" if REDIS_PASSWORD else ""
-    return f"redis://{auth}{REDIS_HOST}:{REDIS_PORT}/{db}"
+    scheme = "rediss" if REDIS_SSL else "redis"
+    return f"{scheme}://{auth}{REDIS_HOST}:{REDIS_PORT}/{db}"
 
 
 def redis_connection_kwargs() -> dict:
-    """Common kwargs for redis.Redis with optional auth."""
+    """Common kwargs for redis.Redis with optional auth and TLS."""
     kwargs = {
         "host": REDIS_HOST,
         "port": REDIS_PORT,
         "decode_responses": True,
+        "ssl": REDIS_SSL,
     }
     if REDIS_PASSWORD:
         kwargs["username"] = "default"
