@@ -1262,6 +1262,29 @@ def process_incoming_messages(form_data, redis_client=r):
 
             send_twilio_message(from_number, message)
 
+            # Save Document record so dashboard Knowledge Base page shows the image
+            try:
+                from agente_rolplay.db.database import get_db
+                from agente_rolplay.db.models import Document, Profile
+                from agente_rolplay.db.whatsapp_auth import normalize_whatsapp_number
+                _norm = normalize_whatsapp_number(phone_number)
+                _db = next(get_db())
+                try:
+                    _profile = _db.query(Profile).filter(Profile.whatsapp_number == _norm).first()
+                    if _profile:
+                        _db.add(Document(
+                            org_id=_profile.org_id,
+                            name=filename,
+                            drive_file_id=result.get("public_id"),
+                        ))
+                        _db.commit()
+                finally:
+                    _db.close()
+            except Exception as _doc_err:
+                print(f"Warning: could not write Document record for image: {_doc_err}")
+
+            log_message_to_db(phone_number, message_type="image")
+
             # Record upload in chat history so Claude has context for follow-up questions
             chat_history_id = f"fp-chatHistory:{from_number}"
             add_to_chat_history(chat_history_id, f"[Sent image: {filename}]", "user", phone_number)
@@ -1426,6 +1449,7 @@ def process_incoming_messages(form_data, redis_client=r):
         print(
             f"WARNING: Message not sent. Error: {send_result.get('error', 'Unknown')}"
         )
+        log_message_to_db(phone_number, message_type="text", is_error=True)
         return "SendError"
 
     log_chat_interaction(
@@ -1434,6 +1458,11 @@ def process_incoming_messages(form_data, redis_client=r):
         bot_response=answer_text,
         message_type="query",
         language=current_lang,
+    )
+    log_message_to_db(
+        phone_number,
+        message_type="text",
+        is_rag_query=bool(answer_data.get("used_rag", False)),
     )
 
     redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)

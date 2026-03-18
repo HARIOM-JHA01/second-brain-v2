@@ -70,10 +70,12 @@ def _process_audio_inline(job_dict: dict) -> dict:
         logger.warning("VOICE_NOTES_ENABLED is disabled")
         return {"status": "failed", "error": "Feature disabled"}
 
+    # Extract from_number before try so it's available in the except block
+    from_number = job_dict.get("from")
+
     try:
         media_url = job_dict.get("media_url")
         phone_number = job_dict.get("phone_number")
-        from_number = job_dict.get("from")
         id_conversacion = job_dict.get("id_conversacion")
         timestamp = job_dict.get("timestamp")
         user_data = job_dict.get("user_data", {})
@@ -145,6 +147,14 @@ def _process_audio_inline(job_dict: dict) -> dict:
 
     except Exception as e:
         logger.error(f"Error processing audio inline: {e}", exc_info=True)
+        if from_number:
+            try:
+                enviar_mensaje_twilio(
+                    from_number,
+                    "❌ There was an error processing your voice note. Please try again or send a text message.",
+                )
+            except Exception:
+                pass
         return {"status": "failed", "error": str(e)}
 
 
