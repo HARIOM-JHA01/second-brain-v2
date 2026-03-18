@@ -87,13 +87,13 @@ def home():
 
 
 @router.get("/login", tags=["pages"])
-def login_page():
-    return FileResponse("agente_rolplay/templates/login.html")
+def login_page(request: Request):
+    return templates.TemplateResponse("auth.html", {"request": request, "initial_mode": "login"})
 
 
 @router.get("/signup", tags=["pages"])
-def signup_page():
-    return FileResponse("agente_rolplay/templates/signup.html")
+def signup_page(request: Request):
+    return templates.TemplateResponse("auth.html", {"request": request, "initial_mode": "signup"})
 
 
 def _require_auth(request: Request):
@@ -134,3 +134,42 @@ def settings_page(request: Request):
     if redirect:
         return redirect
     return templates.TemplateResponse("settings.html", {"request": request})
+
+
+# ── Admin pages ───────────────────────────────────────────────────────────────
+
+def _require_admin(request: Request):
+    if not request.session.get("is_admin"):
+        return RedirectResponse(url="/admin/login", status_code=302)
+    return None
+
+
+@router.get("/admin/login", tags=["admin"])
+def admin_login_page(request: Request):
+    if request.session.get("is_admin"):
+        return RedirectResponse(url="/admin", status_code=302)
+    return templates.TemplateResponse("admin_login.html", {"request": request})
+
+
+@router.get("/admin", tags=["admin"])
+def admin_dashboard_page(request: Request):
+    redirect = _require_admin(request)
+    if redirect:
+        return redirect
+    return templates.TemplateResponse("admin_dashboard.html", {"request": request})
+
+
+@router.get("/admin/organizations", tags=["admin"])
+def admin_orgs_page(request: Request):
+    redirect = _require_admin(request)
+    if redirect:
+        return redirect
+    return templates.TemplateResponse("admin_orgs.html", {"request": request})
+
+
+@router.get("/admin/users", tags=["admin"])
+def admin_users_page(request: Request):
+    redirect = _require_admin(request)
+    if redirect:
+        return redirect
+    return templates.TemplateResponse("admin_users.html", {"request": request})

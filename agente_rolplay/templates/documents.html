@@ -1,58 +1,310 @@
 {% extends "dashboard.html" %}
 
+{% block extra_head %}
+{{ super() }}
+<style>
+  .doc-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .doc-card {
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: 12px; padding: 1.2rem 1.25rem;
+    display: flex; flex-direction: column; gap: .65rem;
+    transition: all .2s; position: relative;
+  }
+  .doc-card:hover { border-color: var(--border-hover); transform: translateY(-2px); }
+
+  .doc-icon {
+    font-size: 2rem; line-height: 1; display: block;
+  }
+  .doc-name {
+    font-size: .875rem; font-weight: 700; color: var(--text);
+    word-break: break-word; line-height: 1.35;
+  }
+  .doc-meta {
+    font-size: .75rem; color: var(--text-muted);
+    display: flex; flex-direction: column; gap: .2rem;
+  }
+  .doc-badge {
+    display: inline-block;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 5px; padding: .15rem .5rem;
+    font-size: .68rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .3px; color: var(--text-muted);
+  }
+  .doc-badge.pdf   { background: rgba(239,68,68,.1);  color: #f87171;  border-color: rgba(239,68,68,.2); }
+  .doc-badge.image { background: rgba(220,38,38,.1); color: #818cf8;  border-color: rgba(220,38,38,.2); }
+  .doc-badge.word  { background: rgba(59,130,246,.1); color: #60a5fa;  border-color: rgba(59,130,246,.2); }
+  .doc-badge.excel { background: rgba(52,211,153,.1); color: #34d399;  border-color: rgba(52,211,153,.2); }
+  .doc-badge.ppt   { background: rgba(251,146,60,.1); color: #fb923c;  border-color: rgba(251,146,60,.2); }
+  .doc-badge.raw   { background: rgba(167,139,250,.1);color: #ef4444;  border-color: rgba(167,139,250,.2); }
+
+  .doc-actions {
+    display: flex; gap: .5rem; margin-top: auto;
+  }
+  .doc-actions a, .doc-actions button {
+    flex: 1; text-align: center; justify-content: center;
+    padding: .38rem .6rem; font-size: .78rem;
+  }
+
+  .filter-bar {
+    display: flex; align-items: center; gap: .75rem;
+    margin-bottom: 1.25rem; flex-wrap: wrap;
+  }
+  .search-bar { position: relative; flex: 1; min-width: 200px; }
+  .search-bar input {
+    width: 100%; padding: .62rem 1rem .62rem 2.4rem;
+    background: var(--input-bg); border: 1px solid var(--border);
+    border-radius: 10px; color: var(--input-color);
+    font-size: .875rem; font-family: inherit; outline: none;
+    transition: border-color .2s;
+  }
+  .search-bar input:focus { border-color: var(--border-hover); }
+  .search-bar::before {
+    content: '🔍'; position: absolute; left: .75rem; top: 50%;
+    transform: translateY(-50%); font-size: .78rem; pointer-events: none;
+  }
+  select.filter-select {
+    padding: .62rem .9rem;
+    background: var(--input-bg); border: 1px solid var(--border);
+    border-radius: 10px; color: var(--text);
+    font-size: .875rem; font-family: inherit; outline: none;
+    transition: border-color .2s; cursor: pointer;
+  }
+  select.filter-select:focus { border-color: var(--border-hover); }
+
+  .count-chip {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 20px; padding: .25rem .75rem;
+    font-size: .78rem; font-weight: 600; color: var(--text-muted);
+  }
+
+  .view-toggle { display: flex; gap: .3rem; }
+  .view-btn {
+    width: 32px; height: 32px; border-radius: 7px;
+    background: var(--surface); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: .85rem; transition: all .2s; color: var(--text-muted);
+  }
+  .view-btn.active { background: var(--indigo); border-color: var(--indigo); color: #fff; }
+
+  /* List view */
+  .doc-list { display: none; }
+  .doc-list.visible { display: block; }
+  .doc-grid.visible { display: grid; }
+  .doc-grid.hidden { display: none; }
+</style>
+{% endblock %}
+
 {% block dashboard_content %}
 <div class="page-header">
-  <h1>Documents</h1>
+  <div>
+    <h1 data-i18n="docs.title">Base de conocimiento</h1>
+    <div style="font-size:.85rem;color:var(--text-muted);margin-top:.2rem;" data-i18n="docs.subtitle">
+      Documentos subidos por tu equipo vía WhatsApp
+    </div>
+  </div>
+  <span class="count-chip" id="docCount">—</span>
 </div>
 
-<div class="card" style="margin-bottom: 1.5rem;">
-  <h3 style="margin-bottom: 1rem; color: #1a1a2e;">Knowledge Base Files</h3>
-  <table>
-    <thead>
-      <tr>
-        <th>Filename</th>
-        <th>Type</th>
-        <th>Uploaded</th>
-        <th>URL</th>
-      </tr>
-    </thead>
-    <tbody id="docsTable">
-      <tr><td colspan="4" style="text-align:center;">Loading...</td></tr>
-    </tbody>
-  </table>
+<!-- ── Filter bar ────────────────────────────────── -->
+<div class="filter-bar">
+  <div class="search-bar">
+    <input type="text" id="searchInput" data-i18n-ph="docs.search.ph" placeholder="Buscar documentos…" oninput="filterDocs()" />
+  </div>
+  <select class="filter-select" id="typeFilter" onchange="filterDocs()">
+    <option value="" data-i18n="docs.filter.all">Todos los tipos</option>
+    <option value="pdf" data-i18n="docs.filter.pdf">PDF</option>
+    <option value="image" data-i18n="docs.filter.images">Imágenes</option>
+    <option value="word" data-i18n="docs.filter.word">Word</option>
+    <option value="excel" data-i18n="docs.filter.excel">Excel</option>
+    <option value="ppt" data-i18n="docs.filter.ppt">PowerPoint</option>
+    <option value="raw" data-i18n="docs.filter.other">Otro</option>
+  </select>
+  <div class="view-toggle">
+    <button class="view-btn active" id="gridViewBtn" onclick="setView('grid')" data-i18n-title="docs.view.grid" title="Vista de cuadrícula">⊞</button>
+    <button class="view-btn" id="listViewBtn" onclick="setView('list')" data-i18n-title="docs.view.list" title="Vista de lista">☰</button>
+  </div>
+</div>
+
+<!-- ── Grid view ─────────────────────────────────── -->
+<div class="doc-grid visible" id="docGrid"></div>
+
+<!-- ── List view ─────────────────────────────────── -->
+<div class="doc-list" id="docList">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th data-i18n="docs.col.file">Archivo</th>
+          <th data-i18n="docs.col.type">Tipo</th>
+          <th data-i18n="docs.col.size">Tamaño</th>
+          <th data-i18n="docs.col.uploaded">Subido</th>
+          <th data-i18n="docs.col.actions">Acciones</th>
+        </tr>
+      </thead>
+      <tbody id="docListBody"></tbody>
+    </table>
+  </div>
 </div>
 
 <script>
-(async () => {
-  const token = localStorage.getItem('access_token');
-  if (!token) { window.location.href = '/login'; return; }
+const token = () => localStorage.getItem('access_token');
+const authFetch = (url, opts = {}) => fetch(url, {
+  ...opts, headers: { 'Authorization': 'Bearer ' + token(), ...(opts.headers || {}) }
+});
 
-  try {
-    const r = await fetch('/api/rag/files', {
-      headers: { 'Authorization': 'Bearer ' + token }
-    });
-    const tbody = document.getElementById('docsTable');
-    if (!r.ok) {
-      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Could not load documents</td></tr>';
-      return;
-    }
-    const files = await r.json();
-    if (!files.length) {
-      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No documents found</td></tr>';
-      return;
-    }
-    tbody.innerHTML = files.map(f => `
-      <tr>
-        <td>${f.filename || f.name || '-'}</td>
-        <td>${f.resource_type || f.format || '-'}</td>
-        <td>${f.created_at ? new Date(f.created_at).toLocaleDateString() : '-'}</td>
-        <td>${f.secure_url ? `<a href="${f.secure_url}" target="_blank">View</a>` : '-'}</td>
-      </tr>
-    `).join('');
-  } catch (e) {
-    document.getElementById('docsTable').innerHTML =
-      '<tr><td colspan="4" style="text-align:center;">Error loading documents</td></tr>';
+let allDocs = [];
+let currentView = 'grid';
+
+function getFileInfo(doc) {
+  const fmt = (doc.format || '').toLowerCase();
+  const rt  = (doc.resource_type || '').toLowerCase();
+  const name = (doc.name || '').toLowerCase();
+
+  if (fmt === 'pdf' || name.endsWith('.pdf'))
+    return { icon: '📕', type: 'pdf',   label: 'PDF' };
+  if (['jpg','jpeg','png','gif','webp','avif','svg'].includes(fmt) || rt === 'image')
+    return { icon: '🖼️', type: 'image', label: fmt.toUpperCase() || 'Image' };
+  if (['doc','docx'].includes(fmt) || name.endsWith('.docx') || name.endsWith('.doc'))
+    return { icon: '📝', type: 'word',  label: fmt.toUpperCase() || 'Word' };
+  if (['xls','xlsx','csv'].includes(fmt))
+    return { icon: '📊', type: 'excel', label: fmt.toUpperCase() };
+  if (['ppt','pptx'].includes(fmt))
+    return { icon: '📋', type: 'ppt',   label: fmt.toUpperCase() };
+  return   { icon: '📎', type: 'raw',   label: fmt || 'File' };
+}
+
+function fmtBytes(bytes) {
+  if (!bytes) return '—';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / 1048576).toFixed(1) + ' MB';
+}
+
+async function loadDocs() {
+  if (!token()) { window.location.href = '/login'; return; }
+  const r = await authFetch('/api/users/documents');
+  if (r.status === 401) { window.location.href = '/login'; return; }
+  if (!r.ok) {
+    document.getElementById('docGrid').innerHTML =
+      `<div style="color:var(--error);padding:2rem;">${t('docs.error.load')}</div>`;
+    return;
   }
-})();
+  allDocs = await r.json();
+  filterDocs();
+}
+
+function filterDocs() {
+  const q    = document.getElementById('searchInput').value.toLowerCase();
+  const type = document.getElementById('typeFilter').value;
+
+  const filtered = allDocs.filter(d => {
+    const info = getFileInfo(d);
+    const matchQ = !q || (d.name || '').toLowerCase().includes(q);
+    const matchT = !type || info.type === type;
+    return matchQ && matchT;
+  });
+
+  document.getElementById('docCount').textContent = filtered.length + ' file' + (filtered.length !== 1 ? 's' : '');
+  renderGrid(filtered);
+  renderList(filtered);
+}
+
+function renderGrid(docs) {
+  const grid = document.getElementById('docGrid');
+  if (!docs.length) {
+    grid.innerHTML = `
+      <div style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--text-muted);">
+        <span style="font-size:2.5rem;display:block;margin-bottom:.75rem;">📂</span>
+        ${t('docs.empty')}
+      </div>`;
+    return;
+  }
+  grid.innerHTML = docs.map((d, i) => {
+    const info = getFileInfo(d);
+    const date = d.created_at ? new Date(d.created_at).toLocaleDateString(getLang() === 'es' ? 'es-ES' : 'en-US') : '—';
+    return `
+      <div class="doc-card">
+        <span class="doc-icon">${info.icon}</span>
+        <div class="doc-name">${d.name || 'Untitled'}</div>
+        <div class="doc-meta">
+          <span><span class="doc-badge ${info.type}">${info.label}</span></span>
+          <span>${fmtBytes(d.bytes)}</span>
+          <span>${date}</span>
+        </div>
+        <div class="doc-actions">
+          ${d.secure_url
+            ? `<a href="${d.secure_url}" target="_blank" class="btn btn-secondary btn-sm">${t('docs.btn.view')}</a>`
+            : `<span class="btn btn-secondary btn-sm" style="opacity:.4;cursor:default;">${t('docs.no_url')}</span>`}
+          <button class="btn btn-danger btn-sm" onclick="deleteDoc(${i})">${t('docs.btn.delete')}</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function renderList(docs) {
+  const tbody = document.getElementById('docListBody');
+  if (!docs.length) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-muted);">${t('docs.empty.list')}</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = docs.map((d, i) => {
+    const info = getFileInfo(d);
+    const date = d.created_at ? new Date(d.created_at).toLocaleDateString(getLang() === 'es' ? 'es-ES' : 'en-US') : '—';
+    return `
+      <tr>
+        <td class="td-name">${info.icon} ${d.name || 'Untitled'}</td>
+        <td><span class="doc-badge ${info.type}">${info.label}</span></td>
+        <td>${fmtBytes(d.bytes)}</td>
+        <td>${date}</td>
+        <td>
+          <div class="actions">
+            ${d.secure_url ? `<a href="${d.secure_url}" target="_blank" class="btn btn-secondary btn-sm">${t('docs.btn.view')}</a>` : ''}
+            <button class="btn btn-danger btn-sm" onclick="deleteDoc(${i})">${t('docs.btn.delete')}</button>
+          </div>
+        </td>
+      </tr>`;
+  }).join('');
+}
+
+async function deleteDoc(index) {
+  const doc = allDocs[index];
+  const name = doc.name || doc.public_id || 'this file';
+  if (!confirm(t('docs.confirm.delete', { name }))) return;
+
+  if (!doc.public_id) {
+    alert(t('docs.error.no_ref'));
+    return;
+  }
+
+  const params = new URLSearchParams({ public_id: doc.public_id });
+  if (doc.format) params.append('format', doc.format);
+
+  const r = await authFetch('/api/rag/files?' + params.toString(), { method: 'DELETE' });
+  if (r.ok) {
+    allDocs.splice(index, 1);
+    filterDocs();
+  } else {
+    const err = await r.json().catch(() => ({}));
+    alert(t('docs.error.delete') + (err.detail || 'Unknown error'));
+  }
+}
+
+function setView(view) {
+  currentView = view;
+  document.getElementById('docGrid').classList.toggle('visible', view === 'grid');
+  document.getElementById('docGrid').classList.toggle('hidden',  view !== 'grid');
+  document.getElementById('docList').classList.toggle('visible', view === 'list');
+  document.getElementById('gridViewBtn').classList.toggle('active', view === 'grid');
+  document.getElementById('listViewBtn').classList.toggle('active', view === 'list');
+}
+
+document.addEventListener('langchange', () => filterDocs());
+
+loadDocs();
 </script>
 {% endblock %}

@@ -41,11 +41,16 @@ async def rag_query(request: Request, authorization: str = Header(None)):
 def list_kb_files(current_user: User = Depends(get_current_user)):
     try:
         import cloudinary.api
-        result = cloudinary.api.resources(
-            type="upload",
-            prefix="knowledgebase/",
-            max_results=100,
-        )
+
+        def _fetch(resource_type: str):
+            return cloudinary.api.resources(
+                type="upload",
+                resource_type=resource_type,
+                prefix="knowledgebase/",
+                max_results=100,
+            ).get("resources", [])
+
+        resources = _fetch("image") + _fetch("raw")
         files = [
             {
                 "filename": r.get("public_id", "").split("/")[-1],
@@ -56,8 +61,41 @@ def list_kb_files(current_user: User = Depends(get_current_user)):
                 "secure_url": r.get("secure_url"),
                 "created_at": r.get("created_at"),
             }
-            for r in result.get("resources", [])
+            for r in resources
         ]
         return files
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/api/rag/files")
+def delete_kb_file(
+    public_id: str,
+    format: str = "",
+    current_user: User = Depends(get_current_user),
+):
+    """Delete a file from Cloudinary and its vectors from Pinecone."""
+    from agente_rolplay.storage.pinecone_client import delete_by_filename
+
+    errors = []
+
+    # Delete from Cloudinary (try both resource types; destroy silently ignores not-found)
+    try:
+        import cloudinary.uploader
+        cloudinary.uploader.destroy(public_id, resource_type="image")
+        cloudinary.uploader.destroy(public_id, resource_type="raw")
+    except Exception as e:
+        errors.append(f"Cloudinary: {e}")
+
+    # Pinecone stores filenames with extension; Cloudinary public_id has no extension.
+    # Reconstruct: "knowledgebase/my_doc" + format "pdf" → "my_doc.pdf"
+    base_name = public_id.split("/")[-1]
+    pinecone_filename = f"{base_name}.{format}" if format else base_name
+    pinecone_result = delete_by_filename(pinecone_filename)
+    if not pinecone_result.get("success"):
+        errors.append(f"Pinecone: {pinecone_result.get('error')}")
+
+    if errors:
+        raise HTTPException(status_code=500, detail="; ".join(errors))
+
+    return {"deleted": public_id}

@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, JSON
+from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Integer, JSON
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from agente_rolplay.db.database import Base
@@ -54,6 +54,8 @@ class Profile(Base):
         nullable=False,
     )
     username = Column(String(255), nullable=True)
+    full_name = Column(String(255), nullable=True)
+    job_title = Column(String(255), nullable=True)
     whatsapp_number = Column(String(50), nullable=True)
     role_id = Column(UUID(as_uuid=True), ForeignKey("roles.id"), nullable=True)
     is_active = Column(Boolean, default=True)
@@ -95,3 +97,17 @@ class Document(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     organization = relationship("Organization", back_populates="documents")
+
+
+class MessageLog(Base):
+    __tablename__ = "message_logs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id = Column(UUID(as_uuid=True), nullable=True)  # null if phone not registered
+    phone_number = Column(String(50), nullable=False)
+    message_type = Column(String(20), default="text")  # text, audio, image, document
+    is_voice_note = Column(Boolean, default=False)
+    is_rag_query = Column(Boolean, default=False)
+    response_time_ms = Column(Integer, nullable=True)
+    is_error = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)

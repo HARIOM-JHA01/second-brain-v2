@@ -1,0 +1,229 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Users{% endblock %}
+{% block page_title %}All Users{% endblock %}
+{% block page_subtitle %}Every user across all organizations — change passwords, toggle access{% endblock %}
+
+{% block extra_style %}
+.filter-bar { display: flex; align-items: center; gap: .75rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+.count-chip {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 20px; padding: .25rem .75rem;
+  font-size: .78rem; font-weight: 600; color: var(--text-muted);
+}
+.org-tag {
+  display: inline-block; background: rgba(220,38,38,.12); color: #818cf8;
+  border-radius: 5px; padding: .18rem .5rem; font-size: .72rem; font-weight: 600;
+}
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Change Password Modal ────────────────────────────── -->
+<div id="pwModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Change Password</h2>
+      <button class="modal-close" onclick="closePwModal()">&times;</button>
+    </div>
+    <div style="margin-bottom:1.25rem;">
+      <div style="font-size:.82rem;color:var(--text-muted);">User</div>
+      <div style="font-size:.95rem;font-weight:700;color:var(--text);margin-top:.2rem;" id="pwUserLabel">—</div>
+      <div style="font-size:.8rem;color:var(--text-muted);" id="pwUserEmail">—</div>
+    </div>
+    <form id="pwForm">
+      <input type="hidden" id="pwUserId" />
+      <div class="form-group">
+        <label>New Password</label>
+        <input type="password" id="pwNewPassword" required placeholder="Min 6 characters" minlength="6" autocomplete="new-password" />
+      </div>
+      <div class="form-group">
+        <label>Confirm Password</label>
+        <input type="password" id="pwConfirm" required placeholder="Repeat password" autocomplete="new-password" />
+      </div>
+      <button type="submit" class="btn btn-danger" style="width:100%;justify-content:center;margin-top:.5rem;">
+        🔑 Set New Password
+      </button>
+    </form>
+    <div id="pwError" style="color:var(--error);font-size:.82rem;margin-top:.6rem;display:none;"></div>
+    <div id="pwSuccess" style="color:var(--success);font-size:.82rem;margin-top:.6rem;display:none;">Password updated successfully.</div>
+  </div>
+</div>
+
+<!-- ── Users table ─────────────────────────────────────── -->
+<div class="section-card">
+  <div class="section-card-header">
+    <div class="section-card-title">All Users <span class="count-chip" id="userCount">—</span></div>
+  </div>
+
+  <div class="filter-bar">
+    <div class="search-bar" style="flex:1;min-width:220px;margin-bottom:0;">
+      <input type="text" id="searchInput" placeholder="Search name, email, org, WhatsApp…" oninput="filterUsers()" />
+    </div>
+    <select id="orgFilter" onchange="filterUsers()" style="padding:.6rem .9rem;background:var(--input-bg);border:1px solid var(--border);border-radius:9px;color:var(--text);font-size:.875rem;font-family:inherit;outline:none;">
+      <option value="">All Organizations</option>
+    </select>
+    <select id="statusFilter" onchange="filterUsers()" style="padding:.6rem .9rem;background:var(--input-bg);border:1px solid var(--border);border-radius:9px;color:var(--text);font-size:.875rem;font-family:inherit;outline:none;">
+      <option value="">All Statuses</option>
+      <option value="active">Active only</option>
+      <option value="inactive">Inactive only</option>
+    </select>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th>WhatsApp</th>
+          <th>Job Title</th>
+          <th>Organization</th>
+          <th>Role</th>
+          <th>Status</th>
+          <th>Joined</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="usersTable">
+        <tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--text-muted);">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_script %}
+<script>
+let users = [];
+
+async function loadUsers() {
+  const res = await fetch('/admin/api/users');
+  if (res.status === 403) { window.location.href = '/admin/login'; return; }
+  users = await res.json();
+
+  // Populate org filter
+  const orgs = [...new Set(users.map(u => u.org_name).filter(Boolean))].sort();
+  const sel = document.getElementById('orgFilter');
+  orgs.forEach(o => {
+    const opt = document.createElement('option');
+    opt.value = o; opt.textContent = o;
+    sel.appendChild(opt);
+  });
+
+  // Pre-filter from URL ?org= param
+  const urlOrg = new URLSearchParams(location.search).get('org');
+  if (urlOrg) sel.value = urlOrg;
+
+  filterUsers();
+}
+
+function filterUsers() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const orgF = document.getElementById('orgFilter').value;
+  const statusF = document.getElementById('statusFilter').value;
+
+  const filtered = users.filter(u => {
+    const matchQ = !q || [u.full_name, u.email, u.org_name, u.whatsapp_number, u.job_title]
+      .some(v => (v || '').toLowerCase().includes(q));
+    const matchOrg = !orgF || u.org_name === orgF;
+    const matchStatus = !statusF ||
+      (statusF === 'active' && u.is_active) ||
+      (statusF === 'inactive' && !u.is_active);
+    return matchQ && matchOrg && matchStatus;
+  });
+
+  document.getElementById('userCount').textContent = filtered.length;
+  renderUsers(filtered);
+}
+
+function renderUsers(list) {
+  const tbody = document.getElementById('usersTable');
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--text-muted);">No users found</td></tr>';
+    return;
+  }
+  tbody.innerHTML = list.map(u => `
+    <tr>
+      <td class="td-main">${u.full_name || '—'}</td>
+      <td style="font-size:.82rem;color:var(--text-dim);">${u.email || '—'}</td>
+      <td style="font-size:.82rem;">${u.whatsapp_number || '—'}</td>
+      <td style="font-size:.82rem;color:var(--text-muted);">${u.job_title || '—'}</td>
+      <td><span class="org-tag">${u.org_name || '—'}</span></td>
+      <td style="font-size:.82rem;color:var(--text-muted);">${u.role_name || '—'}</td>
+      <td>
+        <span class="badge ${u.is_active ? 'badge-active' : 'badge-inactive'}">
+          ${u.is_active ? 'Active' : 'Inactive'}
+        </span>
+      </td>
+      <td style="color:var(--text-muted);font-size:.82rem;">${new Date(u.created_at).toLocaleDateString()}</td>
+      <td>
+        <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
+          <button class="btn btn-danger btn-sm" onclick="openPwModal('${u.user_id}','${(u.full_name||'').replace(/'/g,"\\'")}','${(u.email||'').replace(/'/g,"\\'")}')">
+            🔑 Password
+          </button>
+          <button class="btn ${u.is_active ? 'btn-secondary' : 'btn-success'} btn-sm"
+            onclick="toggleActive('${u.profile_id}', this)">
+            ${u.is_active ? 'Revoke' : 'Activate'}
+          </button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function openPwModal(userId, name, email) {
+  document.getElementById('pwUserId').value = userId;
+  document.getElementById('pwUserLabel').textContent = name || 'Unknown';
+  document.getElementById('pwUserEmail').textContent = email || '';
+  document.getElementById('pwNewPassword').value = '';
+  document.getElementById('pwConfirm').value = '';
+  document.getElementById('pwError').style.display = 'none';
+  document.getElementById('pwSuccess').style.display = 'none';
+  document.getElementById('pwModal').classList.add('show');
+}
+
+function closePwModal() {
+  document.getElementById('pwModal').classList.remove('show');
+}
+
+document.getElementById('pwForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const pw = document.getElementById('pwNewPassword').value;
+  const conf = document.getElementById('pwConfirm').value;
+  const errEl = document.getElementById('pwError');
+  const okEl = document.getElementById('pwSuccess');
+  errEl.style.display = 'none'; okEl.style.display = 'none';
+
+  if (pw !== conf) {
+    errEl.textContent = 'Passwords do not match'; errEl.style.display = 'block'; return;
+  }
+  const userId = document.getElementById('pwUserId').value;
+  const res = await fetch(`/admin/api/users/${userId}/set-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ new_password: pw }),
+  });
+  if (res.ok) {
+    okEl.style.display = 'block';
+    setTimeout(closePwModal, 1500);
+  } else {
+    const d = await res.json().catch(() => ({}));
+    errEl.textContent = d.detail || 'Error setting password';
+    errEl.style.display = 'block';
+  }
+});
+
+async function toggleActive(profileId, btn) {
+  const res = await fetch(`/admin/api/users/${profileId}/active`, { method: 'PATCH' });
+  if (res.ok) {
+    loadUsers(); // refresh table
+  } else {
+    alert('Error updating status');
+  }
+}
+
+loadUsers();
+</script>
+{% endblock %}

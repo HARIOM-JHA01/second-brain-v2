@@ -2,244 +2,221 @@
 
 {% block dashboard_content %}
 <div class="page-header">
-    <h1>Users</h1>
-    <button class="btn btn-primary" onclick="document.getElementById('addUserModal').classList.add('show')">
-        Add User
-    </button>
+  <h1 data-i18n="users.title">Usuarios</h1>
+  <button class="btn btn-primary" onclick="document.getElementById('addUserModal').classList.add('show')" data-i18n="users.add_btn">
+    + Agregar usuario
+  </button>
 </div>
 
-<table>
+<div class="table-wrap">
+  <table>
     <thead>
-        <tr>
-            <th>Username</th>
-            <th>Email</th>
-            <th>WhatsApp</th>
-            <th>Role</th>
-            <th>Status</th>
-            <th>Actions</th>
-        </tr>
+      <tr>
+        <th data-i18n="users.col.name">Nombre</th>
+        <th data-i18n="users.col.email">Correo</th>
+        <th data-i18n="users.col.whatsapp">WhatsApp</th>
+        <th data-i18n="users.col.jobtitle">Cargo</th>
+        <th data-i18n="users.col.role">Rol</th>
+        <th data-i18n="users.col.status">Estado</th>
+        <th data-i18n="users.col.actions">Acciones</th>
+      </tr>
     </thead>
     <tbody id="usersTable">
-        <tr>
-            <td colspan="6" style="text-align: center;">Loading...</td>
-        </tr>
+      <tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted);" data-i18n="users.loading">Cargando…</td></tr>
     </tbody>
-</table>
-
-<div id="addUserModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2>Add User</h2>
-            <button class="close" onclick="document.getElementById('addUserModal').classList.remove('show')">&times;</button>
-        </div>
-        <form id="addUserForm">
-            <div class="form-group">
-                <label for="username">Username</label>
-                <input type="text" id="username" name="username" required>
-            </div>
-            <div class="form-group">
-                <label for="whatsapp_number">WhatsApp Number</label>
-                <input type="text" id="whatsapp_number" name="whatsapp_number" placeholder="+1234567890" required>
-            </div>
-            <div class="form-group">
-                <label for="role_id">Role</label>
-                <select id="role_id" name="role_id" required>
-                    <option value="">Select a role</option>
-                </select>
-            </div>
-            <button type="submit" class="btn btn-primary" style="width: 100%;">Add User</button>
-        </form>
-    </div>
+  </table>
 </div>
 
-<div id="editUserModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2>Edit User</h2>
-            <button class="close" onclick="document.getElementById('editUserModal').classList.remove('show')">&times;</button>
-        </div>
-        <form id="editUserForm">
-            <input type="hidden" id="edit_user_id">
-            <div class="form-group">
-                <label for="edit_username">Username</label>
-                <input type="text" id="edit_username" name="username">
-            </div>
-            <div class="form-group">
-                <label for="edit_whatsapp_number">WhatsApp Number</label>
-                <input type="text" id="edit_whatsapp_number" name="whatsapp_number" placeholder="+1234567890">
-            </div>
-            <div class="form-group">
-                <label for="edit_role_id">Role</label>
-                <select id="edit_role_id" name="role_id">
-                    <option value="">Select a role</option>
-                </select>
-            </div>
-            <button type="submit" class="btn btn-primary" style="width: 100%;">Save Changes</button>
-        </form>
+<!-- Add User Modal -->
+<div id="addUserModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 data-i18n="users.modal.add_title">Agregar usuario</h2>
+      <button class="modal-close" onclick="document.getElementById('addUserModal').classList.remove('show')">&times;</button>
     </div>
+    <form id="addUserForm">
+      <div class="form-group">
+        <label data-i18n="users.modal.fullname">Nombre completo</label>
+        <input type="text" id="add_full_name" name="full_name" required data-i18n-ph="users.modal.fullname.ph" placeholder="María García" />
+      </div>
+      <div class="form-group">
+        <label data-i18n="users.modal.jobtitle">Cargo</label>
+        <input type="text" id="add_job_title" name="job_title" data-i18n-ph="users.modal.jobtitle.ph" placeholder="Ingeniero" />
+      </div>
+      <div class="form-group">
+        <label data-i18n="users.modal.whatsapp">Número de WhatsApp</label>
+        <input type="tel" id="add_whatsapp" name="whatsapp_number" required placeholder="+1234567890" />
+      </div>
+      <div class="form-group">
+        <label data-i18n="users.modal.role">Rol</label>
+        <select id="add_role_id" name="role_id" required>
+          <option value="" data-i18n="users.modal.role.ph">Selecciona un rol</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;" data-i18n="users.modal.add_btn">Agregar usuario</button>
+      <div class="alert alert-error" id="addUserError" style="display:none;margin-top:.75rem;"></div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit User Modal -->
+<div id="editUserModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 data-i18n="users.modal.edit_title">Editar usuario</h2>
+      <button class="modal-close" onclick="document.getElementById('editUserModal').classList.remove('show')">&times;</button>
+    </div>
+    <form id="editUserForm">
+      <input type="hidden" id="edit_user_id" />
+      <div class="form-group">
+        <label data-i18n="users.modal.fullname">Nombre completo</label>
+        <input type="text" id="edit_full_name" name="full_name" />
+      </div>
+      <div class="form-group">
+        <label data-i18n="users.modal.jobtitle">Cargo</label>
+        <input type="text" id="edit_job_title" name="job_title" />
+      </div>
+      <div class="form-group">
+        <label data-i18n="users.modal.whatsapp">Número de WhatsApp</label>
+        <input type="tel" id="edit_whatsapp" name="whatsapp_number" placeholder="+1234567890" />
+      </div>
+      <div class="form-group">
+        <label data-i18n="users.modal.role">Rol</label>
+        <select id="edit_role_id" name="role_id">
+          <option value="" data-i18n="users.modal.role.ph">Selecciona un rol</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;" data-i18n="users.modal.save_btn">Guardar cambios</button>
+    </form>
+  </div>
 </div>
 
 <script>
-let users = [];
-let roles = [];
+let users = [], roles = [];
+const token = () => localStorage.getItem('access_token');
+const authFetch = (url, opts = {}) => fetch(url, {
+  ...opts, headers: { 'Authorization': 'Bearer ' + token(), ...(opts.headers || {}) }
+});
 
 async function loadUsers() {
-    try {
-        const response = await fetch('/api/users', {
-            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('access_token') }
-        });
-        if (response.status === 401) {
-            window.location.href = '/login';
-            return;
-        }
-        users = await response.json();
-        renderUsers();
-    } catch (error) {
-        console.error('Error loading users:', error);
-    }
+  const r = await authFetch('/api/users');
+  if (r.status === 401) { window.location.href = '/login'; return; }
+  users = await r.json();
+  renderUsers();
 }
 
 async function loadRoles() {
-    try {
-        const response = await fetch('/api/roles', {
-            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('access_token') }
-        });
-        roles = await response.json();
-        
-        ['role_id', 'edit_role_id'].forEach(selectId => {
-            const select = document.getElementById(selectId);
-            roles.forEach(role => {
-                const option = document.createElement('option');
-                option.value = role.id;
-                option.textContent = role.name;
-                select.appendChild(option);
-            });
-        });
-    } catch (error) {
-        console.error('Error loading roles:', error);
-    }
+  const r = await authFetch('/api/roles');
+  if (!r.ok) return;
+  roles = await r.json();
+  ['add_role_id', 'edit_role_id'].forEach(id => {
+    const sel = document.getElementById(id);
+    // Remove existing dynamic options
+    [...sel.options].slice(1).forEach(o => o.remove());
+    roles.forEach(role => {
+      const o = document.createElement('option');
+      o.value = role.id; o.textContent = role.name;
+      sel.appendChild(o);
+    });
+  });
 }
 
 function renderUsers() {
-    const tbody = document.getElementById('usersTable');
-    if (users.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No users found</td></tr>';
-        return;
-    }
-    
-    tbody.innerHTML = users.map(user => `
-        <tr>
-            <td>${user.username || '-'}</td>
-            <td>${user.user?.email || '-'}</td>
-            <td>${user.whatsapp_number || '-'}</td>
-            <td>${user.role?.name || '-'}</td>
-            <td>
-                <span class="badge ${user.is_active ? 'badge-active' : 'badge-inactive'}">
-                    ${user.is_active ? 'Active' : 'Inactive'}
-                </span>
-            </td>
-            <td class="actions">
-                <button class="btn btn-sm btn-secondary" onclick="openEditModal('${user.id}')">Edit</button>
-                ${user.is_active
-                    ? `<button class="btn btn-sm btn-danger" onclick="revokeAccess('${user.id}')">Revoke</button>`
-                    : `<button class="btn btn-sm btn-success" onclick="reactivateUser('${user.id}')">Reactivate</button>`
-                }
-            </td>
-        </tr>
-    `).join('');
+  const tbody = document.getElementById('usersTable');
+  if (!users.length) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted);">${t('users.empty')}</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = users.map(u => `
+    <tr>
+      <td class="td-name">${u.full_name || u.username || '—'}</td>
+      <td>${u.user?.email || '—'}</td>
+      <td>${u.whatsapp_number || '—'}</td>
+      <td>${u.job_title || '—'}</td>
+      <td>${u.role?.name || '—'}</td>
+      <td><span class="badge ${u.is_active ? 'badge-active' : 'badge-inactive'}">${u.is_active ? t('common.active') : t('common.inactive')}</span></td>
+      <td class="actions">
+        <button class="btn btn-secondary btn-sm" onclick="openEditModal('${u.id}')">${t('users.btn.edit')}</button>
+        ${u.is_active
+          ? `<button class="btn btn-danger btn-sm" onclick="revokeAccess('${u.id}')">${t('users.btn.revoke')}</button>`
+          : `<button class="btn btn-success btn-sm" onclick="reactivateUser('${u.id}')">${t('users.btn.reactivate')}</button>`}
+      </td>
+    </tr>
+  `).join('');
 }
 
-async function revokeAccess(userId) {
-    if (!confirm('Are you sure you want to revoke access for this user?')) return;
-    
-    try {
-        await fetch(`/api/users/${userId}`, {
-            method: 'DELETE',
-            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('access_token') }
-        });
-        loadUsers();
-    } catch (error) {
-        console.error('Error revoking access:', error);
-    }
+async function revokeAccess(id) {
+  if (!confirm(t('users.confirm.revoke'))) return;
+  await authFetch(`/api/users/${id}`, { method: 'DELETE' });
+  loadUsers();
 }
 
-async function reactivateUser(userId) {
-    try {
-        await fetch(`/api/users/${userId}/reactivate`, {
-            method: 'POST',
-            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('access_token') }
-        });
-        loadUsers();
-    } catch (error) {
-        console.error('Error reactivating user:', error);
-    }
+async function reactivateUser(id) {
+  await authFetch(`/api/users/${id}/reactivate`, { method: 'POST' });
+  loadUsers();
 }
 
-function openEditModal(userId) {
-    const user = users.find(u => u.id === userId);
-    if (!user) return;
-    document.getElementById('edit_user_id').value = user.id;
-    document.getElementById('edit_username').value = user.username || '';
-    document.getElementById('edit_whatsapp_number').value = user.whatsapp_number || '';
-    const roleSelect = document.getElementById('edit_role_id');
-    roleSelect.value = user.role_id || '';
-    document.getElementById('editUserModal').classList.add('show');
+function openEditModal(id) {
+  const u = users.find(u => u.id === id);
+  if (!u) return;
+  document.getElementById('edit_user_id').value = u.id;
+  document.getElementById('edit_full_name').value = u.full_name || '';
+  document.getElementById('edit_job_title').value = u.job_title || '';
+  document.getElementById('edit_whatsapp').value = u.whatsapp_number || '';
+  document.getElementById('edit_role_id').value = u.role_id || '';
+  document.getElementById('editUserModal').classList.add('show');
 }
-
-document.getElementById('editUserForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const userId = document.getElementById('edit_user_id').value;
-    const formData = {
-        username: document.getElementById('edit_username').value || null,
-        whatsapp_number: document.getElementById('edit_whatsapp_number').value || null,
-        role_id: document.getElementById('edit_role_id').value || null,
-    };
-    try {
-        const r = await fetch(`/api/users/${userId}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + localStorage.getItem('access_token')
-            },
-            body: JSON.stringify(formData)
-        });
-        if (r.ok) {
-            document.getElementById('editUserModal').classList.remove('show');
-            loadUsers();
-        }
-    } catch (error) {
-        console.error('Error updating user:', error);
-    }
-});
 
 document.getElementById('addUserForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const formData = {
-        username: document.getElementById('username').value,
-        whatsapp_number: document.getElementById('whatsapp_number').value,
-        role_id: document.getElementById('role_id').value,
-        user_id: crypto.randomUUID(),
-        org_id: null
-    };
-    
-    try {
-        await fetch('/api/users', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + localStorage.getItem('access_token')
-            },
-            body: JSON.stringify(formData)
-        });
-        
-        document.getElementById('addUserModal').classList.remove('show');
-        document.getElementById('addUserForm').reset();
-        loadUsers();
-    } catch (error) {
-        console.error('Error adding user:', error);
-    }
+  e.preventDefault();
+  const err = document.getElementById('addUserError');
+  err.style.display = 'none';
+  const body = {
+    full_name: document.getElementById('add_full_name').value,
+    job_title: document.getElementById('add_job_title').value || null,
+    whatsapp_number: document.getElementById('add_whatsapp').value,
+    role_id: document.getElementById('add_role_id').value,
+    username: document.getElementById('add_full_name').value.toLowerCase().replace(/\s+/g, '.'),
+    user_id: crypto.randomUUID(),
+    org_id: null,
+  };
+  const r = await authFetch('/api/users', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (r.ok) {
+    document.getElementById('addUserModal').classList.remove('show');
+    document.getElementById('addUserForm').reset();
+    loadUsers();
+  } else {
+    const d = await r.json().catch(() => ({}));
+    err.textContent = d.detail || t('users.error.add');
+    err.style.display = 'block';
+  }
 });
+
+document.getElementById('editUserForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const id = document.getElementById('edit_user_id').value;
+  const body = {
+    full_name: document.getElementById('edit_full_name').value || null,
+    job_title: document.getElementById('edit_job_title').value || null,
+    whatsapp_number: document.getElementById('edit_whatsapp').value || null,
+    role_id: document.getElementById('edit_role_id').value || null,
+  };
+  const r = await authFetch(`/api/users/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (r.ok) {
+    document.getElementById('editUserModal').classList.remove('show');
+    loadUsers();
+  }
+});
+
+document.addEventListener('langchange', () => { loadUsers(); loadRoles(); });
 
 loadUsers();
 loadRoles();

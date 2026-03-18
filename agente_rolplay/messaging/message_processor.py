@@ -33,7 +33,7 @@ from agente_rolplay.messaging.greeting_handler import (
     is_english,
     detect_language,
 )
-from agente_rolplay.storage.analytics_logger import log_chat_interaction
+from agente_rolplay.storage.analytics_logger import log_chat_interaction, log_message_to_db
 from agente_rolplay.storage.cloudinary_storage import upload_file_to_cloudinary
 from agente_rolplay.messaging.twilio_client import extract_phone_from_twilio
 from agente_rolplay.storage.pinecone_client import upload_to_pinecone
@@ -47,9 +47,6 @@ from agente_rolplay.storage.file_processor import (
 
 from agente_rolplay.config import (
     ANTHROPIC_API_KEY,
-    REDIS_HOST,
-    REDIS_PASSWORD,
-    REDIS_PORT,
     VOICE_NOTES_ENABLED,
     MAX_FILE_SIZE_BYTES,
     RATE_LIMIT_MAX_MESSAGES,
@@ -61,15 +58,10 @@ from agente_rolplay.config import (
     LAST_UPLOADED_FILE_TTL,
     FILE_METADATA_TTL,
     TWILIO_MESSAGE_MAX_LENGTH,
+    redis_connection_kwargs,
 )
 
-r = redis.Redis(
-    host=REDIS_HOST,
-    port=REDIS_PORT,
-    decode_responses=True,
-    username="default",
-    password=REDIS_PASSWORD,
-)
+r = redis.Redis(**redis_connection_kwargs())
 
 FILE_TOO_LARGE_MSG = {
     "es": "Lo siento, el archivo es demasiado grande. El tamaño máximo permitido es 50 MB.",
@@ -159,20 +151,26 @@ def is_knowledge_base_inventory_query(user_message: str) -> bool:
     return any(pattern in normalized for pattern in inventory_patterns)
 
 
-def get_knowledge_base_file_count(redis_client) -> int:
-    """Get total files known in KB metadata store."""
+def get_knowledge_base_file_count(org_id: str) -> int:
+    """Get total files in the KB for the given org (scoped to org)."""
     try:
-        return int(redis_client.scard("all_uploaded_files"))
+        from agente_rolplay.db.database import SessionLocal
+        from agente_rolplay.db.models import Document
+        db = SessionLocal()
+        try:
+            return db.query(Document).filter(Document.org_id == org_id).count()
+        finally:
+            db.close()
     except Exception:
         return 0
 
 
-def get_knowledge_base_count_message(redis_client, lang: str) -> str:
-    """Build user-facing KB count response."""
-    count = get_knowledge_base_file_count(redis_client)
+def get_knowledge_base_count_message(org_id: str, lang: str) -> str:
+    """Build user-facing KB count response, scoped to org."""
+    count = get_knowledge_base_file_count(org_id)
     if lang == "en":
-        return f"There are currently {count} file(s) in the Knowledge Base."
-    return f"Actualmente hay {count} archivo(s) en el Knowledge Base."
+        return f"There are currently {count} file(s) in your organization's Knowledge Base."
+    return f"Actualmente hay {count} archivo(s) en el Knowledge Base de tu organización."
 
 
 def detect_file_upload_intent(user_message: str, phone_number: str) -> bool:
@@ -379,6 +377,29 @@ def handle_file_upload(
         pass
 
     if upload_result and upload_result.get("success"):
+        # Persist Document record so the dashboard can show org-scoped files
+        try:
+            from agente_rolplay.db.database import get_db
+            from agente_rolplay.db.models import Document, Profile
+            from agente_rolplay.db.whatsapp_auth import normalize_whatsapp_number
+            db = next(get_db())
+            try:
+                normalized_phone = normalize_whatsapp_number(phone_number)
+                profile = db.query(Profile).filter(
+                    Profile.whatsapp_number == normalized_phone
+                ).first()
+                if profile:
+                    db.add(Document(
+                        org_id=profile.org_id,
+                        name=filename,
+                        drive_file_id=upload_result.get("public_id"),
+                    ))
+                    db.commit()
+            finally:
+                db.close()
+        except Exception as _doc_err:
+            print(f"Warning: could not write Document record: {_doc_err}")
+
         metadata = {
             "filename": filename,
             "original_name": filename,
@@ -392,6 +413,7 @@ def handle_file_upload(
 
         store_file_metadata(filename, metadata, redis_client)
         redis_client.set(f"last_uploaded_file:{phone_number}", filename, ex=LAST_UPLOADED_FILE_TTL)
+        log_message_to_db(phone_number, message_type="document")
 
         message = f"File '{filename}' uploaded successfully!\n\n"
         if vectorized:
@@ -467,7 +489,10 @@ def process_incoming_messages_functional(form_data, redis_client=r):
 
     if body and body.strip() and num_media == 0:
         if is_knowledge_base_inventory_query(body):
-            response_text = get_knowledge_base_count_message(redis_client, "en")
+            from agente_rolplay.db.whatsapp_auth import lookup_whatsapp_user
+            _wa_user = lookup_whatsapp_user(phone_number)
+            _org_id = _wa_user.get("org_id") if _wa_user else None
+            response_text = get_knowledge_base_count_message(_org_id, "en")
             send_twilio_message(from_number, response_text)
             redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
             return "Success"
@@ -586,18 +611,14 @@ def process_incoming_messages_functional(form_data, redis_client=r):
             "message_sid": message_sid,
         }
 
-        try:
-            from agente_rolplay.messaging.audio_worker import process_audio_job
+        import threading
+        from agente_rolplay.messaging.audio_worker import _process_audio_inline
 
-            result = process_audio_job.apply_async(
-                args=[audio_job],
-                queue="audio",
-                expires=3600,
-            )
-            print(f"Audio queued to Celery: {result.id}")
-        except Exception as e:
-            print(f"Error enqueueing to Celery: {e}, using Redis fallback")
-            redis_client.lpush("audio_queue", json.dumps(audio_job))
+        thread = threading.Thread(
+            target=_process_audio_inline, args=(audio_job,), daemon=True
+        )
+        thread.start()
+        print(f"Audio processing started in background thread for: {phone_number}")
 
         return "AudioQueued"
 
@@ -653,6 +674,7 @@ def process_incoming_messages_functional(form_data, redis_client=r):
 
         vector_id = None
         vectorized = False
+        vision_result = None
         filename = f"{base_name}.{extension}"
 
         if result and result.get("success"):
@@ -693,10 +715,19 @@ def process_incoming_messages_functional(form_data, redis_client=r):
             redis_client.set(
                 f"last_uploaded_file:{phone_number}", filename, ex=86400 * 7
             )
+            log_message_to_db(phone_number, message_type="image")
             message = f"Image '{base_name}.{extension}' uploaded to Knowledge Base!\n"
             message += f"Link: {result['secure_url']}"
 
             send_twilio_message(from_number, message)
+
+            # Record upload in chat history so Claude has context for follow-up questions
+            chat_history_id = f"fp-chatHistory:{from_number}"
+            add_to_chat_history(chat_history_id, f"[Sent image: {filename}]", "user", phone_number)
+            bot_history_msg = f"Image '{filename}' uploaded to Knowledge Base."
+            if vectorized and vision_result and vision_result.get("text"):
+                bot_history_msg += f" Description: {vision_result['text'][:400]}"
+            add_to_chat_history(chat_history_id, bot_history_msg, "assistant", phone_number)
         else:
             error_message = result.get("error", "Unknown") if result else "Unknown"
             send_twilio_message(from_number, f"Error uploading image: {error_message}")
@@ -790,6 +821,7 @@ def process_incoming_messages_functional(form_data, redis_client=r):
 
     session_facts = get_session_facts(phone_number)
     messages = get_chat_history(chat_history_id, phone=phone_number)
+    _t0 = time.time()
     answer_data = responder_usuario(
         messages,
         data,
@@ -799,6 +831,7 @@ def process_incoming_messages_functional(form_data, redis_client=r):
         response_language=current_lang,
         session_facts=session_facts or None,
     )
+    _response_ms = int((time.time() - _t0) * 1000)
     print("--------------------------")
     print("ANSWER DATA", answer_data)
     print("--------------------------")
@@ -822,7 +855,15 @@ def process_incoming_messages_functional(form_data, redis_client=r):
         print(
             f"WARNING: Message not sent. Error: {send_result.get('error', 'Unknown')}"
         )
+        log_message_to_db(phone_number, message_type="text", response_time_ms=_response_ms, is_error=True)
         return "SendError"
+
+    log_message_to_db(
+        phone_number,
+        message_type="text",
+        is_rag_query=bool(answer_data.get("used_rag", False)),
+        response_time_ms=_response_ms,
+    )
 
     redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
     print(f"Message marked as processed: {dedup_key}")
@@ -905,7 +946,8 @@ def process_incoming_messages(form_data, redis_client=r):
 
     if body and body.strip():
         if is_knowledge_base_inventory_query(body):
-            response_text = get_knowledge_base_count_message(redis_client, current_lang)
+            org_id = whatsapp_user.get("org_id") if whatsapp_user else None
+            response_text = get_knowledge_base_count_message(org_id, current_lang)
             send_result = send_twilio_message(from_number, response_text)
             if send_result.get("success", False):
                 log_chat_interaction(
@@ -1112,18 +1154,14 @@ def process_incoming_messages(form_data, redis_client=r):
             "message_sid": message_sid,
         }
 
-        try:
-            from agente_rolplay.messaging.audio_worker import process_audio_job
+        import threading
+        from agente_rolplay.messaging.audio_worker import _process_audio_inline
 
-            result = process_audio_job.apply_async(
-                args=[audio_job],
-                queue="audio",
-                expires=3600,
-            )
-            print(f"Audio queued to Celery: {result.id}")
-        except Exception as e:
-            print(f"Error enqueueing to Celery: {e}, using Redis fallback")
-            redis_client.lpush("audio_queue", json.dumps(audio_job))
+        thread = threading.Thread(
+            target=_process_audio_inline, args=(audio_job,), daemon=True
+        )
+        thread.start()
+        print(f"Audio processing started in background thread for: {phone_number}")
 
         return "AudioQueued"
 
@@ -1179,6 +1217,7 @@ def process_incoming_messages(form_data, redis_client=r):
 
         vector_id = None
         vectorized = False
+        vision_result = None
         filename = f"{base_name}.{extension}"
 
         if result and result.get("success"):
@@ -1222,6 +1261,14 @@ def process_incoming_messages(form_data, redis_client=r):
             message = "Image uploaded to Knowledge Base! ✅"
 
             send_twilio_message(from_number, message)
+
+            # Record upload in chat history so Claude has context for follow-up questions
+            chat_history_id = f"fp-chatHistory:{from_number}"
+            add_to_chat_history(chat_history_id, f"[Sent image: {filename}]", "user", phone_number)
+            bot_history_msg = f"Image '{filename}' uploaded to Knowledge Base."
+            if vectorized and vision_result and vision_result.get("text"):
+                bot_history_msg += f" Description: {vision_result['text'][:400]}"
+            add_to_chat_history(chat_history_id, bot_history_msg, "assistant", phone_number)
         else:
             error_message = result.get("error", "Unknown") if result else "Unknown"
             send_twilio_message(from_number, f"Error uploading image: {error_message}")

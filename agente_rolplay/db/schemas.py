@@ -58,17 +58,21 @@ class RoleResponse(RoleBase):
 
 class ProfileBase(BaseModel):
     username: Optional[str] = None
+    full_name: Optional[str] = None
+    job_title: Optional[str] = None
     whatsapp_number: Optional[str] = None
     role_id: Optional[UUID] = None
 
 
 class ProfileCreate(ProfileBase):
     user_id: UUID
-    org_id: UUID
+    org_id: Optional[UUID] = None
 
 
 class ProfileUpdate(BaseModel):
     username: Optional[str] = None
+    full_name: Optional[str] = None
+    job_title: Optional[str] = None
     whatsapp_number: Optional[str] = None
     role_id: Optional[UUID] = None
     is_active: Optional[bool] = None
@@ -126,4 +130,6 @@ class SignupRequest(BaseModel):
     email: EmailStr
     password: str
     organization_name: str
-    username: Optional[str] = None
+    full_name: str
+    whatsapp_number: str
+    job_title: str

@@ -168,7 +168,10 @@ async def signup(request: Request, db: Session = Depends(get_db)):
     profile = Profile(
         user_id=user.id,
         org_id=organization.id,
-        username=signup_request.username or signup_request.email.split("@")[0],
+        username=signup_request.email.split("@")[0],
+        full_name=signup_request.full_name,
+        job_title=signup_request.job_title,
+        whatsapp_number=signup_request.whatsapp_number,
         role_id=admin_role.id,
         is_active=True,
     )

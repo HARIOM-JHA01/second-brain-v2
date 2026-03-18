@@ -6,10 +6,11 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from agente_rolplay.config import PORT, SECRET_KEY
-from agente_rolplay.routers import auth, pages, rag, roles, users, webhook
+from agente_rolplay.routers import admin, auth, pages, rag, roles, users, webhook
 
 
 @asynccontextmanager
@@ -21,6 +22,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+app.mount("/static", StaticFiles(directory="agente_rolplay/static"), name="static")
 
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
 app.add_middleware(
@@ -37,6 +40,7 @@ app.include_router(pages.router)
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(roles.router)
+app.include_router(admin.router)
 
 
 @app.get("/health")

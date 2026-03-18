@@ -1,0 +1,593 @@
+<!doctype html>
+<html lang="es" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title id="pageTitle">Registro — Second Brain</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <script src="/static/theme.js"></script>
+  <script src="/static/i18n.js"></script>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    /* ── Theme variables ─────────────────────────── */
+    :root, [data-theme="dark"] {
+      --bg: #07070f;
+      --surface: rgba(255,255,255,.04);
+      --border: rgba(255,255,255,.08);
+      --border-focus: #dc2626;
+      --text: #fff;
+      --text-dim: rgba(255,255,255,.65);
+      --text-muted: rgba(255,255,255,.4);
+      --input-bg: rgba(255,255,255,.06);
+      --input-color: #fff;
+      --placeholder: rgba(255,255,255,.28);
+      --error: #f87171;
+      --toggle-bg: rgba(255,255,255,.1);
+      --form-bg: #07070f;
+      --divider: rgba(255,255,255,.07);
+      --section-label: rgba(255,255,255,.32);
+      --swap-btn-bg: rgba(15,15,30,.85);
+      --swap-btn-border: rgba(255,255,255,.15);
+      --back-color: rgba(255,255,255,.55);
+    }
+    [data-theme="light"] {
+      --bg: #f5f5fb;
+      --surface: rgba(255,255,255,.9);
+      --border: rgba(0,0,0,.09);
+      --border-focus: #dc2626;
+      --text: #0d0d18;
+      --text-dim: rgba(0,0,0,.65);
+      --text-muted: rgba(0,0,0,.42);
+      --input-bg: rgba(0,0,0,.04);
+      --input-color: #0d0d18;
+      --placeholder: rgba(0,0,0,.3);
+      --error: #dc2626;
+      --toggle-bg: rgba(0,0,0,.07);
+      --form-bg: #f5f5fb;
+      --divider: rgba(0,0,0,.07);
+      --section-label: rgba(0,0,0,.32);
+      --swap-btn-bg: rgba(255,255,255,.85);
+      --swap-btn-border: rgba(0,0,0,.12);
+      --back-color: rgba(0,0,0,.45);
+    }
+
+    html, body { height: 100%; overflow: hidden; }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--form-bg);
+      color: var(--text);
+      transition: background .3s, color .3s;
+    }
+
+    /* ── Fixed chrome ────────────────────────── */
+    .back-home {
+      position: fixed; top: 1.25rem; left: 1.5rem; z-index: 300;
+      display: flex; align-items: center; gap: .4rem;
+      color: var(--back-color); text-decoration: none;
+      font-size: .82rem; font-weight: 600; letter-spacing: .2px;
+      transition: color .2s;
+    }
+    .back-home:hover { color: var(--text); }
+
+    .fixed-controls {
+      position: fixed; top: 1.1rem; right: 1.5rem; z-index: 300;
+      display: flex; align-items: center; gap: .5rem;
+    }
+    .theme-toggle {
+      width: 34px; height: 34px; border-radius: 8px;
+      background: var(--toggle-bg); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: .9rem; transition: all .2s;
+    }
+    .theme-toggle:hover { opacity: .8; }
+    .lang-radio {
+      display: flex; align-items: center;
+      background: var(--toggle-bg); border: 1px solid var(--border);
+      border-radius: 8px; padding: 2px; gap: 1px;
+    }
+    .lang-opt {
+      padding: 0 .5rem; height: 28px; border-radius: 6px;
+      border: none; background: transparent; cursor: pointer;
+      font-size: .7rem; font-weight: 700; color: var(--text-muted);
+      letter-spacing: .4px; transition: all .18s; line-height: 1;
+    }
+    .lang-opt.active { background: var(--indigo); color: #fff; }
+    .lang-opt:not(.active):hover { opacity: .8; }
+
+    /* ── Full-screen split layout ───────────── */
+    .auth-layout {
+      position: relative;
+      width: 100vw; height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── Image panel (default: left, 42 %) ─── */
+    .panel-image {
+      position: absolute;
+      top: 0; left: 0; bottom: 0;
+      width: 42%;
+      overflow: hidden;
+      transition: transform .75s cubic-bezier(.77,0,.175,1);
+      will-change: transform;
+      z-index: 1;
+    }
+    .panel-img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      transition: opacity .35s ease;
+    }
+    .panel-img.fading { opacity: 0; }
+    .img-overlay {
+      position: absolute; inset: 0;
+      background: linear-gradient(160deg, rgba(6,6,20,.6) 0%, rgba(220,38,38,.25) 100%);
+      display: flex; flex-direction: column;
+      justify-content: space-between; padding: 2.5rem;
+    }
+    .overlay-brand { display: flex; align-items: center; gap: .75rem; }
+    .overlay-brand-sb img { height: 38px; object-fit: contain; display: block; filter: brightness(0) invert(1); }
+    .overlay-brand-divider { width: 1px; height: 16px; background: rgba(255,255,255,.25); }
+    .overlay-brand-rp { display: flex; align-items: center; gap: .3rem; text-decoration: none; opacity: .8; transition: opacity .2s; }
+    .overlay-brand-rp:hover { opacity: 1; }
+    .overlay-brand-rp img { height: 18px; object-fit: contain; display: block; filter: brightness(0) invert(1); }
+    .overlay-brand-by { font-size: .62rem; font-weight: 500; color: rgba(255,255,255,.6); letter-spacing: .3px; }
+    .overlay-quote {
+      color: rgba(255,255,255,.85);
+      font-size: 1.1rem; font-weight: 600; line-height: 1.55;
+      letter-spacing: -.2px;
+    }
+    .overlay-quote em { color: #a5b4fc; font-style: normal; }
+
+    /* ── Form panel (default: right, 58 %) ── */
+    .panel-form {
+      position: absolute;
+      top: 0; left: 42%; bottom: 0;
+      width: 58%;
+      background: var(--form-bg);
+      display: flex; align-items: center; justify-content: center;
+      overflow-y: auto;
+      padding: 5rem 2rem 2rem;
+      transition: transform .75s cubic-bezier(.77,0,.175,1), background .3s;
+      will-change: transform;
+      z-index: 1;
+    }
+
+    /* ── Swapped state ────────────────────── */
+    .auth-layout.swapped .panel-image {
+      transform: translateX(138.1%);
+    }
+    .auth-layout.swapped .panel-form {
+      transform: translateX(-72.41%);
+    }
+
+    /* ── Swap button ──────────────────────── */
+    .swap-btn {
+      position: absolute;
+      left: 42%; top: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 200;
+      width: 50px; height: 50px; border-radius: 50%;
+      background: var(--swap-btn-bg);
+      border: 1.5px solid var(--swap-btn-border);
+      backdrop-filter: blur(12px);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 20px rgba(0,0,0,.35), 0 0 0 4px rgba(220,38,38,.12);
+      transition: left .75s cubic-bezier(.77,0,.175,1), transform .75s cubic-bezier(.77,0,.175,1), box-shadow .2s;
+    }
+    .swap-btn:hover {
+      box-shadow: 0 6px 28px rgba(0,0,0,.4), 0 0 0 6px rgba(220,38,38,.2);
+    }
+    .swap-arrow {
+      font-size: 1.1rem; color: #818cf8;
+      transition: transform .75s cubic-bezier(.77,0,.175,1);
+      display: block; line-height: 1;
+    }
+    .auth-layout.swapped .swap-btn {
+      left: 58%;
+    }
+    .auth-layout.swapped .swap-arrow {
+      transform: scaleX(-1);
+    }
+
+    /* ── Form inner card ──────────────────── */
+    .form-card {
+      width: 100%; max-width: 420px;
+    }
+
+    .form-view { display: none; }
+    .form-view.active {
+      display: block;
+      animation: fadeIn .3s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    .form-brand {
+      display: flex; align-items: center; gap: .75rem;
+      margin-bottom: 2rem; justify-content: center;
+    }
+    .form-brand-logo { display: flex; align-items: center; }
+    .form-brand-logo img { height: 44px; max-width: 140px; object-fit: contain; display: block; }
+    .form-brand-divider { width: 1px; height: 22px; background: var(--border); }
+    .form-brand-name { display: flex; align-items: center; gap: .35rem; text-decoration: none; opacity: .7; transition: opacity .2s; }
+    .form-brand-name:hover { opacity: 1; }
+    .form-brand-name img { height: 26px; object-fit: contain; display: block; }
+    .form-brand-by { font-size: .62rem; font-weight: 500; color: var(--text-muted); letter-spacing: .3px; }
+
+    h2 {
+      font-size: 1.6rem; font-weight: 900; letter-spacing: -.6px;
+      color: var(--text); margin-bottom: .35rem; line-height: 1.15;
+      transition: color .3s;
+    }
+    .subtitle { color: var(--text-muted); font-size: .88rem; margin-bottom: 1.75rem; transition: color .3s; }
+
+    .section-sep {
+      display: flex; align-items: center; gap: .6rem;
+      margin: 1.25rem 0 .9rem;
+      font-size: .68rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .8px; color: var(--section-label);
+    }
+    .section-sep::before, .section-sep::after {
+      content: ''; flex: 1; height: 1px; background: var(--divider);
+    }
+
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; }
+    .form-group { margin-bottom: .9rem; }
+    label {
+      display: block; font-size: .8rem; font-weight: 600;
+      color: var(--text-dim); margin-bottom: .38rem; transition: color .3s;
+    }
+    .req { color: #818cf8; }
+    input {
+      width: 100%; padding: .72rem .95rem;
+      background: var(--input-bg); border: 1px solid var(--border);
+      border-radius: 9px; color: var(--input-color);
+      font-size: .9rem; font-family: inherit; outline: none;
+      transition: border-color .2s, background .3s;
+    }
+    input::placeholder { color: var(--placeholder); }
+    input:focus { border-color: var(--border-focus); }
+
+    .btn-submit {
+      width: 100%; padding: .85rem;
+      background: linear-gradient(135deg, #dc2626, #991b1b);
+      border: none; border-radius: 10px;
+      color: #fff; font-size: .95rem; font-weight: 700;
+      font-family: inherit; cursor: pointer;
+      transition: all .2s; margin-top: .75rem;
+      box-shadow: 0 4px 15px rgba(220,38,38,.35);
+    }
+    .btn-submit:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(220,38,38,.5); }
+    .btn-submit:disabled { opacity: .6; cursor: not-allowed; transform: none; }
+
+    .error-msg {
+      color: var(--error); font-size: .82rem;
+      margin-top: .6rem; display: none;
+      padding: .6rem .8rem; border-radius: 7px;
+      background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.2);
+    }
+
+    .switch-link {
+      text-align: center; margin-top: 1.5rem;
+      color: var(--text-muted); font-size: .85rem; transition: color .3s;
+    }
+    .switch-link button {
+      background: none; border: none; cursor: pointer;
+      color: #818cf8; font-weight: 700; font-family: inherit; font-size: .85rem;
+      padding: 0; text-decoration: underline; text-underline-offset: 3px;
+    }
+    .switch-link button:hover { color: #a5b4fc; }
+
+    /* ── Mobile ── */
+    @media (max-width: 768px) {
+      .panel-image, .swap-btn { display: none; }
+      .panel-form {
+        left: 0; width: 100%;
+        transform: none !important;
+      }
+      .auth-layout.swapped .panel-form { transform: none !important; }
+    }
+    @media (max-width: 480px) {
+      .form-row { grid-template-columns: 1fr; }
+      .panel-form { padding: 4.5rem 1.25rem 2rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <a href="/" class="back-home" data-i18n="auth.back">← Volver al inicio</a>
+
+  <div class="fixed-controls">
+    <div class="lang-radio">
+      <button class="lang-opt active" id="langES" onclick="setLang('es')">ES</button>
+      <button class="lang-opt" id="langEN" onclick="setLang('en')">EN</button>
+    </div>
+    <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()">🌙</button>
+  </div>
+
+  <div class="auth-layout" id="authLayout">
+
+    <!-- ── Image panel ──────────────────────────── -->
+    <div class="panel-image">
+      <img id="panelImg" class="panel-img" src="https://picsum.photos/seed/sb-signup/900/1200" alt="" />
+      <div class="img-overlay">
+        <div class="overlay-brand">
+          <div class="overlay-brand-sb">
+            <img src="/static/second-brain-logo.png" alt="Second Brain" />
+          </div>
+          <span class="overlay-brand-divider"></span>
+          <a href="https://www.rolplay.ai/" class="overlay-brand-rp" target="_blank" rel="noopener noreferrer">
+            <span class="overlay-brand-by" data-i18n="brand.by">por</span>
+            <img src="/static/rolplay-logo.png" alt="Rolplay" />
+          </a>
+        </div>
+        <div class="overlay-quote" id="overlayQuote" data-i18n-html="auth.quote.signup">
+          "El conocimiento de tu empresa,<br/><em>siempre al alcance.</em>"
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Swap button ──────────────────────────── -->
+    <button class="swap-btn" id="swapBtn" onclick="triggerSwap()" data-i18n-title="auth.swap.title" title="Alternar entre Registro e Inicio de sesión">
+      <span class="swap-arrow" id="swapArrow">→</span>
+    </button>
+
+    <!-- ── Form panel ───────────────────────────── -->
+    <div class="panel-form" id="panelForm">
+      <div class="form-card">
+
+        <!-- Sign Up view -->
+        <div class="form-view" id="signupView">
+          <div class="form-brand">
+            <a href="/" class="form-brand-logo"><img src="/static/second-brain-logo.png" alt="Second Brain" /></a>
+            <span class="form-brand-divider"></span>
+            <a href="https://www.rolplay.ai/" class="form-brand-name" target="_blank" rel="noopener noreferrer">
+              <span class="form-brand-by" data-i18n="brand.by">por</span>
+              <img src="/static/rolplay-logo.png" alt="Rolplay" />
+            </a>
+          </div>
+          <h2 style="text-align:center;" data-i18n="auth.signup.heading">Crea tu cuenta</h2>
+          <p class="subtitle" style="text-align:center;" data-i18n="auth.signup.subtitle">Todos los campos son obligatorios</p>
+          <form id="signupForm">
+            <div class="section-sep" data-i18n="auth.signup.section.details">Tus datos</div>
+            <div class="form-row">
+              <div class="form-group">
+                <label data-i18n="auth.signup.fullname">Nombre completo <span class="req">*</span></label>
+                <input type="text" id="su_full_name" required data-i18n-ph="auth.signup.fullname.ph" placeholder="María García" autocomplete="name" />
+              </div>
+              <div class="form-group">
+                <label data-i18n="auth.signup.jobtitle">Cargo <span class="req">*</span></label>
+                <input type="text" id="su_job_title" required data-i18n-ph="auth.signup.jobtitle.ph" placeholder="CEO" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label data-i18n="auth.signup.email">Correo electrónico <span class="req">*</span></label>
+                <input type="email" id="su_email" required data-i18n-ph="auth.signup.email.ph" placeholder="tu@empresa.com" autocomplete="email" />
+              </div>
+              <div class="form-group">
+                <label data-i18n="auth.signup.whatsapp">WhatsApp <span class="req">*</span></label>
+                <input type="tel" id="su_whatsapp" required data-i18n-ph="auth.signup.whatsapp.ph" placeholder="+1234567890" autocomplete="tel" />
+              </div>
+            </div>
+            <div class="section-sep" data-i18n="auth.signup.section.org">Organización</div>
+            <div class="form-group">
+              <label data-i18n="auth.signup.org">Nombre de la organización <span class="req">*</span></label>
+              <input type="text" id="su_org" required data-i18n-ph="auth.signup.org.ph" placeholder="Acme S.A." autocomplete="organization" />
+            </div>
+            <div class="section-sep" data-i18n="auth.signup.section.security">Seguridad</div>
+            <div class="form-group">
+              <label data-i18n="auth.signup.password">Contraseña <span class="req">*</span></label>
+              <input type="password" id="su_password" required data-i18n-ph="auth.signup.password.ph" placeholder="Mín. 6 caracteres" minlength="6" autocomplete="new-password" />
+            </div>
+            <button type="submit" class="btn-submit" id="suBtn" data-i18n="auth.signup.btn">Crear cuenta</button>
+          </form>
+          <div class="error-msg" id="suError"></div>
+          <div class="switch-link">
+            <span data-i18n="auth.signup.switch">¿Ya tienes una cuenta?</span>
+            <button onclick="triggerSwap()" data-i18n="auth.signup.switch.link">Inicia sesión →</button>
+          </div>
+        </div>
+
+        <!-- Sign In view -->
+        <div class="form-view" id="loginView">
+          <div class="form-brand">
+            <a href="/" class="form-brand-logo"><img src="/static/second-brain-logo.png" alt="Second Brain" /></a>
+            <span class="form-brand-divider"></span>
+            <a href="https://www.rolplay.ai/" class="form-brand-name" target="_blank" rel="noopener noreferrer">
+              <span class="form-brand-by" data-i18n="brand.by">por</span>
+              <img src="/static/rolplay-logo.png" alt="Rolplay" />
+            </a>
+          </div>
+          <h2 style="text-align:center;" data-i18n="auth.login.heading">Bienvenido de vuelta</h2>
+          <p class="subtitle" style="text-align:center;" data-i18n="auth.login.subtitle">Inicia sesión en tu espacio de trabajo</p>
+          <form id="loginForm">
+            <div class="form-group">
+              <label data-i18n="auth.login.email">Correo electrónico <span class="req">*</span></label>
+              <input type="email" id="li_email" required data-i18n-ph="auth.login.email.ph" placeholder="tu@empresa.com" autocomplete="email" />
+            </div>
+            <div class="form-group">
+              <label data-i18n="auth.login.password">Contraseña <span class="req">*</span></label>
+              <input type="password" id="li_password" required data-i18n-ph="auth.login.password.ph" placeholder="••••••••" autocomplete="current-password" />
+            </div>
+            <button type="submit" class="btn-submit" id="liBtn" data-i18n="auth.login.btn">Iniciar sesión</button>
+          </form>
+          <div class="error-msg" id="liError"></div>
+          <div class="switch-link">
+            <span data-i18n="auth.login.switch">¿No tienes una cuenta?</span>
+            <button onclick="triggerSwap()" data-i18n="auth.login.switch.link">Crear una →</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ── State per mode ──────────────────────────────────────
+    function getStates() {
+      return {
+        signup: {
+          img: 'https://picsum.photos/seed/sb-signup/900/1200',
+          quoteKey: 'auth.quote.signup',
+          titleKey: 'auth.signup.page_title',
+          url: '/signup',
+        },
+        login: {
+          img: 'https://picsum.photos/seed/sb-login/900/1200',
+          quoteKey: 'auth.quote.login',
+          titleKey: 'auth.login.page_title',
+          url: '/login',
+        },
+      };
+    }
+
+    let mode = '{{ initial_mode }}'; // 'signup' or 'login'
+    let animating = false;
+
+    const layout = document.getElementById('authLayout');
+    const img    = document.getElementById('panelImg');
+    const quote  = document.getElementById('overlayQuote');
+    const suView = document.getElementById('signupView');
+    const liView = document.getElementById('loginView');
+
+    function applyMode(m, animate) {
+      const s = getStates()[m];
+      document.getElementById('pageTitle').textContent = t(s.titleKey);
+      suView.classList.toggle('active', m === 'signup');
+      liView.classList.toggle('active', m === 'login');
+      layout.classList.toggle('swapped', m === 'login');
+      // Update overlay quote key so langchange re-applies correctly
+      quote.dataset.i18nHtml = s.quoteKey;
+      if (!animate) {
+        img.src = s.img;
+        quote.innerHTML = t(s.quoteKey);
+      }
+    }
+
+    async function triggerSwap() {
+      if (animating) return;
+      animating = true;
+
+      const nextMode = mode === 'signup' ? 'login' : 'signup';
+      const nextState = getStates()[nextMode];
+
+      layout.classList.toggle('swapped');
+
+      await delay(280);
+      img.classList.add('fading');
+      await delay(200);
+      img.src = nextState.img;
+      img.classList.remove('fading');
+      quote.dataset.i18nHtml = nextState.quoteKey;
+      quote.innerHTML = t(nextState.quoteKey);
+
+      suView.classList.remove('active');
+      liView.classList.remove('active');
+      if (nextMode === 'signup') suView.classList.add('active');
+      else liView.classList.add('active');
+
+      mode = nextMode;
+      document.getElementById('pageTitle').textContent = t(nextState.titleKey);
+      history.pushState({}, '', nextState.url);
+
+      await delay(300);
+      animating = false;
+    }
+
+    function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+    // Re-apply page title and quote when language changes
+    document.addEventListener('langchange', () => {
+      const s = getStates()[mode];
+      document.getElementById('pageTitle').textContent = t(s.titleKey);
+      quote.innerHTML = t(s.quoteKey);
+    });
+
+    // ── Init ──────────────────────────────────────────────
+    applyMode(mode, false);
+
+    // ── Sign-up form ──────────────────────────────────────
+    document.getElementById('signupForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('suBtn');
+      const err = document.getElementById('suError');
+      btn.disabled = true;
+      btn.textContent = t('auth.signup.btn.loading');
+      err.style.display = 'none';
+      try {
+        const res = await fetch('/auth/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            full_name:         document.getElementById('su_full_name').value.trim(),
+            job_title:         document.getElementById('su_job_title').value.trim(),
+            email:             document.getElementById('su_email').value.trim(),
+            whatsapp_number:   document.getElementById('su_whatsapp').value.trim(),
+            organization_name: document.getElementById('su_org').value.trim(),
+            password:          document.getElementById('su_password').value,
+          })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          localStorage.setItem('access_token', data.access_token);
+          window.location.href = '/dashboard';
+        } else {
+          const d = data.detail;
+          err.textContent = Array.isArray(d) ? d.map(x => x.msg).join(', ') : (d || t('common.error'));
+          err.style.display = 'block';
+          btn.disabled = false;
+          btn.textContent = t('auth.signup.btn');
+        }
+      } catch (_) {
+        err.textContent = t('common.error');
+        err.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = t('auth.signup.btn');
+      }
+    });
+
+    // ── Login form ────────────────────────────────────────
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('liBtn');
+      const err = document.getElementById('liError');
+      btn.disabled = true;
+      btn.textContent = t('auth.login.btn.loading');
+      err.style.display = 'none';
+      try {
+        const res = await fetch('/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email:    document.getElementById('li_email').value.trim(),
+            password: document.getElementById('li_password').value,
+          })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          localStorage.setItem('access_token', data.access_token);
+          window.location.href = '/dashboard';
+        } else {
+          err.textContent = data.detail || t('auth.login.error.invalid');
+          err.style.display = 'block';
+          btn.disabled = false;
+          btn.textContent = t('auth.login.btn');
+        }
+      } catch (_) {
+        err.textContent = t('auth.login.error.conn');
+        err.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = t('auth.login.btn');
+      }
+    });
+
+    // Handle browser back/forward
+    window.addEventListener('popstate', () => {
+      const m = location.pathname === '/login' ? 'login' : 'signup';
+      if (m !== mode) triggerSwap();
+    });
+  </script>
+</body>
+</html>

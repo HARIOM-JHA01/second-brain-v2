@@ -1,0 +1,316 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block page_subtitle %}Real-time platform health &amp; growth metrics{% endblock %}
+
+{% block content %}
+
+<!-- ── KPI stat cards — row 1: platform overview ───────────── -->
+<div class="stats-grid" id="statsGrid">
+  <div class="stat-card">
+    <div class="stat-label">Organizations</div>
+    <div class="stat-value stat-blue" id="kpi-orgs">—</div>
+    <div class="stat-sub" id="kpi-orgs-sub">Loading…</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Total Users</div>
+    <div class="stat-value stat-purple" id="kpi-users">—</div>
+    <div class="stat-sub" id="kpi-users-sub">Loading…</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Active Users</div>
+    <div class="stat-value stat-green" id="kpi-active">—</div>
+    <div class="stat-sub" id="kpi-active-sub">Loading…</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Inactive Users</div>
+    <div class="stat-value stat-red" id="kpi-inactive">—</div>
+    <div class="stat-sub">Access revoked</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Documents (total)</div>
+    <div class="stat-value stat-orange" id="kpi-docs">—</div>
+    <div class="stat-sub" id="kpi-docs-sub">Loading…</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Avg Users / Org</div>
+    <div class="stat-value stat-blue" id="kpi-avg">—</div>
+    <div class="stat-sub">Across all organizations</div>
+  </div>
+</div>
+
+<!-- ── KPI stat cards — row 2: usage & engagement ─────────── -->
+<div class="stats-grid" style="margin-bottom:1.5rem;">
+  <div class="stat-card">
+    <div class="stat-label">Messages (7d)</div>
+    <div class="stat-value stat-green" id="kpi-msg-7d">—</div>
+    <div class="stat-sub" id="kpi-msg-30d-sub">Loading…</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Truly Active Users (7d)</div>
+    <div class="stat-value stat-purple" id="kpi-truly-active">—</div>
+    <div class="stat-sub">Messaged the bot this week</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Voice Notes (7d)</div>
+    <div class="stat-value stat-blue" id="kpi-voice-7d">—</div>
+    <div class="stat-sub" id="kpi-voice-30d-sub">Loading…</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">KB Vectors (Pinecone)</div>
+    <div class="stat-value stat-orange" id="kpi-vectors">—</div>
+    <div class="stat-sub">Total indexed chunks</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Avg Response Time</div>
+    <div class="stat-value stat-green" id="kpi-resp-ms">—</div>
+    <div class="stat-sub">Last 30 days (ms)</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Errors (7d)</div>
+    <div class="stat-value stat-red" id="kpi-errors">—</div>
+    <div class="stat-sub">Failed responses</div>
+  </div>
+</div>
+
+<!-- ── Second row: charts ──────────────────────────────────── -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem;">
+
+  <!-- Messages chart -->
+  <div class="section-card">
+    <div class="section-card-header">
+      <div class="section-card-title">Messages Processed — Last 30 Days</div>
+    </div>
+    <div style="display:flex;gap:1.5rem;margin-bottom:1rem;">
+      <div>
+        <div style="font-size:.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:.25rem;">Last 7 days</div>
+        <div style="font-size:1.5rem;font-weight:900;color:var(--stat-green);" id="g-msg-7d">—</div>
+      </div>
+      <div>
+        <div style="font-size:.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:.25rem;">Last 30 days</div>
+        <div style="font-size:1.5rem;font-weight:900;color:var(--stat-green);" id="g-msg-30d">—</div>
+      </div>
+    </div>
+    <div class="mini-chart" id="messagesChart" style="height:80px;">
+      <div style="color:var(--text-muted);font-size:.8rem;align-self:center;">Loading…</div>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:.4rem;font-size:.72rem;color:var(--text-muted);" id="msgChartLabels"></div>
+  </div>
+
+  <!-- Signups chart -->
+  <div class="section-card">
+    <div class="section-card-header">
+      <div class="section-card-title">New User Signups — Last 30 Days</div>
+    </div>
+    <div style="display:flex;gap:1.5rem;margin-bottom:1rem;">
+      <div>
+        <div style="font-size:.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:.25rem;">Last 7 days</div>
+        <div style="font-size:1.5rem;font-weight:900;color:var(--stat-purple);" id="g-users-7d">—</div>
+      </div>
+      <div>
+        <div style="font-size:.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:.25rem;">Last 30 days</div>
+        <div style="font-size:1.5rem;font-weight:900;color:var(--stat-purple);" id="g-users-30d">—</div>
+      </div>
+    </div>
+    <div class="mini-chart" id="signupsChart" style="height:80px;">
+      <div style="color:var(--text-muted);font-size:.8rem;align-self:center;">Loading…</div>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:.4rem;font-size:.72rem;color:var(--text-muted);" id="chartLabels"></div>
+  </div>
+
+</div>
+
+<!-- ── Third row: org growth + docs ───────────────────────── -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem;">
+
+  <!-- Org growth -->
+  <div class="section-card">
+    <div class="section-card-header">
+      <div class="section-card-title">Organization Growth</div>
+    </div>
+    <div style="display:flex;gap:1.5rem;margin-bottom:1rem;">
+      <div>
+        <div style="font-size:.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:.25rem;">New (7 days)</div>
+        <div style="font-size:1.5rem;font-weight:900;color:var(--stat-blue);" id="g-orgs-7d">—</div>
+      </div>
+      <div>
+        <div style="font-size:.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:.25rem;">New (30 days)</div>
+        <div style="font-size:1.5rem;font-weight:900;color:var(--stat-blue);" id="g-orgs-30d">—</div>
+      </div>
+    </div>
+    <div style="margin-top:1rem;border-top:1px solid var(--border);padding-top:1rem;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem;">
+        <span style="font-size:.82rem;color:var(--text-dim);">User activation rate</span>
+        <span style="font-size:.82rem;font-weight:700;color:var(--stat-green);" id="activation-rate">—</span>
+      </div>
+      <div style="height:6px;background:var(--border);border-radius:10px;overflow:hidden;">
+        <div id="activation-bar" style="height:100%;background:linear-gradient(90deg,#34d399,#059669);border-radius:10px;width:0%;transition:width .8s ease;"></div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:.75rem;">
+        <span style="font-size:.82rem;color:var(--text-dim);">Total roles defined</span>
+        <span style="font-size:.82rem;font-weight:700;color:var(--stat-orange);" id="g-roles">—</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- KB & Docs -->
+  <div class="section-card">
+    <div class="section-card-header">
+      <div class="section-card-title">Knowledge Base Activity</div>
+    </div>
+    <div style="display:flex;gap:1.5rem;margin-bottom:1rem;">
+      <div>
+        <div style="font-size:.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:.25rem;">Docs uploaded (7d)</div>
+        <div style="font-size:1.5rem;font-weight:900;color:var(--stat-orange);" id="g-docs-7d">—</div>
+      </div>
+      <div>
+        <div style="font-size:.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:.25rem;">Docs uploaded (30d)</div>
+        <div style="font-size:1.5rem;font-weight:900;color:var(--stat-orange);" id="g-docs-30d">—</div>
+      </div>
+    </div>
+    <div style="margin-top:1rem;border-top:1px solid var(--border);padding-top:1rem;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
+        <span style="font-size:.82rem;color:var(--text-dim);">Voice notes (30 days)</span>
+        <span style="font-size:.82rem;font-weight:700;color:var(--stat-blue);" id="g-voice-30d">—</span>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
+        <span style="font-size:.82rem;color:var(--text-dim);">RAG queries (7 days)</span>
+        <span style="font-size:.82rem;font-weight:700;color:var(--stat-purple);" id="g-rag-7d">—</span>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:.82rem;color:var(--text-dim);">Pinecone vectors</span>
+        <span style="font-size:.82rem;font-weight:700;color:var(--stat-green);" id="g-vectors">—</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Recent organizations table ─────────────────────────── -->
+<div class="section-card">
+  <div class="section-card-header">
+    <div class="section-card-title">Top Organizations</div>
+    <a href="/admin/organizations" class="btn btn-secondary btn-sm">View all →</a>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Organization</th>
+          <th>Owner</th>
+          <th>Users</th>
+          <th>Active</th>
+          <th>Docs</th>
+          <th>Joined</th>
+        </tr>
+      </thead>
+      <tbody id="topOrgsTable">
+        <tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted);">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_script %}
+<script>
+async function loadDashboard() {
+  const [statsRes, orgsRes] = await Promise.all([
+    fetch('/admin/api/stats'),
+    fetch('/admin/api/organizations'),
+  ]);
+
+  if (statsRes.status === 403 || orgsRes.status === 403) {
+    window.location.href = '/admin/login';
+    return;
+  }
+
+  const s = await statsRes.json();
+  const orgs = await orgsRes.json();
+
+  // ── KPI cards — row 1
+  document.getElementById('kpi-orgs').textContent = s.total_orgs;
+  document.getElementById('kpi-orgs-sub').textContent = `+${s.new_orgs_7d} this week`;
+  document.getElementById('kpi-users').textContent = s.total_users;
+  document.getElementById('kpi-users-sub').textContent = `+${s.new_users_7d} this week`;
+  document.getElementById('kpi-active').textContent = s.active_users;
+  document.getElementById('kpi-active-sub').textContent = `${s.total_users ? Math.round(s.active_users/s.total_users*100) : 0}% of total`;
+  document.getElementById('kpi-inactive').textContent = s.inactive_users;
+  document.getElementById('kpi-docs').textContent = s.total_documents;
+  document.getElementById('kpi-docs-sub').textContent = `+${s.docs_uploaded_7d} this week`;
+  document.getElementById('kpi-avg').textContent = s.avg_users_per_org;
+
+  // ── KPI cards — row 2 (usage)
+  document.getElementById('kpi-msg-7d').textContent = s.messages_7d ?? 0;
+  document.getElementById('kpi-msg-30d-sub').textContent = `${s.messages_30d ?? 0} last 30 days`;
+  document.getElementById('kpi-truly-active').textContent = s.truly_active_users_7d ?? 0;
+  document.getElementById('kpi-voice-7d').textContent = s.voice_notes_7d ?? 0;
+  document.getElementById('kpi-voice-30d-sub').textContent = `${s.voice_notes_30d ?? 0} last 30 days`;
+  document.getElementById('kpi-vectors').textContent = s.pinecone_vector_count != null ? s.pinecone_vector_count.toLocaleString() : '—';
+  document.getElementById('kpi-resp-ms').textContent = s.avg_response_ms != null ? s.avg_response_ms + ' ms' : '—';
+  document.getElementById('kpi-errors').textContent = s.errors_7d ?? 0;
+
+  // ── Growth panel
+  document.getElementById('g-users-7d').textContent = `+${s.new_users_7d}`;
+  document.getElementById('g-users-30d').textContent = `+${s.new_users_30d}`;
+  document.getElementById('g-orgs-7d').textContent = `+${s.new_orgs_7d}`;
+  document.getElementById('g-orgs-30d').textContent = `+${s.new_orgs_30d}`;
+  document.getElementById('g-roles').textContent = s.total_roles;
+  document.getElementById('g-msg-7d').textContent = s.messages_7d ?? 0;
+  document.getElementById('g-msg-30d').textContent = s.messages_30d ?? 0;
+  document.getElementById('g-docs-7d').textContent = s.docs_uploaded_7d ?? 0;
+  document.getElementById('g-docs-30d').textContent = s.docs_uploaded_30d ?? 0;
+  document.getElementById('g-voice-30d').textContent = s.voice_notes_30d ?? 0;
+  document.getElementById('g-rag-7d').textContent = s.rag_queries_7d ?? 0;
+  document.getElementById('g-vectors').textContent = s.pinecone_vector_count != null ? s.pinecone_vector_count.toLocaleString() : '—';
+
+  const rate = s.total_users ? Math.round(s.active_users / s.total_users * 100) : 0;
+  document.getElementById('activation-rate').textContent = rate + '%';
+  document.getElementById('activation-bar').style.width = rate + '%';
+
+  // ── Messages chart
+  function renderMiniChart(chartData, elId, labelElId, titleSingular) {
+    if (chartData && chartData.length) {
+      const max = Math.max(...chartData.map(d => d.count), 1);
+      document.getElementById(elId).innerHTML = chartData.map(d => {
+        const pct = Math.max(4, Math.round((d.count / max) * 100));
+        return `<div class="bar" style="height:${pct}%" title="${d.day}: ${d.count} ${titleSingular}"></div>`;
+      }).join('');
+      const labelsEl = document.getElementById(labelElId);
+      if (chartData.length >= 2) {
+        labelsEl.innerHTML = `<span>${chartData[0].day.slice(5)}</span><span>${chartData[chartData.length-1].day.slice(5)}</span>`;
+      }
+    } else {
+      document.getElementById(elId).innerHTML = '<div style="color:var(--text-muted);font-size:.8rem;align-self:center;width:100%;text-align:center;">No data yet</div>';
+    }
+  }
+
+  renderMiniChart(s.messages_chart, 'messagesChart', 'msgChartLabels', 'messages');
+
+  // ── Mini signup chart
+  renderMiniChart(s.signups_chart, 'signupsChart', 'chartLabels', 'signups');
+
+  // ── Top orgs table (top 5 by user count)
+  const sorted = [...orgs].sort((a, b) => b.user_count - a.user_count).slice(0, 5);
+  const tbody = document.getElementById('topOrgsTable');
+  if (!sorted.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted);">No organizations yet</td></tr>';
+  } else {
+    tbody.innerHTML = sorted.map(o => `
+      <tr>
+        <td class="td-main">${o.name}</td>
+        <td>${o.owner_email || '—'}</td>
+        <td>${o.user_count}</td>
+        <td><span style="color:var(--stat-green);font-weight:600;">${o.active_user_count}</span></td>
+        <td>${o.document_count}</td>
+        <td style="color:var(--text-muted);">${new Date(o.created_at).toLocaleDateString()}</td>
+      </tr>
+    `).join('');
+  }
+}
+
+loadDashboard();
+</script>
+{% endblock %}

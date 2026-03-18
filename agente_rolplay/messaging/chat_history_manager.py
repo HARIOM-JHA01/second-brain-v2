@@ -5,20 +5,14 @@ import redis
 import tiktoken
 
 from agente_rolplay.config import (
-    REDIS_HOST,
-    REDIS_PASSWORD,
-    REDIS_PORT,
     CHAT_HISTORY_TTL,
     MAX_MESSAGES_IN_MEMORY,
+    redis_connection_kwargs,
 )
 
 # Redis connection configuration
 redis_client = redis.Redis(
-    host=REDIS_HOST,
-    port=REDIS_PORT,
-    decode_responses=True,
-    username="default",
-    password=REDIS_PASSWORD,
+    **redis_connection_kwargs(),
 )
 
 

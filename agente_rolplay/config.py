@@ -1,4 +1,5 @@
 import os
+from urllib.parse import quote
 
 from dotenv import load_dotenv
 
@@ -17,7 +18,26 @@ N_SIMILARITY = int(os.getenv("N_SIMILARITY", 3))
 # --- Redis ---
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
-REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
+REDIS_PASSWORD = (os.getenv("REDIS_PASSWORD") or "").strip() or None
+
+
+def build_redis_url(db: int) -> str:
+    """Build a Redis URL, adding auth only when REDIS_PASSWORD is configured."""
+    auth = f":{quote(REDIS_PASSWORD)}@" if REDIS_PASSWORD else ""
+    return f"redis://{auth}{REDIS_HOST}:{REDIS_PORT}/{db}"
+
+
+def redis_connection_kwargs() -> dict:
+    """Common kwargs for redis.Redis with optional auth."""
+    kwargs = {
+        "host": REDIS_HOST,
+        "port": REDIS_PORT,
+        "decode_responses": True,
+    }
+    if REDIS_PASSWORD:
+        kwargs["username"] = "default"
+        kwargs["password"] = REDIS_PASSWORD
+    return kwargs
 
 # --- Pinecone ---
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
@@ -41,6 +61,10 @@ DATABASE_URL = os.getenv(
 
 # --- Auth ---
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
+
+# --- Rolplay Admin ---
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "admin@rolplay.ai")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "change-me-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
 

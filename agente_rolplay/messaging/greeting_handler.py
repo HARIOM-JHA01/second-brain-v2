@@ -126,54 +126,31 @@ def detect_language(text: str) -> str:
     if not text:
         return "es"
 
-    cleaned = text.strip().lower()
+    words = set(re.findall(r"\b\w+\b", text.strip().lower()))
 
-    spanish_indicators = [
-        "hola",
-        "buenos",
-        "buenas",
-        "cómo",
-        "qué",
-        "estás",
-        "tal",
-        "ayúdame",
-        "ayuda",
-        "puedes",
-        "hacer",
-        "necesito",
-        "feliz",
-        "día",
-        "tarde",
-        "noche",
-        "saludos",
-        "gracias",
-        "por favor",
-    ]
+    spanish_indicators = {
+        "hola", "buenos", "buenas", "cómo", "como", "qué", "que", "estás",
+        "estas", "ayúdame", "ayuda", "puedes", "hacer", "necesito", "feliz",
+        "día", "dia", "tarde", "noche", "saludos", "gracias", "por", "favor",
+        "quiero", "subir", "archivo", "enviar", "tengo", "una", "esto",
+        "también", "también", "información", "informacion", "base",
+        "conocimiento", "cuántos", "cuantos", "cuántas", "cuantas",
+    }
 
-    english_indicators = [
-        "hello",
-        "hi",
-        "hey",
-        "how",
-        "what",
-        "can",
-        "you",
-        "help",
-        "good",
-        "morning",
-        "afternoon",
-        "evening",
-        "are",
-        "doing",
-        "need",
-        "thanks",
-        "please",
-        "day",
-        "night",
-    ]
+    english_indicators = {
+        "hello", "hi", "hey", "how", "what", "can", "you", "help", "good",
+        "morning", "afternoon", "evening", "are", "doing", "need", "thanks",
+        "please", "day", "night", "i", "want", "to", "upload", "a", "the",
+        "file", "document", "send", "my", "me", "english", "know", "tell",
+        "show", "get", "give", "find", "search", "download", "this", "that",
+        "is", "it", "in", "of", "and", "or", "with", "for", "from", "have",
+        "has", "was", "will", "would", "could", "should", "let", "please",
+        "delete", "update", "remove", "add", "create", "list", "many",
+        "much", "more", "less", "all", "any", "some", "no", "not", "yes",
+    }
 
-    spanish_count = sum(1 for word in spanish_indicators if word in cleaned)
-    english_count = sum(1 for word in english_indicators if word in cleaned)
+    english_count = len(words.intersection(english_indicators))
+    spanish_count = len(words.intersection(spanish_indicators))
 
     if english_count > spanish_count:
         return "en"

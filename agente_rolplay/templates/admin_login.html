@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Login — Rolplay</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <script src="/static/theme.js"></script>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root, [data-theme="dark"] {
+      --bg: #050508; --text: #f1f1f5; --text-dim: rgba(255,255,255,.65);
+      --text-muted: rgba(255,255,255,.38); --border: rgba(255,255,255,.08);
+      --border-focus: #ef4444; --input-bg: rgba(255,255,255,.06);
+      --input-color: #fff; --placeholder: rgba(255,255,255,.28);
+      --surface: rgba(255,255,255,.04); --error: #f87171;
+      --toggle-bg: rgba(255,255,255,.1);
+      --card-bg: rgba(255,255,255,.04);
+    }
+    [data-theme="light"] {
+      --bg: #f4f4f8; --text: #0d0d18; --text-dim: rgba(0,0,0,.65);
+      --text-muted: rgba(0,0,0,.4); --border: rgba(0,0,0,.09);
+      --border-focus: #dc2626; --input-bg: rgba(0,0,0,.04);
+      --input-color: #0d0d18; --placeholder: rgba(0,0,0,.3);
+      --surface: rgba(0,0,0,.02); --error: #dc2626;
+      --toggle-bg: rgba(0,0,0,.07);
+      --card-bg: #fff;
+    }
+    html, body { height: 100%; }
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg); color: var(--text);
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh;
+      transition: background .3s, color .3s;
+    }
+
+    .theme-toggle {
+      position: fixed; top: 1.1rem; right: 1.5rem;
+      width: 34px; height: 34px; border-radius: 8px;
+      background: var(--toggle-bg); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: .9rem; z-index: 10;
+      transition: all .2s;
+    }
+
+    .login-card {
+      width: 100%; max-width: 380px; padding: 2.5rem;
+      background: var(--card-bg); border: 1px solid var(--border);
+      border-radius: 20px;
+      box-shadow: 0 0 0 1px rgba(239,68,68,.08), 0 32px 80px rgba(0,0,0,.35);
+    }
+
+    .brand {
+      display: flex; align-items: center; gap: .75rem; margin-bottom: 2rem;
+    }
+    .brand-logo img { height: 24px; object-fit: contain; display: block; }
+    .brand-divider { width: 1px; height: 16px; background: var(--border); flex-shrink: 0; }
+    .brand-text { display: flex; flex-direction: column; gap: .2rem; }
+    .brand-text img { height: 18px; object-fit: contain; display: block; }
+    .brand-text span {
+      font-size: .6rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .8px; color: #ef4444;
+    }
+
+    .admin-chip {
+      display: inline-flex; align-items: center; gap: .35rem;
+      background: rgba(239,68,68,.12); color: #f87171;
+      border: 1px solid rgba(239,68,68,.2);
+      border-radius: 6px; padding: .28rem .65rem;
+      font-size: .7rem; font-weight: 700; letter-spacing: .4px;
+      margin-bottom: 1rem;
+    }
+    .admin-chip::before { content: '🔐'; }
+
+    h2 {
+      font-size: 1.45rem; font-weight: 900; letter-spacing: -.4px;
+      margin-bottom: .3rem; color: var(--text);
+    }
+    .subtitle { color: var(--text-muted); font-size: .85rem; margin-bottom: 1.75rem; }
+
+    .form-group { margin-bottom: .9rem; }
+    label { display: block; font-size: .8rem; font-weight: 600; color: var(--text-dim); margin-bottom: .38rem; }
+    input {
+      width: 100%; padding: .72rem .95rem;
+      background: var(--input-bg); border: 1px solid var(--border);
+      border-radius: 9px; color: var(--input-color);
+      font-size: .9rem; font-family: inherit; outline: none;
+      transition: border-color .2s;
+    }
+    input::placeholder { color: var(--placeholder); }
+    input:focus { border-color: var(--border-focus); }
+
+    .btn-submit {
+      width: 100%; padding: .85rem;
+      background: linear-gradient(135deg, #dc2626, #b91c1c);
+      border: none; border-radius: 10px;
+      color: #fff; font-size: .95rem; font-weight: 700;
+      font-family: inherit; cursor: pointer; margin-top: .75rem;
+      transition: all .2s;
+      box-shadow: 0 4px 15px rgba(220,38,38,.4);
+    }
+    .btn-submit:hover { transform: translateY(-1px); box-shadow: 0 8px 25px rgba(220,38,38,.5); }
+    .btn-submit:disabled { opacity: .6; cursor: not-allowed; transform: none; }
+
+    .error-msg {
+      color: var(--error); font-size: .82rem; margin-top: .6rem;
+      padding: .6rem .8rem; border-radius: 7px; display: none;
+      background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.2);
+    }
+
+    .back-link {
+      display: block; text-align: center; margin-top: 1.5rem;
+      color: var(--text-muted); font-size: .82rem; text-decoration: none;
+      transition: color .2s;
+    }
+    .back-link:hover { color: var(--text); }
+  </style>
+</head>
+<body>
+  <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()">🌙</button>
+
+  <div class="login-card">
+    <div class="brand">
+      <div class="brand-logo"><img src="/static/second-brain-logo.png" alt="Second Brain" /></div>
+      <span class="brand-divider"></span>
+      <div class="brand-text">
+        <img src="/static/rolplay-logo.png" alt="Rolplay" />
+        <span>Admin Console</span>
+      </div>
+    </div>
+
+    <div class="admin-chip">Restricted Access</div>
+    <h2>Admin Sign In</h2>
+    <p class="subtitle">Only authorised Rolplay personnel</p>
+
+    <form id="adminLoginForm">
+      <div class="form-group">
+        <label>Admin Email</label>
+        <input type="email" id="adm_email" required placeholder="admin@rolplay.ai" autocomplete="email" />
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="adm_password" required placeholder="••••••••" autocomplete="current-password" />
+      </div>
+      <button type="submit" class="btn-submit" id="loginBtn">Sign In to Admin</button>
+    </form>
+    <div class="error-msg" id="loginError"></div>
+    <a href="/" class="back-link">← Back to platform</a>
+  </div>
+
+  <script>
+    document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('loginBtn');
+      const err = document.getElementById('loginError');
+      btn.disabled = true; btn.textContent = 'Signing in…'; err.style.display = 'none';
+      try {
+        const res = await fetch('/admin/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: document.getElementById('adm_email').value.trim(),
+            password: document.getElementById('adm_password').value,
+          })
+        });
+        if (res.ok) {
+          window.location.href = '/admin';
+        } else {
+          const d = await res.json().catch(() => ({}));
+          err.textContent = d.detail || 'Invalid credentials';
+          err.style.display = 'block';
+          btn.disabled = false; btn.textContent = 'Sign In to Admin';
+        }
+      } catch (_) {
+        err.textContent = 'Connection error. Please try again.';
+        err.style.display = 'block';
+        btn.disabled = false; btn.textContent = 'Sign In to Admin';
+      }
+    });
+  </script>
+</body>
+</html>

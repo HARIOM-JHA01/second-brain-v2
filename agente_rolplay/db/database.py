@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
@@ -19,7 +19,18 @@ def get_db():
         db.close()
 
 
+_MIGRATIONS = [
+    "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS full_name VARCHAR(255)",
+    "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS job_title VARCHAR(255)",
+]
+
+
 def init_db():
     from agente_rolplay.db import models
 
     Base.metadata.create_all(bind=engine)
+
+    with engine.connect() as conn:
+        for stmt in _MIGRATIONS:
+            conn.execute(text(stmt))
+        conn.commit()

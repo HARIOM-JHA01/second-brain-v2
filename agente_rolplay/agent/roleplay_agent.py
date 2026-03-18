@@ -154,6 +154,15 @@ def responder_usuario(
             # Drop results below relevance threshold to prevent hallucination
             results = [r for r in results if r.get("score", 0) >= MIN_RELEVANCE_SCORE]
 
+            # If optimized query yielded nothing above threshold, retry with raw query
+            if not results and optimized_query != raw_query:
+                fallback = search_knowledge_base(
+                    query=raw_query,
+                    top_k=5,
+                    filename_filter=filename_filter,
+                )
+                results = [r for r in fallback if r.get("score", 0) >= MIN_RELEVANCE_SCORE]
+
             print(f"Content obtained from RAG ({len(results)} above threshold): {results}")
 
             if not results:

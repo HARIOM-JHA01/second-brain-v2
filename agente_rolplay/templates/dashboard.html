@@ -1,211 +1,929 @@
-{% extends "base.html" %} {% block title %}Dashboard - Second Brain{% endblock
-%} {% block extra_head %}
+{% extends "base.html" %}
+{% block title %}Dashboard — Second Brain{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
-  .dashboard-layout {
-    display: flex;
-    min-height: calc(100vh - 60px);
+  .app-layout {
+    display: flex; min-height: calc(100vh - 53px);
   }
+
+  /* ── Sidebar ────────────────────────────────── */
   .sidebar {
-    width: 250px;
-    background: #1a1a2e;
-    padding: 1rem 0;
+    width: 228px; flex-shrink: 0;
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--border);
+    padding: 1.25rem 0;
+    display: flex; flex-direction: column;
+    transition: background .3s, border-color .3s;
+  }
+  .sidebar-section {
+    padding: .6rem 1.1rem .25rem;
+    font-size: .65rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1px; color: var(--text-muted); margin-top: .5rem;
+    transition: color .3s;
   }
   .sidebar a {
-    display: block;
-    padding: 0.75rem 1.5rem;
-    color: #aaa;
-    text-decoration: none;
-    transition: all 0.2s;
+    display: flex; align-items: center; gap: .65rem;
+    padding: .58rem 1.25rem; margin: .05rem .5rem;
+    color: var(--text-dim); text-decoration: none;
+    font-size: .875rem; font-weight: 500;
+    border-radius: 8px; border: 1px solid transparent;
+    transition: all .18s;
   }
-  .sidebar a:hover,
+  .sidebar a:hover { background: var(--surface-hover); color: var(--text); }
   .sidebar a.active {
-    background: rgba(255, 255, 255, 0.1);
-    color: white;
+    background: var(--sidebar-active);
+    border-color: rgba(220,38,38,.12);
+    color: var(--text); font-weight: 600;
   }
-  .sidebar a.active {
-    border-left: 3px solid #4361ee;
+  .sidebar a.active .sidebar-icon { filter: none; }
+  .sidebar-icon { font-size: 1rem; width: 18px; text-align: center; flex-shrink: 0; }
+
+  /* ── Main area ──────────────────────────────── */
+  .main {
+    flex: 1; padding: 2rem 2.5rem;
+    background: var(--bg); transition: background .3s;
+    overflow-x: hidden;
   }
-  .main-content {
-    flex: 1;
-    padding: 2rem;
-    background: #f5f5f5;
-  }
-  .stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
-    margin-bottom: 2rem;
-  }
-  .stat-card {
-    background: white;
-    padding: 1.5rem;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  }
-  .stat-card h3 {
-    font-size: 0.875rem;
-    color: #666;
-    margin-bottom: 0.5rem;
-  }
-  .stat-card .value {
-    font-size: 2rem;
-    font-weight: bold;
-    color: #1a1a2e;
-  }
+
   .page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 2rem;
-  }
-  .page-header h1 {
-    font-size: 1.5rem;
-    color: #1a1a2e;
-  }
-  table {
-    width: 100%;
-    background: white;
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  }
-  th,
-  td {
-    padding: 1rem;
-    text-align: left;
-  }
-  th {
-    background: #f8f9fa;
-    font-weight: 600;
-    color: #666;
-  }
-  tr {
-    border-bottom: 1px solid #eee;
-  }
-  tr:last-child {
-    border-bottom: none;
-  }
-  .badge {
-    display: inline-block;
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-    font-size: 0.75rem;
-  }
-  .badge-active {
-    background: #d4edda;
-    color: #155724;
-  }
-  .badge-inactive {
-    background: #f8d7da;
-    color: #721c24;
-  }
-  .modal {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 1000;
-  }
-  .modal.show {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .modal-content {
-    background: white;
-    padding: 2rem;
-    border-radius: 8px;
-    width: 100%;
-    max-width: 500px;
-  }
-  .modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    display: flex; justify-content: space-between; align-items: flex-start;
     margin-bottom: 1.5rem;
   }
-  .modal-header h2 {
-    margin: 0;
+  .page-header h1 {
+    font-size: 1.45rem; font-weight: 800; letter-spacing: -.5px; color: var(--text);
   }
-  .close {
-    background: none;
-    border: none;
-    font-size: 1.5rem;
-    cursor: pointer;
+  .page-header-sub { font-size: .85rem; color: var(--text-muted); margin-top: .2rem; }
+
+  /* ── Summary pill strip ─────────────────────── */
+  .summary-strip {
+    display: flex; gap: .75rem; flex-wrap: wrap;
+    margin-bottom: 1.5rem;
   }
-  .actions {
-    display: flex;
-    gap: 0.5rem;
+  .summary-pill {
+    display: flex; align-items: center; gap: .5rem;
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: 40px; padding: .4rem .9rem;
+    font-size: .82rem; font-weight: 600; color: var(--text-dim);
+    transition: all .2s;
   }
-  .btn-sm {
-    padding: 0.25rem 0.5rem;
-    font-size: 0.875rem;
+  .summary-pill:hover { border-color: var(--border-hover); color: var(--text); }
+  .summary-pill .pill-val {
+    font-weight: 800; font-size: .9rem; color: var(--text);
   }
-  .btn-danger {
-    background: #dc3545;
-    color: white;
+  .summary-pill .pill-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
   }
-  .btn-success {
-    background: #28a745;
-    color: white;
+
+  /* ── Charts grid ────────────────────────────── */
+  .charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    margin-bottom: 1.25rem;
+  }
+  .charts-grid.three-col {
+    grid-template-columns: 2fr 1fr 1fr;
+  }
+  @media (max-width: 1100px) {
+    .charts-grid { grid-template-columns: 1fr; }
+    .charts-grid.three-col { grid-template-columns: 1fr; }
+  }
+
+  /* ── Chart card ─────────────────────────────── */
+  .chart-card {
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: 14px; padding: 1.4rem 1.5rem;
+    transition: all .3s; position: relative;
+  }
+  .chart-card-header {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    margin-bottom: 1.1rem;
+  }
+  .chart-card-title {
+    font-size: .88rem; font-weight: 700; color: var(--text);
+  }
+  .chart-card-sub {
+    font-size: .74rem; color: var(--text-muted); margin-top: .2rem;
+  }
+  .chart-card-stat {
+    font-size: 1.6rem; font-weight: 900; letter-spacing: -1px;
+    color: var(--text); line-height: 1;
+  }
+  .chart-card-stat-label {
+    font-size: .72rem; color: var(--text-muted); margin-top: .2rem;
+  }
+  .chart-range-ctrl {
+    display: flex; flex-direction: column; align-items: flex-end; gap: .35rem;
+  }
+  .chart-range-select {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 6px; padding: .25rem .5rem .25rem .55rem;
+    font-size: .72rem; font-weight: 600; color: var(--text-muted);
+    cursor: pointer; font-family: inherit; transition: all .18s;
+    outline: none; appearance: none;
+    padding-right: 1.4rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='rgba(160,160,180,0.6)'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 5px center;
+  }
+  .chart-range-select:hover, .chart-range-select:focus {
+    border-color: var(--indigo); color: var(--text);
+  }
+  .chart-date-inputs {
+    display: flex; align-items: center; gap: .3rem;
+  }
+  .chart-date-inputs input[type="date"] {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 6px; padding: .22rem .4rem;
+    font-size: .68rem; color: var(--text); font-family: inherit;
+    outline: none; cursor: pointer; color-scheme: dark;
+    transition: border-color .18s; width: 108px;
+  }
+  .chart-date-inputs input[type="date"]:focus { border-color: var(--indigo); }
+  .date-sep { font-size: .7rem; color: var(--text-muted); flex-shrink: 0; }
+  .date-apply-btn {
+    background: var(--indigo); color: #fff; border: none;
+    border-radius: 6px; padding: .25rem .55rem;
+    font-size: .68rem; cursor: pointer; font-weight: 700;
+    font-family: inherit; transition: opacity .18s; flex-shrink: 0;
+  }
+  .date-apply-btn:hover { opacity: .82; }
+  .chart-canvas-wrap { position: relative; }
+
+  /* ── Two-column layout ──────────────────────── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.25rem; }
+  @media (max-width: 1100px) { .two-col { grid-template-columns: 1fr; } }
+
+  /* ── Section card ───────────────────────────── */
+  .section-card {
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: 14px; padding: 1.4rem 1.5rem;
+    transition: all .3s;
+  }
+  .section-card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 1.1rem; padding-bottom: .8rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-card-title { font-size: .92rem; font-weight: 700; color: var(--text); }
+  .section-card-link {
+    font-size: .78rem; color: var(--indigo); text-decoration: none; font-weight: 600;
+    transition: opacity .2s;
+  }
+  .section-card-link:hover { opacity: .75; }
+
+  /* ── Table ──────────────────────────────────── */
+  .table-wrap {
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: 14px; overflow: hidden; transition: background .3s, border-color .3s;
+  }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    padding: .8rem 1rem; text-align: left;
+    background: var(--table-header);
+    font-size: .72rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .5px; color: var(--text-muted);
+    border-bottom: 1px solid var(--table-border);
+    white-space: nowrap; transition: background .3s;
+  }
+  tbody td {
+    padding: .82rem 1rem; font-size: .875rem; color: var(--text-dim);
+    border-bottom: 1px solid var(--table-border);
+    transition: color .3s;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: var(--table-row-hover); }
+  .td-name { font-weight: 600; color: var(--text) !important; }
+  .actions { display: flex; gap: .4rem; }
+
+  /* ── Badge ──────────────────────────────────── */
+  .badge {
+    display: inline-flex; align-items: center;
+    padding: .22rem .65rem; border-radius: 20px;
+    font-size: .72rem; font-weight: 700;
+  }
+  .badge-active { background: var(--badge-active-bg); color: var(--badge-active-color); }
+  .badge-inactive { background: var(--badge-inactive-bg); color: var(--badge-inactive-color); }
+
+  /* ── Buttons ────────────────────────────────── */
+  .btn {
+    display: inline-flex; align-items: center; gap: .4rem;
+    padding: .5rem 1.1rem; border-radius: 9px;
+    font-size: .82rem; font-weight: 600; cursor: pointer;
+    border: 1px solid transparent; font-family: inherit;
+    text-decoration: none; transition: all .2s;
+  }
+  .btn-sm { padding: .33rem .7rem; font-size: .78rem; border-radius: 7px; }
+  .btn-primary { background: var(--indigo); color: #fff; border-color: var(--indigo); }
+  .btn-primary:hover { background: #b91c1c; }
+  .btn-secondary { background: var(--surface); color: var(--text-dim); border-color: var(--border); }
+  .btn-secondary:hover { border-color: var(--border-hover); color: var(--text); }
+  .btn-danger { background: var(--badge-inactive-bg); color: var(--badge-inactive-color); border-color: rgba(248,113,113,.2); }
+  .btn-danger:hover { background: rgba(248,113,113,.2); }
+  .btn-success { background: var(--badge-active-bg); color: var(--badge-active-color); border-color: rgba(74,222,128,.2); }
+
+  /* ── Modals ─────────────────────────────────── */
+  .modal {
+    display: none; position: fixed; inset: 0; z-index: 500;
+    background: var(--modal-overlay); backdrop-filter: blur(4px);
+    align-items: center; justify-content: center;
+  }
+  .modal.show { display: flex; }
+  .modal-content {
+    background: var(--modal-bg); border: 1px solid var(--border);
+    border-radius: 16px; padding: 2rem; width: 100%; max-width: 480px;
+    max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow);
+    transition: background .3s;
+  }
+  .modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 1.5rem;
+  }
+  .modal-header h2 { font-size: 1.1rem; font-weight: 800; color: var(--text); }
+  .modal-close {
+    background: none; border: none; cursor: pointer;
+    color: var(--text-muted); font-size: 1.4rem; line-height: 1; padding: 0;
+    transition: color .2s;
+  }
+  .modal-close:hover { color: var(--text); }
+  .form-group { margin-bottom: 1rem; }
+  .form-group label {
+    display: block; font-size: .8rem; font-weight: 600;
+    color: var(--text-dim); margin-bottom: .38rem; transition: color .3s;
+  }
+  .form-group input, .form-group select {
+    width: 100%; padding: .7rem .95rem;
+    background: var(--input-bg); border: 1px solid var(--border);
+    border-radius: 9px; color: var(--input-color);
+    font-size: .9rem; font-family: inherit; outline: none;
+    transition: border-color .2s, background .3s;
+  }
+  .form-group input:focus, .form-group select:focus { border-color: var(--indigo); }
+  .form-group input::placeholder { color: var(--placeholder); }
+  .alert-error {
+    background: var(--badge-inactive-bg); color: var(--badge-inactive-color);
+    border: 1px solid rgba(248,113,113,.2); border-radius: 8px;
+    padding: .65rem .9rem; font-size: .82rem;
+  }
+
+  /* ── Progress bar ───────────────────────────── */
+  .progress-bar-wrap { height: 6px; background: var(--border); border-radius: 10px; overflow: hidden; margin-top: .4rem; }
+  .progress-bar { height: 100%; border-radius: 10px; transition: width .8s ease; }
+
+  /* ── Empty state ────────────────────────────── */
+  .empty-state {
+    text-align: center; padding: 2.5rem 1rem; color: var(--text-muted); font-size: .88rem;
+  }
+  .empty-icon { font-size: 2rem; margin-bottom: .5rem; display: block; }
+
+  @media (max-width: 900px) {
+    .sidebar { width: 180px; }
+  }
+  @media (max-width: 640px) {
+    .sidebar { display: none; }
+    .main { padding: 1.25rem; }
   }
 </style>
-{% endblock %} {% block content %}
-<div class="dashboard-layout">
+{% endblock %}
+
+{% block content %}
+<div class="app-layout">
   <nav class="sidebar">
-    <a
-      href="/dashboard"
-      class="{% if request.url.path == '/dashboard' %}active{% endif %}"
-      >Dashboard</a
-    >
-    <a
-      href="/dashboard/users"
-      class="{% if request.url.path.startswith('/dashboard/users') %}active{% endif %}"
-      >Users</a
-    >
-    <a
-      href="/dashboard/documents"
-      class="{% if request.url.path.startswith('/dashboard/documents') %}active{% endif %}"
-      >Documents</a
-    >
-    <a
-      href="/dashboard/settings"
-      class="{% if request.url.path.startswith('/dashboard/settings') %}active{% endif %}"
-      >Settings</a
-    >
+    <div class="sidebar-section" data-i18n="sidebar.main">Principal</div>
+    <a href="/dashboard" class="{% if request.url.path == '/dashboard' %}active{% endif %}">
+      <span class="sidebar-icon">📊</span> <span data-i18n="sidebar.dashboard">Panel</span>
+    </a>
+    <div class="sidebar-section" data-i18n="sidebar.manage">Gestionar</div>
+    <a href="/dashboard/users" class="{% if '/dashboard/users' in request.url.path %}active{% endif %}">
+      <span class="sidebar-icon">👥</span> <span data-i18n="sidebar.users">Usuarios</span>
+    </a>
+    <a href="/dashboard/documents" class="{% if '/dashboard/documents' in request.url.path %}active{% endif %}">
+      <span class="sidebar-icon">📄</span> <span data-i18n="sidebar.documents">Documentos</span>
+    </a>
+    <div class="sidebar-section" data-i18n="sidebar.config">Config</div>
+    <a href="/dashboard/settings" class="{% if '/dashboard/settings' in request.url.path %}active{% endif %}">
+      <span class="sidebar-icon">⚙️</span> <span data-i18n="sidebar.settings">Configuración</span>
+    </a>
   </nav>
 
-  <main class="main-content">
+  <main class="main">
     {% block dashboard_content %}
+
+    <!-- ── Page header ─────────────────────────────── -->
     <div class="page-header">
-      <h1>{{ page_title or 'Dashboard' }}</h1>
-    </div>
-    <div class="stats-grid">
-      <div class="stat-card">
-        <h3>Users</h3>
-        <div class="value" id="stat-users">—</div>
+      <div>
+        <h1 id="welcomeTitle" data-i18n="dash.title">Panel</h1>
+        <div class="page-header-sub" id="welcomeSub" data-i18n="dash.loading">Cargando tu espacio de trabajo…</div>
       </div>
-      <div class="stat-card">
-        <h3>KB Documents</h3>
-        <div class="value" id="stat-docs">—</div>
+      <button class="btn btn-primary" id="addUserBtn" onclick="document.getElementById('addUserModal').classList.add('show')" data-i18n="dash.add_user">
+        + Agregar usuario
+      </button>
+    </div>
+
+    <!-- ── Summary pills ───────────────────────────── -->
+    <div class="summary-strip">
+      <div class="summary-pill">
+        <span class="pill-dot" style="background:#60a5fa;"></span>
+        <span data-i18n="dash.pill.users">Usuarios</span>
+        <span class="pill-val" id="pill-total">—</span>
+      </div>
+      <div class="summary-pill">
+        <span class="pill-dot" style="background:#34d399;"></span>
+        <span data-i18n="dash.pill.active">Activos</span>
+        <span class="pill-val" id="pill-active">—</span>
+      </div>
+      <div class="summary-pill">
+        <span class="pill-dot" style="background:#ef4444;"></span>
+        <span data-i18n="dash.pill.messages">Mensajes (7d)</span>
+        <span class="pill-val" id="pill-msgs">—</span>
+      </div>
+      <div class="summary-pill">
+        <span class="pill-dot" style="background:#fb923c;"></span>
+        <span data-i18n="dash.pill.docs">Docs en KB</span>
+        <span class="pill-val" id="pill-docs">—</span>
+      </div>
+      <div class="summary-pill">
+        <span class="pill-dot" style="background:#f472b6;"></span>
+        <span data-i18n="dash.pill.avg_resp">Resp. promedio</span>
+        <span class="pill-val" id="pill-resp">—</span>
       </div>
     </div>
+
+    <!-- ── Charts row 1 ─────────────────────────────── -->
+    <div class="charts-grid" style="grid-template-columns:2fr 1fr;">
+      <!-- Messages over time -->
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <div>
+            <div class="chart-card-title" data-i18n="dash.chart.msg_activity">Actividad de mensajes</div>
+            <div class="chart-card-sub" id="msgActivitySub" data-i18n="dash.chart.msg_per_day">Mensajes por día en tu organización</div>
+          </div>
+          <div class="chart-range-ctrl">
+            <select class="chart-range-select" id="msgsRangeSelect" onchange="onMsgsRangeChange(this.value)">
+              <option value="3">3d</option>
+              <option value="7">7d</option>
+              <option value="15">15d</option>
+              <option value="30" selected>1m</option>
+              <option value="90">3m</option>
+              <option value="180">6m</option>
+              <option value="custom" data-i18n="dash.range.custom">Custom</option>
+            </select>
+            <div class="chart-date-inputs" id="msgsDates" style="display:none;">
+              <input type="date" id="msgsFrom" />
+              <span class="date-sep">–</span>
+              <input type="date" id="msgsTo" />
+              <button class="date-apply-btn" onclick="applyMsgsCustom()" data-i18n="dash.range.apply">Apply</button>
+            </div>
+          </div>
+        </div>
+        <div class="chart-canvas-wrap" style="height:200px;">
+          <canvas id="chartMessages"></canvas>
+        </div>
+      </div>
+
+      <!-- User status donut -->
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <div>
+            <div class="chart-card-title" data-i18n="dash.chart.team_status">Estado del equipo</div>
+            <div class="chart-card-sub" data-i18n="dash.chart.active_vs">Activos vs Inactivos</div>
+          </div>
+        </div>
+        <div class="chart-canvas-wrap" style="height:170px;">
+          <canvas id="chartUserStatus"></canvas>
+        </div>
+        <div style="display:flex;justify-content:center;gap:1.2rem;margin-top:.75rem;font-size:.75rem;color:var(--text-muted);">
+          <span><span style="color:#34d399;font-weight:700;" id="lbl-active-pct">—</span> <span data-i18n="dash.lbl.active">Activos</span></span>
+          <span><span style="color:#f87171;font-weight:700;" id="lbl-inactive-pct">—</span> <span data-i18n="dash.lbl.inactive">Inactivos</span></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Charts row 2 ─────────────────────────────── -->
+    <div class="charts-grid" style="grid-template-columns:1fr 1fr;">
+      <!-- Signups over time -->
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <div>
+            <div class="chart-card-title" data-i18n="dash.chart.team_growth">Crecimiento del equipo</div>
+            <div class="chart-card-sub" data-i18n="dash.chart.new_members">Nuevos miembros por día (30d)</div>
+          </div>
+          <div>
+            <div class="chart-card-stat" id="stat-new7">—</div>
+            <div class="chart-card-stat-label" data-i18n="dash.lbl.new_week">nuevos esta semana</div>
+          </div>
+        </div>
+        <div class="chart-canvas-wrap" style="height:180px;">
+          <canvas id="chartSignups"></canvas>
+        </div>
+      </div>
+
+      <!-- Message types breakdown donut -->
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <div>
+            <div class="chart-card-title" data-i18n="dash.chart.msg_breakdown">Desglose de mensajes</div>
+            <div class="chart-card-sub" id="breakdownSub" data-i18n="dash.chart.by_type">Por tipo, últimos 30 días</div>
+          </div>
+          <div class="chart-range-ctrl">
+            <select class="chart-range-select" id="breakdownRangeSelect" onchange="onBreakdownRangeChange(this.value)">
+              <option value="3">3d</option>
+              <option value="7">7d</option>
+              <option value="15">15d</option>
+              <option value="30" selected>1m</option>
+              <option value="90">3m</option>
+              <option value="180">6m</option>
+              <option value="custom" data-i18n="dash.range.custom">Custom</option>
+            </select>
+            <div class="chart-date-inputs" id="breakdownDates" style="display:none;">
+              <input type="date" id="breakdownFrom" />
+              <span class="date-sep">–</span>
+              <input type="date" id="breakdownTo" />
+              <button class="date-apply-btn" onclick="applyBreakdownCustom()" data-i18n="dash.range.apply">Apply</button>
+            </div>
+          </div>
+        </div>
+        <div class="chart-canvas-wrap" style="height:150px;">
+          <canvas id="chartMsgTypes"></canvas>
+        </div>
+        <div style="display:flex;justify-content:center;gap:1rem;margin-top:.75rem;flex-wrap:wrap;font-size:.75rem;color:var(--text-muted);">
+          <span><span style="color:#60a5fa;font-weight:700;" id="lbl-text">0</span> <span data-i18n="dash.lbl.text">Texto</span></span>
+          <span><span style="color:#ef4444;font-weight:700;" id="lbl-audio">0</span> <span data-i18n="dash.lbl.audio">Audio</span></span>
+          <span><span style="color:#34d399;font-weight:700;" id="lbl-image">0</span> <span data-i18n="dash.lbl.images">Imágenes</span></span>
+          <span><span style="color:#fb923c;font-weight:700;" id="lbl-document">0</span> <span data-i18n="dash.lbl.docs">Docs</span></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Recent team members table ───────────────── -->
+    <div class="section-card" style="margin-bottom:1.5rem;">
+      <div class="section-card-header">
+        <div class="section-card-title" data-i18n="dash.team_members">Miembros del equipo</div>
+        <a href="/dashboard/users" class="section-card-link" data-i18n="dash.view_all">Ver todos →</a>
+      </div>
+      <div class="table-wrap" style="border:none;border-radius:10px;">
+        <table>
+          <thead>
+            <tr>
+              <th data-i18n="dash.col.name">Nombre</th>
+              <th data-i18n="dash.col.whatsapp">WhatsApp</th>
+              <th data-i18n="dash.col.jobtitle">Cargo</th>
+              <th data-i18n="dash.col.role">Rol</th>
+              <th data-i18n="dash.col.status">Estado</th>
+              <th data-i18n="dash.col.joined">Se unió</th>
+            </tr>
+          </thead>
+          <tbody id="recentUsersTable">
+            <tr><td colspan="6" class="empty-state" data-i18n="common.loading">Cargando…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── Add User Modal ──────────────────────────── -->
+    <div id="addUserModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 data-i18n="dash.modal.add_title">Agregar miembro</h2>
+          <button class="modal-close" onclick="document.getElementById('addUserModal').classList.remove('show')">&times;</button>
+        </div>
+        <form id="addUserForm">
+          <div class="form-group">
+            <label data-i18n="dash.modal.fullname">Nombre completo</label>
+            <input type="text" id="add_full_name" required data-i18n-ph="users.modal.fullname.ph" placeholder="María García" />
+          </div>
+          <div class="form-group">
+            <label data-i18n="dash.modal.jobtitle">Cargo</label>
+            <input type="text" id="add_job_title" data-i18n-ph="dash.modal.jobtitle.ph" placeholder="Ingeniero" />
+          </div>
+          <div class="form-group">
+            <label data-i18n="dash.modal.whatsapp">Número de WhatsApp</label>
+            <input type="tel" id="add_whatsapp" required placeholder="+1234567890" />
+          </div>
+          <div class="form-group">
+            <label data-i18n="dash.modal.role">Rol</label>
+            <select id="add_role_id" required>
+              <option value="" data-i18n="dash.modal.role.ph">Selecciona un rol…</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary" id="addUserSubmitBtn" style="width:100%;justify-content:center;" data-i18n="dash.modal.btn">Agregar usuario</button>
+          <div class="alert-error" id="addUserError" style="display:none;margin-top:.75rem;"></div>
+        </form>
+      </div>
+    </div>
+
     <script>
-      (async () => {
-        const token = localStorage.getItem('access_token');
-        if (!token) return;
-        try {
-          const r = await fetch('/api/users', { headers: { 'Authorization': 'Bearer ' + token } });
-          if (r.ok) {
-            const users = await r.json();
-            document.getElementById('stat-users').textContent = users.length;
+    const token = () => localStorage.getItem('access_token');
+    const authFetch = (url, opts = {}) => fetch(url, {
+      ...opts, headers: { 'Authorization': 'Bearer ' + token(), ...(opts.headers || {}) }
+    });
+
+    // ── Chart helpers ──────────────────────────────────────────────────────────
+    const isDark = () => document.documentElement.getAttribute('data-theme') !== 'light';
+
+    function chartDefaults() {
+      const dark = isDark();
+      return {
+        gridColor: dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
+        tickColor: dark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.4)',
+        tooltipBg: dark ? '#1e2130' : '#fff',
+        tooltipColor: dark ? '#e2e8f0' : '#1e293b',
+      };
+    }
+
+    function makeLineChart(id, labels, data, color) {
+      const ctx = document.getElementById(id).getContext('2d');
+      const d = chartDefaults();
+      return new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            data,
+            borderColor: color,
+            backgroundColor: color.replace(')', ', 0.12)').replace('rgb', 'rgba'),
+            borderWidth: 2,
+            pointRadius: 3,
+            pointHoverRadius: 6,
+            pointBackgroundColor: color,
+            tension: 0.35,
+            fill: true,
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: d.tooltipBg,
+              titleColor: d.tickColor,
+              bodyColor: d.tooltipColor,
+              borderColor: 'rgba(220,38,38,0.3)',
+              borderWidth: 1,
+              padding: 10,
+              callbacks: {
+                title: items => items[0].label,
+                label: item => ` ${item.raw} messages`,
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { color: d.gridColor },
+              ticks: { color: d.tickColor, maxTicksLimit: 8, font: { size: 11 } },
+            },
+            y: {
+              grid: { color: d.gridColor },
+              ticks: { color: d.tickColor, font: { size: 11 }, precision: 0 },
+              beginAtZero: true,
+            }
           }
-        } catch (_) {}
-      })();
+        }
+      });
+    }
+
+    function makeBarChart(id, labels, data, color) {
+      const ctx = document.getElementById(id).getContext('2d');
+      const d = chartDefaults();
+      return new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            data,
+            backgroundColor: color.replace(')', ', 0.7)').replace('rgb', 'rgba'),
+            borderColor: color,
+            borderWidth: 1.5,
+            borderRadius: 5,
+            borderSkipped: false,
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: d.tooltipBg,
+              titleColor: d.tickColor,
+              bodyColor: d.tooltipColor,
+              borderColor: 'rgba(220,38,38,0.3)',
+              borderWidth: 1,
+              padding: 10,
+              callbacks: { label: item => ` ${item.raw} new members` }
+            }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: { color: d.tickColor, maxTicksLimit: 8, font: { size: 11 } },
+            },
+            y: {
+              grid: { color: d.gridColor },
+              ticks: { color: d.tickColor, font: { size: 11 }, precision: 0 },
+              beginAtZero: true,
+            }
+          }
+        }
+      });
+    }
+
+    function makeDonutChart(id, labels, data, colors) {
+      const ctx = document.getElementById(id).getContext('2d');
+      const d = chartDefaults();
+      const chart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels,
+          datasets: [{ data, backgroundColor: colors, borderWidth: 2,
+            borderColor: isDark() ? '#151823' : '#ffffff',
+            hoverOffset: 6 }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          cutout: '68%',
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: d.tooltipBg,
+              titleColor: d.tickColor,
+              bodyColor: d.tooltipColor,
+              borderColor: 'rgba(220,38,38,0.3)',
+              borderWidth: 1,
+              padding: 10,
+              callbacks: {
+                label: item => ` ${item.label}: ${item.raw}`
+              }
+            }
+          }
+        }
+      });
+      return chart;
+    }
+
+    // ── State ──────────────────────────────────────────────────────────────────
+    let msgsChartFull = [];      // all fetched daily message data
+    let breakdownTypeFull = {};  // message type breakdown from last API fetch
+    let chartMsgs = null;
+    let chartMsgTypes = null;
+
+    const RANGE_LABELS = { 3:'3d', 7:'7d', 15:'15d', 30:'1m', 90:'3m', 180:'6m' };
+
+    function todayStr() { return new Date().toISOString().slice(0,10); }
+    function daysAgoStr(n) { return new Date(Date.now() - n*86400000).toISOString().slice(0,10); }
+
+    function initDatePickers() {
+      document.getElementById('msgsFrom').value = daysAgoStr(7);
+      document.getElementById('msgsTo').value   = todayStr();
+      document.getElementById('breakdownFrom').value = daysAgoStr(7);
+      document.getElementById('breakdownTo').value   = todayStr();
+    }
+
+    function buildDateLabels(data, days) {
+      const map = {};
+      data.forEach(r => { map[r.day] = r.count; });
+      const labels = [], counts = [];
+      for (let i = days - 1; i >= 0; i--) {
+        const d = new Date(); d.setDate(d.getDate() - i);
+        const key = d.toISOString().slice(0, 10);
+        labels.push(d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+        counts.push(map[key] ?? 0);
+      }
+      return { labels, counts };
+    }
+
+    function buildCustomDateLabels(data, from, to) {
+      const map = {};
+      data.forEach(r => { map[r.day] = r.count; });
+      const labels = [], counts = [];
+      const end = new Date(to);
+      for (let d = new Date(from); d <= end; d.setDate(d.getDate() + 1)) {
+        const key = d.toISOString().slice(0, 10);
+        labels.push(new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+        counts.push(map[key] ?? 0);
+      }
+      return { labels, counts };
+    }
+
+    // ── Message Activity handlers ───────────────────────────────────────────────
+    function onMsgsRangeChange(val) {
+      const datesEl = document.getElementById('msgsDates');
+      if (val === 'custom') {
+        datesEl.style.display = 'flex';
+      } else {
+        datesEl.style.display = 'none';
+        applyMsgsDays(parseInt(val));
+      }
+    }
+
+    function applyMsgsDays(days) {
+      if (!chartMsgs) return;
+      const { labels, counts } = buildDateLabels(msgsChartFull, days);
+      chartMsgs.data.labels = labels;
+      chartMsgs.data.datasets[0].data = counts;
+      chartMsgs.update();
+    }
+
+    function applyMsgsCustom() {
+      const from = document.getElementById('msgsFrom').value;
+      const to   = document.getElementById('msgsTo').value;
+      if (!from || !to || from > to) return;
+      const { labels, counts } = buildCustomDateLabels(msgsChartFull, from, to);
+      chartMsgs.data.labels = labels;
+      chartMsgs.data.datasets[0].data = counts;
+      chartMsgs.update();
+    }
+
+    // ── Message Breakdown handlers ──────────────────────────────────────────────
+    function onBreakdownRangeChange(val) {
+      const datesEl = document.getElementById('breakdownDates');
+      if (val === 'custom') {
+        datesEl.style.display = 'flex';
+      } else {
+        datesEl.style.display = 'none';
+        fetchBreakdown(parseInt(val));
+      }
+    }
+
+    function applyBreakdownCustom() {
+      const from = document.getElementById('breakdownFrom').value;
+      const to   = document.getElementById('breakdownTo').value;
+      if (!from || !to || from > to) return;
+      fetchBreakdown(null, from, to);
+    }
+
+    async function fetchBreakdown(days, from, to) {
+      if (!chartMsgTypes) return;
+      let url = '/api/users/dashboard-stats';
+      if (days)       url += `?days=${days}`;
+      else if (from)  url += `?from=${from}&to=${to}`;
+      const r = await authFetch(url);
+      if (!r.ok) return;
+      const s = await r.json();
+      const mt = s.message_types_breakdown || breakdownTypeFull;
+      const typeVals = [mt.text??0, mt.audio??0, mt.image??0, mt.document??0];
+      chartMsgTypes.data.datasets[0].data = typeVals.some(v=>v>0) ? typeVals : [1,0,0,0];
+      chartMsgTypes.update();
+      document.getElementById('lbl-text').textContent     = mt.text     ?? 0;
+      document.getElementById('lbl-audio').textContent    = mt.audio    ?? 0;
+      document.getElementById('lbl-image').textContent    = mt.image    ?? 0;
+      document.getElementById('lbl-document').textContent = mt.document ?? 0;
+    }
+
+    // ── Main load ──────────────────────────────────────────────────────────────
+    async function loadDashboard() {
+      if (!token()) { window.location.href = '/login'; return; }
+
+      const [statsRes, usersRes] = await Promise.all([
+        authFetch('/api/users/dashboard-stats'),
+        authFetch('/api/users'),
+      ]);
+
+      if (statsRes.status === 401 || usersRes.status === 401) {
+        window.location.href = '/login'; return;
+      }
+
+      if (statsRes.ok) {
+        const s = await statsRes.json();
+
+        // Header
+        document.getElementById('welcomeTitle').textContent =
+          s.org_name ? `${s.org_name} ${t('dash.title')}` : t('dash.title');
+        document.getElementById('welcomeSub').textContent =
+          `${new Date().toLocaleDateString(getLang() === 'es' ? 'es-ES' : 'en-US', {weekday:'long', month:'long', day:'numeric'})}`;
+
+        // Summary pills
+        document.getElementById('pill-total').textContent = s.total_users ?? '—';
+        document.getElementById('pill-active').textContent = s.active_users ?? '—';
+        document.getElementById('pill-msgs').textContent = s.messages_7d ?? 0;
+        document.getElementById('pill-docs').textContent = s.total_docs ?? '—';
+        document.getElementById('pill-resp').textContent =
+          s.avg_response_ms != null ? s.avg_response_ms + ' ms' : '—';
+
+        // Signups card stat
+        document.getElementById('stat-new7').textContent = `+${s.new_users_7d ?? 0}`;
+
+        // User status labels
+        const total = (s.active_users ?? 0) + (s.inactive_users ?? 0) || 1;
+        document.getElementById('lbl-active-pct').textContent =
+          Math.round(s.active_users / total * 100) + '%';
+        document.getElementById('lbl-inactive-pct').textContent =
+          Math.round(s.inactive_users / total * 100) + '%';
+
+        // Message type labels
+        const mt = s.message_types_breakdown || {};
+        document.getElementById('lbl-text').textContent = mt.text ?? 0;
+        document.getElementById('lbl-audio').textContent = mt.audio ?? 0;
+        document.getElementById('lbl-image').textContent = mt.image ?? 0;
+        document.getElementById('lbl-document').textContent = mt.document ?? 0;
+
+        // ── Chart 1: Messages over time (line)
+        msgsChartFull = s.messages_chart || [];
+        const { labels: ml, counts: mc } = buildDateLabels(msgsChartFull, 30);
+        if (chartMsgs) { chartMsgs.destroy(); }
+        chartMsgs = makeLineChart('chartMessages', ml, mc, 'rgb(99,102,241)');
+        document.getElementById('msgsRangeSelect').value = '30';
+
+        // ── Chart 2: User status (donut)
+        makeDonutChart(
+          'chartUserStatus',
+          [t('common.active'), t('common.inactive')],
+          [s.active_users ?? 0, s.inactive_users ?? 0],
+          ['#34d399', '#f87171']
+        );
+
+        // ── Chart 3: Signups (bar)
+        const sigData = s.signups_chart || [];
+        const { labels: sl, counts: sc } = buildDateLabels(sigData, 30);
+        makeBarChart('chartSignups', sl, sc, 'rgb(99,102,241)');
+
+        // ── Chart 4: Message types (donut)
+        breakdownTypeFull = mt;
+        const typeVals = [mt.text ?? 0, mt.audio ?? 0, mt.image ?? 0, mt.document ?? 0];
+        const hasTypes = typeVals.some(v => v > 0);
+        if (chartMsgTypes) { chartMsgTypes.destroy(); }
+        chartMsgTypes = makeDonutChart(
+          'chartMsgTypes',
+          [t('dash.lbl.text'), t('dash.lbl.audio'), t('dash.lbl.images'), t('dash.lbl.docs')],
+          hasTypes ? typeVals : [1, 0, 0, 0],
+          ['#60a5fa', '#ef4444', '#34d399', '#fb923c']
+        );
+        document.getElementById('breakdownRangeSelect').value = '30';
+      }
+
+      // Team table
+      if (usersRes.ok) {
+        const users = await usersRes.json();
+        const tbody = document.getElementById('recentUsersTable');
+        if (!users.length) {
+          tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><span class="empty-icon">👥</span>${t('dash.empty')}</div></td></tr>`;
+        } else {
+          tbody.innerHTML = users.slice(0, 8).map(u => `
+            <tr>
+              <td class="td-name">${u.full_name || u.username || '—'}</td>
+              <td>${u.whatsapp_number || '—'}</td>
+              <td style="color:var(--text-muted);">${u.job_title || '—'}</td>
+              <td>${u.role?.name || '—'}</td>
+              <td><span class="badge ${u.is_active ? 'badge-active' : 'badge-inactive'}">${u.is_active ? t('common.active') : t('common.inactive')}</span></td>
+              <td style="color:var(--text-muted);font-size:.82rem;">${u.created_at ? new Date(u.created_at).toLocaleDateString(getLang() === 'es' ? 'es-ES' : 'en-US') : '—'}</td>
+            </tr>
+          `).join('');
+        }
+        await loadRolesForModal();
+      }
+    }
+
+    async function loadRolesForModal() {
+      const r = await authFetch('/api/roles');
+      if (!r.ok) return;
+      const roles = await r.json();
+      const sel = document.getElementById('add_role_id');
+      [...sel.options].slice(1).forEach(o => o.remove());
+      roles.forEach(role => {
+        const o = document.createElement('option');
+        o.value = role.id; o.textContent = role.name;
+        sel.appendChild(o);
+      });
+    }
+
+    document.getElementById('addUserForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const err = document.getElementById('addUserError');
+      err.style.display = 'none';
+      const body = {
+        full_name: document.getElementById('add_full_name').value,
+        job_title: document.getElementById('add_job_title').value || null,
+        whatsapp_number: document.getElementById('add_whatsapp').value,
+        role_id: document.getElementById('add_role_id').value,
+        username: document.getElementById('add_full_name').value.toLowerCase().replace(/\s+/g, '.'),
+        user_id: crypto.randomUUID(),
+        org_id: null,
+      };
+      const r = await authFetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (r.ok) {
+        document.getElementById('addUserModal').classList.remove('show');
+        document.getElementById('addUserForm').reset();
+        loadDashboard();
+      } else {
+        const d = await r.json().catch(() => ({}));
+        err.textContent = d.detail || t('dash.error.add_user');
+        err.style.display = 'block';
+      }
+    });
+
+    // Re-render when language changes
+    document.addEventListener('langchange', () => loadDashboard());
+
+    initDatePickers();
+    loadDashboard();
     </script>
+
     {% endblock %}
   </main>
 </div>
