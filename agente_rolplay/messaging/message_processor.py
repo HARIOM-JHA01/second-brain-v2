@@ -30,6 +30,10 @@ from agente_rolplay.messaging.greeting_handler import (
     get_capabilities_message,
     get_file_upload_message,
     get_reset_confirmation,
+    get_menu_message,
+    is_menu_selection,
+    is_coaching_report_request,
+    is_coaching_exit,
     is_english,
     detect_language,
 )
@@ -62,6 +66,11 @@ from agente_rolplay.config import (
 )
 
 r = redis.Redis(**redis_connection_kwargs())
+
+COACHING_MENU_TTL = 300       # 5 min — waiting for 1/2/3 reply
+COACHING_SCENARIO_TTL = 300   # 5 min — waiting for scenario number
+COACHING_SESSION_TTL = 7200   # 2 h  — active coaching session
+COACHING_HISTORY_TTL = 7200   # 2 h  — coaching conversation history
 
 FILE_TOO_LARGE_MSG = {
     "es": "Lo siento, el archivo es demasiado grande. El tamaño máximo permitido es 50 MB.",
@@ -432,6 +441,302 @@ def handle_file_upload(
     return "FileProcessed"
 
 
+# ── Coaching helpers ──────────────────────────────────────────────────────────
+
+def _org_has_active_scenarios(org_id) -> bool:
+    """Return True if the org has at least one active coaching scenario."""
+    if not org_id:
+        return False
+    try:
+        from agente_rolplay.db.database import get_db
+        from agente_rolplay.db.models import CoachingScenario
+        db = next(get_db())
+        try:
+            count = (
+                db.query(CoachingScenario)
+                .filter(CoachingScenario.org_id == org_id, CoachingScenario.is_active == True)
+                .count()
+            )
+            return count > 0
+        finally:
+            db.close()
+    except Exception as e:
+        print(f"_org_has_active_scenarios error: {e}")
+        return False
+
+
+def _start_coaching_scenario_selection(
+    phone: str, from_number: str, org_id, redis_client, dedup_key: str, lang: str
+) -> str:
+    """Show numbered scenario list and store it in Redis for selection."""
+    try:
+        from agente_rolplay.db.database import get_db
+        from agente_rolplay.db.models import CoachingScenario
+        db = next(get_db())
+        try:
+            scenarios = (
+                db.query(CoachingScenario)
+                .filter(CoachingScenario.org_id == org_id, CoachingScenario.is_active == True)
+                .order_by(CoachingScenario.name)
+                .all()
+            )
+        finally:
+            db.close()
+    except Exception as e:
+        print(f"_start_coaching_scenario_selection error: {e}")
+        scenarios = []
+
+    if not scenarios:
+        msg = (
+            "There are no active coaching scenarios available."
+            if lang == "en"
+            else "No hay escenarios de coaching activos disponibles."
+        )
+        send_twilio_message(from_number, msg)
+        redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
+        return "Success"
+
+    scenario_list = [
+        {"id": str(s.id), "name": s.name, "description": s.description or "", "system_prompt": s.system_prompt}
+        for s in scenarios
+    ]
+    redis_client.set(
+        f"coaching:scenario_pending:{phone}",
+        json.dumps(scenario_list),
+        ex=COACHING_SCENARIO_TTL,
+    )
+
+    if lang == "en":
+        lines = ["Select a coaching scenario:\n"]
+        for i, s in enumerate(scenario_list, 1):
+            line = f"{i}. *{s['name']}*"
+            if s["description"]:
+                line += f" — {s['description']}"
+            lines.append(line)
+        lines.append("\nReply with the number of the scenario.")
+    else:
+        lines = ["Elige un escenario de coaching:\n"]
+        for i, s in enumerate(scenario_list, 1):
+            line = f"{i}. *{s['name']}*"
+            if s["description"]:
+                line += f" — {s['description']}"
+            lines.append(line)
+        lines.append("\nResponde con el número del escenario.")
+
+    send_twilio_message(from_number, "\n".join(lines))
+    redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
+    return "Success"
+
+
+def _handle_scenario_selection(
+    phone: str, from_number: str, body: str, pending_raw: str,
+    org_id, redis_client, dedup_key: str, lang: str
+) -> str:
+    """Handle user picking a scenario number."""
+    scenario_list = json.loads(pending_raw)
+    try:
+        idx = int(body.strip()) - 1
+        if idx < 0 or idx >= len(scenario_list):
+            raise ValueError
+    except (ValueError, TypeError):
+        # Invalid selection — resend list
+        if lang == "en":
+            lines = ["Please reply with a number from the list:\n"]
+        else:
+            lines = ["Por favor responde con un número de la lista:\n"]
+        for i, s in enumerate(scenario_list, 1):
+            line = f"{i}. *{s['name']}*"
+            if s["description"]:
+                line += f" — {s['description']}"
+            lines.append(line)
+        redis_client.set(
+            f"coaching:scenario_pending:{phone}", pending_raw, ex=COACHING_SCENARIO_TTL
+        )
+        send_twilio_message(from_number, "\n".join(lines))
+        redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
+        return "Success"
+
+    chosen = scenario_list[idx]
+    redis_client.delete(f"coaching:scenario_pending:{phone}")
+
+    # Create DB record
+    session_id = None
+    try:
+        from agente_rolplay.db.database import get_db
+        from agente_rolplay.db.models import CoachingSession
+        import uuid as _uuid
+        db = next(get_db())
+        try:
+            session = CoachingSession(
+                org_id=org_id,
+                phone_number=phone,
+                scenario_id=_uuid.UUID(chosen["id"]),
+                scenario_name=chosen["name"],
+            )
+            db.add(session)
+            db.commit()
+            db.refresh(session)
+            session_id = str(session.id)
+        finally:
+            db.close()
+    except Exception as e:
+        print(f"Error creating CoachingSession: {e}")
+        import uuid as _uuid
+        session_id = str(_uuid.uuid4())
+
+    session_data = {
+        "session_id": session_id,
+        "scenario_id": chosen["id"],
+        "scenario_name": chosen["name"],
+        "system_prompt": chosen["system_prompt"],
+        "org_id": str(org_id) if org_id else None,
+        "started_at": datetime.utcnow().isoformat(),
+    }
+    redis_client.set(f"coaching:session:{phone}", json.dumps(session_data), ex=COACHING_SESSION_TTL)
+    redis_client.set(f"coaching:history:{phone}", json.dumps([]), ex=COACHING_HISTORY_TTL)
+
+    if lang == "en":
+        msg = (
+            f"🎯 *Coaching session started!*\n\n"
+            f"Scenario: *{chosen['name']}*\n\n"
+            f"The coach is ready. Type your first message to begin.\n\n"
+            f"_To end the session, type 'exit'. To get your report, type 'report'._"
+        )
+    else:
+        msg = (
+            f"🎯 *¡Sesión de coaching iniciada!*\n\n"
+            f"Escenario: *{chosen['name']}*\n\n"
+            f"El coach está listo. Escribe tu primer mensaje para comenzar.\n\n"
+            f"_Para terminar la sesión escribe 'salir'. Para obtener tu reporte escribe 'reporte'._"
+        )
+    send_twilio_message(from_number, msg)
+    redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
+    return "Success"
+
+
+def _handle_coaching_turn(
+    phone: str, from_number: str, body: str, session: dict,
+    redis_client, dedup_key: str, lang: str,
+) -> str:
+    """Process one user turn inside an active coaching session."""
+    history_key = f"coaching:history:{phone}"
+    history_raw = redis_client.get(history_key)
+    history = json.loads(history_raw) if history_raw else []
+
+    history.append({"role": "user", "content": body})
+
+    id_phone_number = f"fp-idPhone:{phone}"
+    id_conversacion = f"fp-idPhone:{phone}_{datetime.now().strftime('%Y-%m-%d_%H:%M')}"
+
+    data = {"body": body, "type": "text", "from": f"whatsapp:+{phone}"}
+    _t0 = time.time()
+    answer_data = responder_usuario(
+        messages=history,
+        data=data,
+        telefono=phone,
+        id_conversacion=id_conversacion,
+        id_phone_number=id_phone_number,
+        response_language=lang,
+        coaching_system_prompt=session["system_prompt"],
+    )
+    _response_ms = int((time.time() - _t0) * 1000)
+
+    reply = str(answer_data["answer"])
+    history.append({"role": "assistant", "content": reply})
+
+    redis_client.set(history_key, json.dumps(history), ex=COACHING_HISTORY_TTL)
+    redis_client.set(f"coaching:session:{phone}", json.dumps(session), ex=COACHING_SESSION_TTL)
+
+    send_twilio_message(from_number, reply)
+    log_message_to_db(phone, message_type="text", response_time_ms=_response_ms)
+    redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
+    return "Success"
+
+
+def _end_coaching_session(
+    phone: str, from_number: str, session: dict,
+    redis_client, dedup_key: str, generate_report: bool, lang: str,
+) -> str:
+    """End a coaching session, optionally generating a report first."""
+    history_key = f"coaching:history:{phone}"
+    session_key = f"coaching:session:{phone}"
+
+    if generate_report:
+        history_raw = redis_client.get(history_key)
+        history = json.loads(history_raw) if history_raw else []
+
+        if lang == "en":
+            send_twilio_message(from_number, "⏳ Generating your coaching report…")
+        else:
+            send_twilio_message(from_number, "⏳ Generando tu reporte de coaching…")
+
+        try:
+            from agente_rolplay.agent.roleplay_agent import generate_coaching_report
+            report = generate_coaching_report(
+                history=history,
+                scenario_name=session.get("scenario_name", ""),
+                lang=lang,
+            )
+        except Exception as e:
+            print(f"Error generating coaching report: {e}")
+            report = (
+                "Sorry, there was an error generating the report."
+                if lang == "en"
+                else "Lo siento, hubo un error al generar el reporte."
+            )
+
+        send_twilio_message(from_number, report)
+
+        # Persist report to DB
+        try:
+            from agente_rolplay.db.database import get_db
+            from agente_rolplay.db.models import CoachingSession
+            import uuid as _uuid
+            db = next(get_db())
+            try:
+                cs = db.query(CoachingSession).filter(
+                    CoachingSession.id == _uuid.UUID(session["session_id"])
+                ).first()
+                if cs:
+                    cs.ended_at = datetime.utcnow()
+                    cs.report_text = report
+                    db.commit()
+            finally:
+                db.close()
+        except Exception as e:
+            print(f"Error persisting coaching report: {e}")
+    else:
+        # Just end the session
+        msg = (
+            "👋 Coaching session ended. Come back anytime!"
+            if lang == "en"
+            else "👋 Sesión de coaching finalizada. ¡Vuelve cuando quieras!"
+        )
+        send_twilio_message(from_number, msg)
+
+        try:
+            from agente_rolplay.db.database import get_db
+            from agente_rolplay.db.models import CoachingSession
+            import uuid as _uuid
+            db = next(get_db())
+            try:
+                cs = db.query(CoachingSession).filter(
+                    CoachingSession.id == _uuid.UUID(session["session_id"])
+                ).first()
+                if cs:
+                    cs.ended_at = datetime.utcnow()
+                    db.commit()
+            finally:
+                db.close()
+        except Exception as e:
+            print(f"Error updating CoachingSession ended_at: {e}")
+
+    redis_client.delete(session_key)
+    redis_client.delete(history_key)
+    redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
+    return "Success"
+
+
 def ask_about_existing_file(
     filename: str, from_number: str, redis_client, phone_number: str
 ):
@@ -515,6 +820,63 @@ def process_incoming_messages_functional(form_data, redis_client=r):
             )
             redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
             return "Success"
+
+    # ── Coaching state checks (functional variant) ────────────────────────────
+    if body and body.strip() and num_media == 0:
+        _scenario_pending_raw_f = redis_client.get(f"coaching:scenario_pending:{phone_number}")
+        if _scenario_pending_raw_f:
+            from agente_rolplay.db.whatsapp_auth import lookup_whatsapp_user as _lwa
+            _wa_u = _lwa(phone_number)
+            _oid = _wa_u.get("org_id") if _wa_u else None
+            return _handle_scenario_selection(
+                phone=phone_number, from_number=from_number, body=body,
+                pending_raw=_scenario_pending_raw_f, org_id=_oid,
+                redis_client=redis_client, dedup_key=dedup_key, lang=current_lang,
+            )
+
+        _session_raw_f = redis_client.get(f"coaching:session:{phone_number}")
+        if _session_raw_f:
+            _session_f = json.loads(_session_raw_f)
+            if is_coaching_exit(body):
+                return _end_coaching_session(
+                    phone=phone_number, from_number=from_number, session=_session_f,
+                    redis_client=redis_client, dedup_key=dedup_key,
+                    generate_report=False, lang=current_lang,
+                )
+            if is_coaching_report_request(body):
+                return _end_coaching_session(
+                    phone=phone_number, from_number=from_number, session=_session_f,
+                    redis_client=redis_client, dedup_key=dedup_key,
+                    generate_report=True, lang=current_lang,
+                )
+            return _handle_coaching_turn(
+                phone=phone_number, from_number=from_number, body=body, session=_session_f,
+                redis_client=redis_client, dedup_key=dedup_key, lang=current_lang,
+            )
+
+        if redis_client.get(f"coaching:menu_pending:{phone_number}"):
+            selection_f = is_menu_selection(body)
+            redis_client.delete(f"coaching:menu_pending:{phone_number}")
+            if selection_f == "2":
+                redis_client.set(file_upload_pending_key, "pending", ex=DEDUP_KEY_TTL)
+                send_twilio_message(from_number, "Please send me the file you want to upload.")
+                redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
+                return "Success"
+            elif selection_f == "3":
+                from agente_rolplay.db.whatsapp_auth import lookup_whatsapp_user as _lwa2
+                _wa_u2 = _lwa2(phone_number)
+                _oid2 = _wa_u2.get("org_id") if _wa_u2 else None
+                return _start_coaching_scenario_selection(
+                    phone=phone_number, from_number=from_number, org_id=_oid2,
+                    redis_client=redis_client, dedup_key=dedup_key, lang=current_lang,
+                )
+            elif selection_f != "1":
+                send_twilio_message(from_number, get_menu_message(current_lang))
+                redis_client.set(f"coaching:menu_pending:{phone_number}", "1", ex=COACHING_MENU_TTL)
+                redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
+                return "Success"
+            # selection_f == "1": fall through to normal agent
+    # ─────────────────────────────────────────────────────────────────────────
 
     message_type = "text"
     media_url = ""
@@ -969,28 +1331,97 @@ def process_incoming_messages(form_data, redis_client=r):
                 redis_client.set(lang_key, "en", ex=86400)
 
             if is_greet:
-                response_text = get_intro_message(current_lang)
-                msg_type = "greeting"
+                org_id = whatsapp_user.get("org_id") if whatsapp_user else None
+                if org_id and _org_has_active_scenarios(org_id):
+                    response_text = get_menu_message(current_lang)
+                    msg_type = "greeting"
+                    send_result = send_twilio_message(from_number, response_text)
+                    if send_result.get("success", False):
+                        redis_client.set(f"coaching:menu_pending:{phone_number}", "1", ex=COACHING_MENU_TTL)
+                        log_chat_interaction(phone_number=phone_number, user_message=body, bot_response=response_text, message_type=msg_type, language=current_lang)
+                        log_message_to_db(phone_number, message_type=msg_type)
+                        redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
+                        return "Success"
+                else:
+                    response_text = get_intro_message(current_lang)
+                    msg_type = "greeting"
+                    send_result = send_twilio_message(from_number, response_text)
+                    if send_result.get("success", False):
+                        log_chat_interaction(phone_number=phone_number, user_message=body, bot_response=response_text, message_type=msg_type, language=current_lang)
+                        log_message_to_db(phone_number, message_type=msg_type)
+                        redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
+                        return "Success"
             else:
                 response_text = get_capabilities_message(current_lang)
                 msg_type = "help"
+                send_result = send_twilio_message(from_number, response_text)
+                if send_result.get("success", False):
+                    log_chat_interaction(phone_number=phone_number, user_message=body, bot_response=response_text, message_type=msg_type, language=current_lang)
+                    log_message_to_db(phone_number, message_type=msg_type)
+                    redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
+                    print(f"Help response sent: {msg_type}")
+                    return "Success"
+                else:
+                    print(f"Failed to send help response: {send_result.get('error')}")
 
-            send_result = send_twilio_message(from_number, response_text)
+        # ── Coaching state checks ──────────────────────────────────────────────
 
-            if send_result.get("success", False):
-                log_chat_interaction(
-                    phone_number=phone_number,
-                    user_message=body,
-                    bot_response=response_text,
-                    message_type=msg_type,
-                    language=current_lang,
+        # 1. User is selecting a scenario
+        _scenario_pending_raw = redis_client.get(f"coaching:scenario_pending:{phone_number}")
+        if _scenario_pending_raw:
+            org_id = whatsapp_user.get("org_id") if whatsapp_user else None
+            return _handle_scenario_selection(
+                phone=phone_number, from_number=from_number, body=body,
+                pending_raw=_scenario_pending_raw, org_id=org_id,
+                redis_client=redis_client, dedup_key=dedup_key, lang=current_lang,
+            )
+
+        # 2. Active coaching session
+        _session_raw = redis_client.get(f"coaching:session:{phone_number}")
+        if _session_raw:
+            _session = json.loads(_session_raw)
+            if is_coaching_exit(body):
+                return _end_coaching_session(
+                    phone=phone_number, from_number=from_number, session=_session,
+                    redis_client=redis_client, dedup_key=dedup_key,
+                    generate_report=False, lang=current_lang,
                 )
-                log_message_to_db(phone_number, message_type=msg_type)
+            if is_coaching_report_request(body):
+                return _end_coaching_session(
+                    phone=phone_number, from_number=from_number, session=_session,
+                    redis_client=redis_client, dedup_key=dedup_key,
+                    generate_report=True, lang=current_lang,
+                )
+            return _handle_coaching_turn(
+                phone=phone_number, from_number=from_number, body=body, session=_session,
+                redis_client=redis_client, dedup_key=dedup_key, lang=current_lang,
+            )
+
+        # 3. User is picking from 1/2/3 menu
+        if redis_client.get(f"coaching:menu_pending:{phone_number}"):
+            selection = is_menu_selection(body)
+            redis_client.delete(f"coaching:menu_pending:{phone_number}")
+            if selection == "1":
+                pass  # fall through to normal agent
+            elif selection == "2":
+                file_upload_pending_key = f"file_upload_pending:{phone_number}"
+                redis_client.set(file_upload_pending_key, "pending", ex=DEDUP_KEY_TTL)
+                upload_msg = get_file_upload_message(current_lang)
+                send_twilio_message(from_number, upload_msg)
                 redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
-                print(f"Greeting/Help response sent: {msg_type}")
                 return "Success"
+            elif selection == "3":
+                org_id = whatsapp_user.get("org_id") if whatsapp_user else None
+                return _start_coaching_scenario_selection(
+                    phone=phone_number, from_number=from_number, org_id=org_id,
+                    redis_client=redis_client, dedup_key=dedup_key, lang=current_lang,
+                )
             else:
-                print(f"Failed to send greeting response: {send_result.get('error')}")
+                # Invalid reply — resend menu
+                send_twilio_message(from_number, get_menu_message(current_lang))
+                redis_client.set(f"coaching:menu_pending:{phone_number}", "1", ex=COACHING_MENU_TTL)
+                redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
+                return "Success"
 
         pending_action_key = f"pending_file_action:{phone_number}"
         pending_rename_key = f"pending_rename:{phone_number}"

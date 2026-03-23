@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Integer, JSON
+from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Integer, JSON, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from agente_rolplay.db.database import Base
@@ -24,6 +24,9 @@ class Organization(Base):
     )
     documents = relationship(
         "Document", back_populates="organization", cascade="all, delete-orphan"
+    )
+    coaching_scenarios = relationship(
+        "CoachingScenario", back_populates="organization", cascade="all, delete-orphan"
     )
 
 
@@ -97,6 +100,47 @@ class Document(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     organization = relationship("Organization", back_populates="documents")
+
+
+class CoachingScenario(Base):
+    __tablename__ = "coaching_scenarios"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    name = Column(String(255), nullable=False)
+    description = Column(String(500), nullable=True)
+    system_prompt = Column(Text, nullable=False)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    organization = relationship("Organization", back_populates="coaching_scenarios")
+    sessions = relationship(
+        "CoachingSession", back_populates="scenario", passive_deletes=True
+    )
+
+
+class CoachingSession(Base):
+    __tablename__ = "coaching_sessions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id = Column(UUID(as_uuid=True), nullable=True)
+    phone_number = Column(String(50), nullable=False)
+    scenario_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("coaching_scenarios.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    scenario_name = Column(String(255), nullable=False)
+    started_at = Column(DateTime, default=datetime.utcnow)
+    ended_at = Column(DateTime, nullable=True)
+    report_text = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    scenario = relationship("CoachingScenario", back_populates="sessions")
 
 
 class MessageLog(Base):

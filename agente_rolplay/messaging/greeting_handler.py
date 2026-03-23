@@ -342,6 +342,75 @@ def get_reset_confirmation(lang: str = "es") -> str:
     return RESET_CONFIRMATION.get(lang, RESET_CONFIRMATION["es"])
 
 
+MENU_MESSAGES = {
+    "es": (
+        "¡Hola! 👋 Soy tu Second Brain.\n\n"
+        "¿Qué deseas hacer?\n\n"
+        "1️⃣ Chat — Hacer preguntas\n"
+        "2️⃣ Subir un documento\n"
+        "3️⃣ Iniciar una sesión de coaching\n\n"
+        "Responde con 1, 2 o 3."
+    ),
+    "en": (
+        "Hi! 👋 I'm your Second Brain.\n\n"
+        "What would you like to do?\n\n"
+        "1️⃣ Chat — Ask questions\n"
+        "2️⃣ Upload a document\n"
+        "3️⃣ Start a coaching session\n\n"
+        "Reply with 1, 2, or 3."
+    ),
+}
+
+COACHING_REPORT_PHRASES = {
+    "report", "reporte", "generate report", "generar reporte",
+    "resumen", "summary", "dame el reporte", "give me the report",
+    "dame el resumen", "generate summary",
+}
+
+COACHING_EXIT_PHRASES = {
+    "exit", "salir", "end coaching", "terminar coaching",
+    "finalizar", "quit", "end session", "terminar sesión", "terminar sesion",
+}
+
+
+def get_menu_message(lang: str = "es") -> str:
+    """Get coaching menu message in specified language."""
+    return MENU_MESSAGES.get(lang, MENU_MESSAGES["es"])
+
+
+def is_menu_selection(text: str):
+    """
+    Check if text is a menu option selection.
+    Returns '1', '2', '3', or None.
+    """
+    if not text:
+        return None
+    cleaned = text.strip().lower()
+    if cleaned in ("1", "1️⃣", "chat", "1. chat"):
+        return "1"
+    if cleaned in ("2", "2️⃣", "subir", "upload", "2. subir", "2. upload"):
+        return "2"
+    if cleaned in ("3", "3️⃣", "coaching", "3. coaching"):
+        return "3"
+    return None
+
+
+def is_coaching_report_request(text: str) -> bool:
+    """Check if the user is requesting a coaching report."""
+    if not text:
+        return False
+    cleaned = text.strip().lower()
+    return any(phrase in cleaned for phrase in COACHING_REPORT_PHRASES)
+
+
+def is_coaching_exit(text: str) -> bool:
+    """Check if the user wants to exit the coaching session."""
+    if not text:
+        return False
+    cleaned = text.strip().lower()
+    return any(phrase in cleaned for phrase in COACHING_EXIT_PHRASES)
+
+
 def should_show_intro(text: str, has_chat_history: bool = False) -> Tuple[bool, bool]:
     """
     Determine if we should show intro or capabilities.

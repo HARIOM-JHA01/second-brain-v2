@@ -1,0 +1,135 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Scenarios{% endblock %}
+{% block page_title %}Coaching Scenarios{% endblock %}
+{% block page_subtitle %}All coaching scenarios across all organizations{% endblock %}
+
+{% block extra_style %}
+.filter-bar { display: flex; align-items: center; gap: .75rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+.count-chip {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 20px; padding: .25rem .75rem;
+  font-size: .78rem; font-weight: 600; color: var(--text-muted);
+}
+.prompt-preview {
+  max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--text-dim); font-size: .82rem;
+}
+{% endblock %}
+
+{% block content %}
+<div class="section-card">
+  <div class="section-card-header">
+    <div class="section-card-title">All Scenarios <span class="count-chip" id="scenarioCount">—</span></div>
+  </div>
+
+  <div class="filter-bar">
+    <div class="search-bar" style="flex:1;min-width:220px;margin-bottom:0;">
+      <input type="text" id="searchInput" placeholder="Search by name or org…" oninput="filterScenarios()" />
+    </div>
+    <select id="orgFilter" onchange="filterScenarios()" style="padding:.6rem .9rem;background:var(--input-bg);border:1px solid var(--border);border-radius:9px;color:var(--text);font-size:.875rem;font-family:inherit;outline:none;">
+      <option value="">All orgs</option>
+    </select>
+  </div>
+
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Organization</th>
+          <th>Description</th>
+          <th>System Prompt</th>
+          <th>Status</th>
+          <th>Sessions</th>
+          <th>Created</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="scenariosTable">
+        <tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-muted);">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+let allScenarios = [];
+
+async function loadScenarios() {
+  const r = await fetch('/admin/api/scenarios');
+  if (!r.ok) { document.getElementById('scenariosTable').innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--error);">Failed to load scenarios</td></tr>'; return; }
+  allScenarios = await r.json();
+
+  // Populate org filter
+  const orgs = [...new Map(allScenarios.map(s => [s.org_id, s.org_name])).entries()];
+  const sel = document.getElementById('orgFilter');
+  orgs.sort((a,b) => (a[1]||'').localeCompare(b[1]||'')).forEach(([id, name]) => {
+    const o = document.createElement('option');
+    o.value = id; o.textContent = name || id;
+    sel.appendChild(o);
+  });
+
+  filterScenarios();
+}
+
+function filterScenarios() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const orgId = document.getElementById('orgFilter').value;
+
+  let filtered = allScenarios;
+  if (orgId) filtered = filtered.filter(s => s.org_id === orgId);
+  if (q) filtered = filtered.filter(s =>
+    (s.name || '').toLowerCase().includes(q) ||
+    (s.org_name || '').toLowerCase().includes(q) ||
+    (s.description || '').toLowerCase().includes(q)
+  );
+
+  document.getElementById('scenarioCount').textContent = filtered.length;
+  renderTable(filtered);
+}
+
+function renderTable(data) {
+  const tbody = document.getElementById('scenariosTable');
+  if (!data.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-muted);">No scenarios found</td></tr>';
+    return;
+  }
+  tbody.innerHTML = data.map(s => `
+    <tr>
+      <td style="font-weight:600;">${escHtml(s.name)}</td>
+      <td>${escHtml(s.org_name || '—')}</td>
+      <td style="color:var(--text-dim);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(s.description || '—')}</td>
+      <td class="prompt-preview" title="${escHtml(s.system_prompt)}">${escHtml(s.system_prompt)}</td>
+      <td><span class="badge ${s.is_active ? 'badge-active' : 'badge-inactive'}">${s.is_active ? 'Active' : 'Inactive'}</span></td>
+      <td>${s.session_count}</td>
+      <td style="color:var(--text-muted);font-size:.8rem;">${fmtDate(s.created_at)}</td>
+      <td>
+        <button class="btn btn-danger btn-sm" onclick="deleteScenario('${s.id}', '${escHtml(s.name)}')">Delete</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function fmtDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString();
+}
+
+async function deleteScenario(id, name) {
+  if (!confirm(`Delete scenario "${name}"? This cannot be undone.`)) return;
+  const r = await fetch(`/admin/api/scenarios/${id}`, { method: 'DELETE' });
+  if (r.ok) {
+    allScenarios = allScenarios.filter(s => s.id !== id);
+    filterScenarios();
+  } else {
+    alert('Failed to delete scenario');
+  }
+}
+
+loadScenarios();
+</script>
+{% endblock %}

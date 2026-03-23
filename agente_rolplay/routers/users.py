@@ -7,7 +7,7 @@ from uuid import UUID
 from typing import List
 
 from agente_rolplay.db.database import get_db
-from agente_rolplay.db.models import Document, MessageLog, User, Profile, Organization, Role
+from agente_rolplay.db.models import CoachingScenario, Document, MessageLog, User, Profile, Organization, Role
 from agente_rolplay.db.schemas import (
     ProfileResponse,
     ProfileCreate,
@@ -436,6 +436,124 @@ def delete_user(
     profile.is_active = False
     db.commit()
     return {"message": "User access revoked"}
+
+
+# ── Scenarios CRUD (org-scoped) ───────────────────────────────────────────────
+
+scenarios_router = APIRouter(prefix="/api/scenarios", tags=["scenarios"])
+
+
+@scenarios_router.get("")
+def list_scenarios(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org = get_org_for_user(db, current_user.id)
+    scenarios = (
+        db.query(CoachingScenario)
+        .filter(CoachingScenario.org_id == org.id)
+        .order_by(CoachingScenario.created_at.desc())
+        .all()
+    )
+    from agente_rolplay.db.models import CoachingSession
+    result = []
+    for s in scenarios:
+        session_count = (
+            db.query(func.count(CoachingSession.id))
+            .filter(CoachingSession.scenario_id == s.id)
+            .scalar() or 0
+        )
+        result.append({
+            "id": str(s.id),
+            "name": s.name,
+            "description": s.description,
+            "system_prompt": s.system_prompt,
+            "is_active": s.is_active,
+            "created_at": s.created_at.isoformat() if s.created_at else None,
+            "session_count": session_count,
+        })
+    return result
+
+
+@scenarios_router.post("")
+def create_scenario(
+    data: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org = get_org_for_user(db, current_user.id)
+    name = (data.get("name") or "").strip()
+    system_prompt = (data.get("system_prompt") or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="name is required")
+    if not system_prompt:
+        raise HTTPException(status_code=400, detail="system_prompt is required")
+    scenario = CoachingScenario(
+        org_id=org.id,
+        name=name,
+        description=(data.get("description") or "").strip() or None,
+        system_prompt=system_prompt,
+        is_active=bool(data.get("is_active", True)),
+    )
+    db.add(scenario)
+    db.commit()
+    db.refresh(scenario)
+    return {
+        "id": str(scenario.id),
+        "name": scenario.name,
+        "description": scenario.description,
+        "system_prompt": scenario.system_prompt,
+        "is_active": scenario.is_active,
+        "created_at": scenario.created_at.isoformat() if scenario.created_at else None,
+        "session_count": 0,
+    }
+
+
+@scenarios_router.patch("/{scenario_id}")
+def update_scenario(
+    scenario_id: UUID,
+    data: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org = get_org_for_user(db, current_user.id)
+    scenario = (
+        db.query(CoachingScenario)
+        .filter(CoachingScenario.id == scenario_id, CoachingScenario.org_id == org.id)
+        .first()
+    )
+    if not scenario:
+        raise HTTPException(status_code=404, detail="Scenario not found")
+    if "name" in data and data["name"]:
+        scenario.name = data["name"].strip()
+    if "description" in data:
+        scenario.description = (data["description"] or "").strip() or None
+    if "system_prompt" in data and data["system_prompt"]:
+        scenario.system_prompt = data["system_prompt"].strip()
+    if "is_active" in data:
+        scenario.is_active = bool(data["is_active"])
+    db.commit()
+    db.refresh(scenario)
+    return {"id": str(scenario.id), "name": scenario.name, "is_active": scenario.is_active}
+
+
+@scenarios_router.delete("/{scenario_id}")
+def delete_scenario(
+    scenario_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org = get_org_for_user(db, current_user.id)
+    scenario = (
+        db.query(CoachingScenario)
+        .filter(CoachingScenario.id == scenario_id, CoachingScenario.org_id == org.id)
+        .first()
+    )
+    if not scenario:
+        raise HTTPException(status_code=404, detail="Scenario not found")
+    db.delete(scenario)
+    db.commit()
+    return {"deleted": str(scenario_id)}
 
 
 @router.post("/{user_id}/reactivate", response_model=ProfileResponse)

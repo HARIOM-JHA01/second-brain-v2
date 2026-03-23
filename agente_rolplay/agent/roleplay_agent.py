@@ -66,6 +66,59 @@ def construir_system_prompt(
 # ----- ----- ----- MAIN AGENT FUNCTION ----- ----- -----
 
 
+def generate_coaching_report(
+    history: list,
+    scenario_name: str,
+    lang: str = "es",
+    anthropic_client=client,
+    model_name=MODEL_NAME,
+) -> str:
+    """Generate a structured coaching report from the session history."""
+    if lang == "en":
+        report_prompt = (
+            f"You are a professional coaching evaluator. Review the following coaching session "
+            f"for the scenario '{scenario_name}' and generate a detailed report.\n\n"
+            "Format the report with these sections:\n"
+            "📊 **Summary** — Brief overview of the session\n"
+            "✅ **Strengths** — What the user did well\n"
+            "📈 **Areas for Improvement** — Specific areas to work on\n"
+            "💡 **Key Takeaways** — Main lessons from this session\n"
+            "⭐ **Score** — Overall performance score out of 10 with justification\n\n"
+            "Conversation transcript:\n"
+        )
+    else:
+        report_prompt = (
+            f"Eres un evaluador profesional de coaching. Revisa la siguiente sesión de coaching "
+            f"para el escenario '{scenario_name}' y genera un reporte detallado.\n\n"
+            "Formatea el reporte con estas secciones:\n"
+            "📊 **Resumen** — Visión general breve de la sesión\n"
+            "✅ **Fortalezas** — Lo que el usuario hizo bien\n"
+            "📈 **Áreas de Mejora** — Áreas específicas en las que trabajar\n"
+            "💡 **Puntos Clave** — Lecciones principales de esta sesión\n"
+            "⭐ **Puntuación** — Puntuación general de desempeño sobre 10 con justificación\n\n"
+            "Transcripción de la conversación:\n"
+        )
+
+    for msg in history:
+        role_label = "Usuario" if msg["role"] == "user" else "Coach (IA)"
+        if lang == "en":
+            role_label = "User" if msg["role"] == "user" else "Coach (AI)"
+        content = msg["content"]
+        if isinstance(content, list):
+            content = " ".join(
+                block.get("text", "") if isinstance(block, dict) else str(block)
+                for block in content
+            )
+        report_prompt += f"\n{role_label}: {content}"
+
+    response = anthropic_client.messages.create(
+        model=model_name,
+        max_tokens=2048,
+        messages=[{"role": "user", "content": report_prompt}],
+    )
+    return response.content[0].text.strip()
+
+
 def responder_usuario(
     messages,
     data,
@@ -74,6 +127,7 @@ def responder_usuario(
     id_phone_number,
     response_language="es",
     session_facts=None,
+    coaching_system_prompt: str = None,
     model_name=MODEL_NAME,
     user_id=user_id,
     anthropic_client=client,
@@ -85,10 +139,20 @@ def responder_usuario(
     new_messages = messages + [{"role": "user", "content": data["body"]}]
 
     # 5. Build system prompt according to phase
-    system_prompt = construir_system_prompt(
-        response_language=response_language,
-        session_facts=session_facts,
-    )
+    if coaching_system_prompt:
+        lang_override = (
+            "Respond in English." if response_language == "en" else "Responde en español."
+        )
+        system_prompt = (
+            coaching_system_prompt
+            + f"\n\nLANGUAGE OVERRIDE: {lang_override}"
+            + f"\n\nCurrent date: {get_mexico_city_time()}"
+        )
+    else:
+        system_prompt = construir_system_prompt(
+            response_language=response_language,
+            session_facts=session_facts,
+        )
 
     response = anthropic_client.messages.create(
         system=system_prompt,

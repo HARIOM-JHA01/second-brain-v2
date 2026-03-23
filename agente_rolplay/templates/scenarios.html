@@ -1,0 +1,219 @@
+{% extends "dashboard.html" %}
+
+{% block dashboard_content %}
+<div class="page-header">
+  <h1>Escenarios de Coaching</h1>
+  <button class="btn btn-primary" onclick="document.getElementById('addScenarioModal').classList.add('show')">
+    + Nuevo escenario
+  </button>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Nombre</th>
+        <th>Descripción</th>
+        <th>Estado</th>
+        <th>Sesiones</th>
+        <th>Creado</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody id="scenariosTable">
+      {% for _ in range(4) %}
+      <tr class="skel-row">
+        {% for w in ['30%','40%','12%','10%','15%','18%'] %}
+        <td style="padding:.85rem 1rem;">
+          <div class="skel-line" style="width:{{ w }};height:11px;border-radius:5px;"></div>
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Add Scenario Modal -->
+<div id="addScenarioModal" class="modal">
+  <div class="modal-content" style="max-width:560px;">
+    <div class="modal-header">
+      <h2>Nuevo escenario</h2>
+      <button class="modal-close" onclick="document.getElementById('addScenarioModal').classList.remove('show')">&times;</button>
+    </div>
+    <form id="addScenarioForm">
+      <div class="form-group">
+        <label>Nombre</label>
+        <input type="text" id="add_name" required placeholder="Ej. Práctica de venta consultiva" />
+      </div>
+      <div class="form-group">
+        <label>Descripción <span style="color:var(--text-muted);font-weight:400;">(opcional)</span></label>
+        <input type="text" id="add_description" placeholder="Breve descripción del escenario" />
+      </div>
+      <div class="form-group">
+        <label>System Prompt del Coach</label>
+        <textarea id="add_system_prompt" required rows="7"
+          placeholder="Eres un coach de ventas experto. El usuario practicará un pitch de ventas contigo. Tu rol es actuar como un cliente potencial escéptico pero abierto. Haz preguntas desafiantes y da retroalimentación honesta..."
+          style="resize:vertical;font-family:inherit;font-size:.875rem;"></textarea>
+      </div>
+      <div class="form-group" style="flex-direction:row;align-items:center;gap:.75rem;">
+        <label style="margin:0;">Activo</label>
+        <input type="checkbox" id="add_is_active" checked style="width:auto;" />
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;">Crear escenario</button>
+      <div class="alert alert-error" id="addScenarioError" style="display:none;margin-top:.75rem;"></div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit Scenario Modal -->
+<div id="editScenarioModal" class="modal">
+  <div class="modal-content" style="max-width:560px;">
+    <div class="modal-header">
+      <h2>Editar escenario</h2>
+      <button class="modal-close" onclick="document.getElementById('editScenarioModal').classList.remove('show')">&times;</button>
+    </div>
+    <form id="editScenarioForm">
+      <input type="hidden" id="edit_scenario_id" />
+      <div class="form-group">
+        <label>Nombre</label>
+        <input type="text" id="edit_name" required />
+      </div>
+      <div class="form-group">
+        <label>Descripción</label>
+        <input type="text" id="edit_description" />
+      </div>
+      <div class="form-group">
+        <label>System Prompt del Coach</label>
+        <textarea id="edit_system_prompt" required rows="7" style="resize:vertical;font-family:inherit;font-size:.875rem;"></textarea>
+      </div>
+      <div class="form-group" style="flex-direction:row;align-items:center;gap:.75rem;">
+        <label style="margin:0;">Activo</label>
+        <input type="checkbox" id="edit_is_active" style="width:auto;" />
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;">Guardar cambios</button>
+    </form>
+  </div>
+</div>
+
+<script>
+let scenarios = [];
+const token = () => localStorage.getItem('access_token');
+const authFetch = (url, opts = {}) => fetch(url, {
+  ...opts, headers: { 'Authorization': 'Bearer ' + token(), ...(opts.headers || {}) }
+});
+
+async function loadScenarios() {
+  const r = await authFetch('/api/scenarios');
+  if (r.status === 401) { window.location.href = '/login'; return; }
+  scenarios = await r.json();
+  renderScenarios();
+}
+
+function renderScenarios() {
+  const tbody = document.getElementById('scenariosTable');
+  if (!scenarios.length) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted);">
+      No hay escenarios. Crea uno con el botón de arriba.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = scenarios.map(s => `
+    <tr>
+      <td style="font-weight:600;">${escHtml(s.name)}</td>
+      <td style="color:var(--text-dim);max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(s.description || '—')}</td>
+      <td><span class="badge ${s.is_active ? 'badge-active' : 'badge-inactive'}">${s.is_active ? 'Activo' : 'Inactivo'}</span></td>
+      <td>${s.session_count}</td>
+      <td style="color:var(--text-muted);font-size:.8rem;">${fmtDate(s.created_at)}</td>
+      <td class="actions">
+        <button class="btn btn-secondary btn-sm" onclick="openEditModal('${s.id}')">Editar</button>
+        <button class="btn btn-secondary btn-sm" onclick="toggleActive('${s.id}', ${s.is_active})">${s.is_active ? 'Desactivar' : 'Activar'}</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteScenario('${s.id}')">Eliminar</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function fmtDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString();
+}
+
+function openEditModal(id) {
+  const s = scenarios.find(x => x.id === id);
+  if (!s) return;
+  document.getElementById('edit_scenario_id').value = s.id;
+  document.getElementById('edit_name').value = s.name;
+  document.getElementById('edit_description').value = s.description || '';
+  document.getElementById('edit_system_prompt').value = s.system_prompt;
+  document.getElementById('edit_is_active').checked = s.is_active;
+  document.getElementById('editScenarioModal').classList.add('show');
+}
+
+async function toggleActive(id, currentlyActive) {
+  await authFetch(`/api/scenarios/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ is_active: !currentlyActive })
+  });
+  loadScenarios();
+}
+
+async function deleteScenario(id) {
+  if (!confirm('¿Eliminar este escenario? Esta acción no se puede deshacer.')) return;
+  await authFetch(`/api/scenarios/${id}`, { method: 'DELETE' });
+  loadScenarios();
+}
+
+document.getElementById('addScenarioForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const err = document.getElementById('addScenarioError');
+  err.style.display = 'none';
+  const body = {
+    name: document.getElementById('add_name').value.trim(),
+    description: document.getElementById('add_description').value.trim() || null,
+    system_prompt: document.getElementById('add_system_prompt').value.trim(),
+    is_active: document.getElementById('add_is_active').checked,
+  };
+  const r = await authFetch('/api/scenarios', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (r.ok) {
+    document.getElementById('addScenarioModal').classList.remove('show');
+    document.getElementById('addScenarioForm').reset();
+    document.getElementById('add_is_active').checked = true;
+    loadScenarios();
+  } else {
+    const d = await r.json().catch(() => ({}));
+    err.textContent = d.detail || 'Error al crear el escenario.';
+    err.style.display = 'block';
+  }
+});
+
+document.getElementById('editScenarioForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const id = document.getElementById('edit_scenario_id').value;
+  const body = {
+    name: document.getElementById('edit_name').value.trim(),
+    description: document.getElementById('edit_description').value.trim() || null,
+    system_prompt: document.getElementById('edit_system_prompt').value.trim(),
+    is_active: document.getElementById('edit_is_active').checked,
+  };
+  const r = await authFetch(`/api/scenarios/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (r.ok) {
+    document.getElementById('editScenarioModal').classList.remove('show');
+    loadScenarios();
+  }
+});
+
+loadScenarios();
+</script>
+{% endblock %}

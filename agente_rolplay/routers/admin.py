@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from agente_rolplay.config import ADMIN_EMAIL, ADMIN_PASSWORD
 from agente_rolplay.db.auth import get_password_hash
 from agente_rolplay.db.database import get_db
-from agente_rolplay.db.models import Document, MessageLog, Organization, Profile, Role, User
+from agente_rolplay.db.models import CoachingScenario, CoachingSession, Document, MessageLog, Organization, Profile, Role, User
 
 router = APIRouter(prefix="/admin/api", tags=["admin"])
 
@@ -318,3 +318,48 @@ def delete_organization(org_id: str, request: Request, db: Session = Depends(get
 
     db.commit()
     return {"ok": True}
+
+
+# ── Scenarios (superadmin view) ───────────────────────────────────────────────
+
+@router.get("/scenarios")
+def list_all_scenarios(request: Request, db: Session = Depends(get_db)):
+    require_admin(request)
+
+    scenarios = (
+        db.query(CoachingScenario)
+        .order_by(CoachingScenario.created_at.desc())
+        .all()
+    )
+    result = []
+    for s in scenarios:
+        org = db.query(Organization).filter(Organization.id == s.org_id).first()
+        session_count = (
+            db.query(func.count(CoachingSession.id))
+            .filter(CoachingSession.scenario_id == s.id)
+            .scalar() or 0
+        )
+        result.append({
+            "id": str(s.id),
+            "name": s.name,
+            "description": s.description,
+            "system_prompt": s.system_prompt,
+            "is_active": s.is_active,
+            "created_at": s.created_at.isoformat() if s.created_at else None,
+            "org_id": str(s.org_id),
+            "org_name": org.name if org else None,
+            "session_count": session_count,
+        })
+    return result
+
+
+@router.delete("/scenarios/{scenario_id}")
+def admin_delete_scenario(scenario_id: str, request: Request, db: Session = Depends(get_db)):
+    require_admin(request)
+
+    scenario = db.query(CoachingScenario).filter(CoachingScenario.id == scenario_id).first()
+    if not scenario:
+        raise HTTPException(status_code=404, detail="Scenario not found")
+    db.delete(scenario)
+    db.commit()
+    return {"deleted": scenario_id}

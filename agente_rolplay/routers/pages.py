@@ -173,3 +173,19 @@ def admin_users_page(request: Request):
     if redirect:
         return redirect
     return templates.TemplateResponse("admin_users.html", {"request": request})
+
+
+@router.get("/dashboard/scenarios", tags=["pages"])
+def scenarios_page(request: Request):
+    redirect = _require_auth(request)
+    if redirect:
+        return redirect
+    return templates.TemplateResponse("scenarios.html", {"request": request})
+
+
+@router.get("/admin/scenarios", tags=["admin"])
+def admin_scenarios_page(request: Request):
+    redirect = _require_admin(request)
+    if redirect:
+        return redirect
+    return templates.TemplateResponse("admin_scenarios.html", {"request": request})
