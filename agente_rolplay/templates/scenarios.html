@@ -3,9 +3,6 @@
 {% block dashboard_content %}
 <div class="page-header">
   <h1 data-i18n="scenarios.title">Escenarios de Coaching</h1>
-  <button class="btn btn-primary" onclick="document.getElementById('addScenarioModal').classList.add('show')" data-i18n="scenarios.add_btn">
-    + Nuevo escenario
-  </button>
 </div>
 
 <div class="table-wrap">
@@ -23,7 +20,7 @@
     <tbody id="scenariosTable">
       {% for _ in range(4) %}
       <tr class="skel-row">
-        {% for w in ['30%','40%','12%','10%','15%','18%'] %}
+        {% for w in ['30%','40%','12%','10%','15%','12%'] %}
         <td style="padding:.85rem 1rem;">
           <div class="skel-line" style="width:{{ w }};height:11px;border-radius:5px;"></div>
         </td>
@@ -34,66 +31,25 @@
   </table>
 </div>
 
-<!-- Add Scenario Modal -->
-<div id="addScenarioModal" class="modal">
-  <div class="modal-content" style="max-width:560px;">
+<!-- Start Scenario Instruction Modal -->
+<div id="startScenarioModal" class="modal">
+  <div class="modal-content" style="max-width:480px;">
     <div class="modal-header">
-      <h2 data-i18n="scenarios.modal.add_title">Nuevo escenario</h2>
-      <button class="modal-close" onclick="document.getElementById('addScenarioModal').classList.remove('show')">&times;</button>
+      <h2 data-i18n="scenarios.modal.start_title">Cómo iniciar este escenario</h2>
+      <button class="modal-close" onclick="document.getElementById('startScenarioModal').classList.remove('show')">&times;</button>
     </div>
-    <form id="addScenarioForm">
-      <div class="form-group">
-        <label data-i18n="scenarios.modal.name">Nombre</label>
-        <input type="text" id="add_name" required data-i18n-ph="scenarios.modal.name.ph" placeholder="Ej. Práctica de venta consultiva" />
-      </div>
-      <div class="form-group">
-        <label data-i18n="scenarios.modal.description">Descripción <span style="color:var(--text-muted);font-weight:400;" data-i18n="scenarios.modal.optional">(opcional)</span></label>
-        <input type="text" id="add_description" data-i18n-ph="scenarios.modal.description.ph" placeholder="Breve descripción del escenario" />
-      </div>
-      <div class="form-group">
-        <label data-i18n="scenarios.modal.prompt">System Prompt del Coach</label>
-        <textarea id="add_system_prompt" required rows="7"
-          data-i18n-ph="scenarios.modal.prompt.ph"
-          placeholder="Eres un coach de ventas experto. El usuario practicará un pitch de ventas contigo..."
-          style="resize:vertical;font-family:inherit;font-size:.875rem;"></textarea>
-      </div>
-      <div class="form-group" style="flex-direction:row;align-items:center;gap:.75rem;">
-        <label style="margin:0;" data-i18n="scenarios.modal.active">Activo</label>
-        <input type="checkbox" id="add_is_active" checked style="width:auto;" />
-      </div>
-      <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;" data-i18n="scenarios.modal.add_btn">Crear escenario</button>
-      <div class="alert alert-error" id="addScenarioError" style="display:none;margin-top:.75rem;"></div>
-    </form>
-  </div>
-</div>
-
-<!-- Edit Scenario Modal -->
-<div id="editScenarioModal" class="modal">
-  <div class="modal-content" style="max-width:560px;">
-    <div class="modal-header">
-      <h2 data-i18n="scenarios.modal.edit_title">Editar escenario</h2>
-      <button class="modal-close" onclick="document.getElementById('editScenarioModal').classList.remove('show')">&times;</button>
+    <div style="padding:1.25rem 0 .5rem;">
+      <p style="font-weight:600;margin-bottom:1rem;" id="startScenarioName"></p>
+      <ol style="line-height:2;padding-left:1.25rem;color:var(--text-dim);">
+        <li data-i18n="scenarios.modal.start_step1">Abre WhatsApp</li>
+        <li data-i18n="scenarios.modal.start_step2">Escribe a tu número de bot</li>
+        <li data-i18n="scenarios.modal.start_step3">Envía "hola" y selecciona la opción 3</li>
+        <li id="startStep4" data-i18n="scenarios.modal.start_step4">Elige este escenario de la lista</li>
+      </ol>
     </div>
-    <form id="editScenarioForm">
-      <input type="hidden" id="edit_scenario_id" />
-      <div class="form-group">
-        <label data-i18n="scenarios.modal.name">Nombre</label>
-        <input type="text" id="edit_name" required />
-      </div>
-      <div class="form-group">
-        <label data-i18n="scenarios.modal.description">Descripción</label>
-        <input type="text" id="edit_description" />
-      </div>
-      <div class="form-group">
-        <label data-i18n="scenarios.modal.prompt">System Prompt del Coach</label>
-        <textarea id="edit_system_prompt" required rows="7" style="resize:vertical;font-family:inherit;font-size:.875rem;"></textarea>
-      </div>
-      <div class="form-group" style="flex-direction:row;align-items:center;gap:.75rem;">
-        <label style="margin:0;" data-i18n="scenarios.modal.active">Activo</label>
-        <input type="checkbox" id="edit_is_active" style="width:auto;" />
-      </div>
-      <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;" data-i18n="scenarios.modal.save_btn">Guardar cambios</button>
-    </form>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:.5rem;"
+      onclick="document.getElementById('startScenarioModal').classList.remove('show')"
+      data-i18n="scenarios.modal.start_close">Cerrar</button>
   </div>
 </div>
 
@@ -125,9 +81,7 @@ function renderScenarios() {
       <td>${s.session_count}</td>
       <td style="color:var(--text-muted);font-size:.8rem;">${fmtDate(s.created_at)}</td>
       <td class="actions">
-        <button class="btn btn-secondary btn-sm" onclick="openEditModal('${s.id}')">${t('scenarios.btn.edit')}</button>
-        <button class="btn btn-secondary btn-sm" onclick="toggleActive('${s.id}', ${s.is_active})">${s.is_active ? t('scenarios.btn.deactivate') : t('scenarios.btn.activate')}</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteScenario('${s.id}')">${t('scenarios.btn.delete')}</button>
+        <button class="btn btn-primary btn-sm" onclick="openStartModal('${s.id}')">${t('scenarios.start_btn')}</button>
       </td>
     </tr>
   `).join('');
@@ -141,80 +95,17 @@ function fmtDate(iso) {
   return new Date(iso).toLocaleDateString();
 }
 
-function openEditModal(id) {
+function openStartModal(id) {
   const s = scenarios.find(x => x.id === id);
   if (!s) return;
-  document.getElementById('edit_scenario_id').value = s.id;
-  document.getElementById('edit_name').value = s.name;
-  document.getElementById('edit_description').value = s.description || '';
-  document.getElementById('edit_system_prompt').value = s.system_prompt;
-  document.getElementById('edit_is_active').checked = s.is_active;
-  document.getElementById('editScenarioModal').classList.add('show');
+  document.getElementById('startScenarioName').textContent = s.name;
+  const step4 = document.getElementById('startStep4');
+  const step4Template = t('scenarios.modal.start_step4');
+  step4.textContent = step4Template.replace('{name}', s.name);
+  document.getElementById('startScenarioModal').classList.add('show');
 }
 
-async function toggleActive(id, currentlyActive) {
-  await authFetch(`/api/scenarios/${id}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ is_active: !currentlyActive })
-  });
-  loadScenarios();
-}
-
-async function deleteScenario(id) {
-  if (!confirm(t('scenarios.confirm.delete'))) return;
-  await authFetch(`/api/scenarios/${id}`, { method: 'DELETE' });
-  loadScenarios();
-}
-
-document.getElementById('addScenarioForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const err = document.getElementById('addScenarioError');
-  err.style.display = 'none';
-  const body = {
-    name: document.getElementById('add_name').value.trim(),
-    description: document.getElementById('add_description').value.trim() || null,
-    system_prompt: document.getElementById('add_system_prompt').value.trim(),
-    is_active: document.getElementById('add_is_active').checked,
-  };
-  const r = await authFetch('/api/scenarios', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-  if (r.ok) {
-    document.getElementById('addScenarioModal').classList.remove('show');
-    document.getElementById('addScenarioForm').reset();
-    document.getElementById('add_is_active').checked = true;
-    loadScenarios();
-  } else {
-    const d = await r.json().catch(() => ({}));
-    err.textContent = d.detail || t('scenarios.error.add');
-    err.style.display = 'block';
-  }
-});
-
-document.getElementById('editScenarioForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const id = document.getElementById('edit_scenario_id').value;
-  const body = {
-    name: document.getElementById('edit_name').value.trim(),
-    description: document.getElementById('edit_description').value.trim() || null,
-    system_prompt: document.getElementById('edit_system_prompt').value.trim(),
-    is_active: document.getElementById('edit_is_active').checked,
-  };
-  const r = await authFetch(`/api/scenarios/${id}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-  if (r.ok) {
-    document.getElementById('editScenarioModal').classList.remove('show');
-    loadScenarios();
-  }
-});
-
-document.addEventListener('langchange', () => loadScenarios());
+document.addEventListener('langchange', () => renderScenarios());
 
 loadScenarios();
 </script>

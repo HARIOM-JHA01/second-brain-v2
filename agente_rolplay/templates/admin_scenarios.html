@@ -2,7 +2,7 @@
 
 {% block title %}Scenarios{% endblock %}
 {% block page_title %}Coaching Scenarios{% endblock %}
-{% block page_subtitle %}All coaching scenarios across all organizations{% endblock %}
+{% block page_subtitle %}Manage coaching scenarios across all organizations{% endblock %}
 
 {% block extra_style %}
 .filter-bar { display: flex; align-items: center; gap: .75rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
@@ -12,15 +12,39 @@
   font-size: .78rem; font-weight: 600; color: var(--text-muted);
 }
 .prompt-preview {
-  max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   color: var(--text-dim); font-size: .82rem;
 }
+.modal-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5);
+  z-index: 1000; align-items: center; justify-content: center;
+}
+.modal-overlay.show { display: flex; }
+.modal-box {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+  padding: 1.75rem; width: 100%; max-width: 540px; max-height: 90vh; overflow-y: auto;
+}
+.modal-box h3 { margin: 0 0 1.25rem; font-size: 1.1rem; }
+.form-field { display: flex; flex-direction: column; gap: .4rem; margin-bottom: 1rem; }
+.form-field label { font-size: .82rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
+.form-field input, .form-field select, .form-field textarea {
+  padding: .65rem .9rem; background: var(--input-bg); border: 1px solid var(--border);
+  border-radius: 9px; color: var(--text); font-size: .875rem; font-family: inherit; outline: none;
+  transition: border-color .15s;
+}
+.form-field input:focus, .form-field select:focus, .form-field textarea:focus { border-color: var(--accent); }
+.form-field textarea { resize: vertical; min-height: 130px; }
+.form-row { display: flex; align-items: center; gap: .75rem; margin-bottom: 1rem; }
+.modal-actions { display: flex; gap: .75rem; margin-top: 1.25rem; }
+.modal-actions button { flex: 1; }
+.alert-error { background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3); color: #ef4444; border-radius: 8px; padding: .6rem .9rem; font-size: .85rem; margin-top: .75rem; display: none; }
 {% endblock %}
 
 {% block content %}
 <div class="section-card">
   <div class="section-card-header">
     <div class="section-card-title">All Scenarios <span class="count-chip" id="scenarioCount">—</span></div>
+    <button class="btn btn-primary btn-sm" onclick="openCreateModal()">+ New Scenario</button>
   </div>
 
   <div class="filter-bar">
@@ -53,24 +77,119 @@
   </div>
 </div>
 
+<!-- Create Scenario Modal -->
+<div id="createModal" class="modal-overlay">
+  <div class="modal-box">
+    <h3>New Scenario</h3>
+    <form id="createForm">
+      <div class="form-field">
+        <label>Name *</label>
+        <input type="text" id="c_name" required placeholder="e.g. Sales Pitch Practice" />
+      </div>
+      <div class="form-field">
+        <label>Organization *</label>
+        <select id="c_org" required>
+          <option value="">Select organization…</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label>Description <span style="font-weight:400;text-transform:none;">(optional)</span></label>
+        <input type="text" id="c_description" placeholder="Brief description of the scenario" />
+      </div>
+      <div class="form-field">
+        <label>System Prompt *</label>
+        <textarea id="c_system_prompt" required placeholder="You are an expert sales coach. The user will practice a sales pitch with you..."></textarea>
+      </div>
+      <div class="form-row">
+        <label style="margin:0;font-size:.875rem;">Active</label>
+        <input type="checkbox" id="c_is_active" checked style="width:auto;" />
+      </div>
+      <div class="alert-error" id="createError"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('createModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Create Scenario</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit Scenario Modal -->
+<div id="editModal" class="modal-overlay">
+  <div class="modal-box">
+    <h3>Edit Scenario</h3>
+    <form id="editForm">
+      <input type="hidden" id="e_id" />
+      <div class="form-field">
+        <label>Name *</label>
+        <input type="text" id="e_name" required />
+      </div>
+      <div class="form-field">
+        <label>Organization *</label>
+        <select id="e_org" required>
+          <option value="">Select organization…</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label>Description <span style="font-weight:400;text-transform:none;">(optional)</span></label>
+        <input type="text" id="e_description" />
+      </div>
+      <div class="form-field">
+        <label>System Prompt *</label>
+        <textarea id="e_system_prompt" required></textarea>
+      </div>
+      <div class="form-row">
+        <label style="margin:0;font-size:.875rem;">Active</label>
+        <input type="checkbox" id="e_is_active" style="width:auto;" />
+      </div>
+      <div class="alert-error" id="editError"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('editModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script>
 let allScenarios = [];
+let allOrgs = [];
 
-async function loadScenarios() {
-  const r = await fetch('/admin/api/scenarios');
-  if (!r.ok) { document.getElementById('scenariosTable').innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--error);">Failed to load scenarios</td></tr>'; return; }
-  allScenarios = await r.json();
+async function loadData() {
+  const [scenariosRes, orgsRes] = await Promise.all([
+    fetch('/admin/api/scenarios'),
+    fetch('/admin/api/organizations'),
+  ]);
+  if (!scenariosRes.ok) {
+    document.getElementById('scenariosTable').innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--error);">Failed to load scenarios</td></tr>';
+    return;
+  }
+  allScenarios = await scenariosRes.json();
+  allOrgs = orgsRes.ok ? await orgsRes.json() : [];
 
-  // Populate org filter
-  const orgs = [...new Map(allScenarios.map(s => [s.org_id, s.org_name])).entries()];
-  const sel = document.getElementById('orgFilter');
-  orgs.sort((a,b) => (a[1]||'').localeCompare(b[1]||'')).forEach(([id, name]) => {
-    const o = document.createElement('option');
-    o.value = id; o.textContent = name || id;
-    sel.appendChild(o);
+  populateOrgDropdowns();
+  filterScenarios();
+}
+
+function populateOrgDropdowns() {
+  const orgFilter = document.getElementById('orgFilter');
+  const sorted = [...allOrgs].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+  // Filter bar
+  sorted.forEach(o => {
+    const opt = document.createElement('option');
+    opt.value = o.id; opt.textContent = o.name || o.id;
+    orgFilter.appendChild(opt);
   });
 
-  filterScenarios();
+  // Create + Edit modal selects
+  ['c_org', 'e_org'].forEach(id => {
+    const sel = document.getElementById(id);
+    sorted.forEach(o => {
+      const opt = document.createElement('option');
+      opt.value = o.id; opt.textContent = o.name || o.id;
+      sel.appendChild(opt);
+    });
+  });
 }
 
 function filterScenarios() {
@@ -99,12 +218,13 @@ function renderTable(data) {
     <tr>
       <td style="font-weight:600;">${escHtml(s.name)}</td>
       <td>${escHtml(s.org_name || '—')}</td>
-      <td style="color:var(--text-dim);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(s.description || '—')}</td>
+      <td style="color:var(--text-dim);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(s.description || '—')}</td>
       <td class="prompt-preview" title="${escHtml(s.system_prompt)}">${escHtml(s.system_prompt)}</td>
       <td><span class="badge ${s.is_active ? 'badge-active' : 'badge-inactive'}">${s.is_active ? 'Active' : 'Inactive'}</span></td>
       <td>${s.session_count}</td>
       <td style="color:var(--text-muted);font-size:.8rem;">${fmtDate(s.created_at)}</td>
-      <td>
+      <td style="display:flex;gap:.4rem;">
+        <button class="btn btn-secondary btn-sm" onclick="openEditModal('${s.id}')">Edit</button>
         <button class="btn btn-danger btn-sm" onclick="deleteScenario('${s.id}', '${escHtml(s.name)}')">Delete</button>
       </td>
     </tr>
@@ -119,6 +239,98 @@ function fmtDate(iso) {
   return new Date(iso).toLocaleDateString();
 }
 
+function openCreateModal() {
+  document.getElementById('createForm').reset();
+  document.getElementById('c_is_active').checked = true;
+  document.getElementById('createError').style.display = 'none';
+  document.getElementById('createModal').classList.add('show');
+}
+
+function openEditModal(id) {
+  const s = allScenarios.find(x => x.id === id);
+  if (!s) return;
+  document.getElementById('e_id').value = s.id;
+  document.getElementById('e_name').value = s.name;
+  document.getElementById('e_org').value = s.org_id;
+  document.getElementById('e_description').value = s.description || '';
+  document.getElementById('e_system_prompt').value = s.system_prompt;
+  document.getElementById('e_is_active').checked = s.is_active;
+  document.getElementById('editError').style.display = 'none';
+  document.getElementById('editModal').classList.add('show');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('show');
+}
+
+// Close on backdrop click
+['createModal', 'editModal'].forEach(id => {
+  document.getElementById(id).addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeModal(id);
+  });
+});
+
+document.getElementById('createForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const errEl = document.getElementById('createError');
+  errEl.style.display = 'none';
+  const body = {
+    name: document.getElementById('c_name').value.trim(),
+    org_id: document.getElementById('c_org').value,
+    description: document.getElementById('c_description').value.trim() || null,
+    system_prompt: document.getElementById('c_system_prompt').value.trim(),
+    is_active: document.getElementById('c_is_active').checked,
+  };
+  const r = await fetch('/admin/api/scenarios', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (r.ok) {
+    const created = await r.json();
+    allScenarios.unshift(created);
+    closeModal('createModal');
+    filterScenarios();
+  } else {
+    const d = await r.json().catch(() => ({}));
+    errEl.textContent = d.detail || 'Failed to create scenario';
+    errEl.style.display = 'block';
+  }
+});
+
+document.getElementById('editForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const errEl = document.getElementById('editError');
+  errEl.style.display = 'none';
+  const id = document.getElementById('e_id').value;
+  const body = {
+    name: document.getElementById('e_name').value.trim(),
+    org_id: document.getElementById('e_org').value,
+    description: document.getElementById('e_description').value.trim() || null,
+    system_prompt: document.getElementById('e_system_prompt').value.trim(),
+    is_active: document.getElementById('e_is_active').checked,
+  };
+  const r = await fetch(`/admin/api/scenarios/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (r.ok) {
+    const updated = await r.json();
+    const idx = allScenarios.findIndex(s => s.id === id);
+    if (idx !== -1) {
+      // Merge updated fields, preserve session_count
+      allScenarios[idx] = { ...allScenarios[idx], ...updated };
+    }
+    closeModal('editModal');
+    filterScenarios();
+  } else {
+    const d = await r.json().catch(() => ({}));
+    errEl.textContent = d.detail || 'Failed to save changes';
+    errEl.style.display = 'block';
+  }
+});
+
 async function deleteScenario(id, name) {
   if (!confirm(`Delete scenario "${name}"? This cannot be undone.`)) return;
   const r = await fetch(`/admin/api/scenarios/${id}`, { method: 'DELETE' });
@@ -130,6 +342,6 @@ async function deleteScenario(id, name) {
   }
 }
 
-loadScenarios();
+loadData();
 </script>
 {% endblock %}

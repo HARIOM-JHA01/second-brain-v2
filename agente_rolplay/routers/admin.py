@@ -353,6 +353,79 @@ def list_all_scenarios(request: Request, db: Session = Depends(get_db)):
     return result
 
 
+@router.post("/scenarios")
+def admin_create_scenario(body: dict, request: Request, db: Session = Depends(get_db)):
+    require_admin(request)
+
+    name = (body.get("name") or "").strip()
+    system_prompt = (body.get("system_prompt") or "").strip()
+    org_id = (body.get("org_id") or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="name is required")
+    if not system_prompt:
+        raise HTTPException(status_code=400, detail="system_prompt is required")
+    if not org_id:
+        raise HTTPException(status_code=400, detail="org_id is required")
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    scenario = CoachingScenario(
+        org_id=org.id,
+        name=name,
+        description=(body.get("description") or "").strip() or None,
+        system_prompt=system_prompt,
+        is_active=bool(body.get("is_active", True)),
+    )
+    db.add(scenario)
+    db.commit()
+    db.refresh(scenario)
+    return {
+        "id": str(scenario.id),
+        "name": scenario.name,
+        "description": scenario.description,
+        "system_prompt": scenario.system_prompt,
+        "is_active": scenario.is_active,
+        "created_at": scenario.created_at.isoformat() if scenario.created_at else None,
+        "org_id": str(scenario.org_id),
+        "org_name": org.name,
+        "session_count": 0,
+    }
+
+
+@router.patch("/scenarios/{scenario_id}")
+def admin_update_scenario(scenario_id: str, body: dict, request: Request, db: Session = Depends(get_db)):
+    require_admin(request)
+
+    scenario = db.query(CoachingScenario).filter(CoachingScenario.id == scenario_id).first()
+    if not scenario:
+        raise HTTPException(status_code=404, detail="Scenario not found")
+    if "name" in body and body["name"]:
+        scenario.name = body["name"].strip()
+    if "description" in body:
+        scenario.description = (body["description"] or "").strip() or None
+    if "system_prompt" in body and body["system_prompt"]:
+        scenario.system_prompt = body["system_prompt"].strip()
+    if "is_active" in body:
+        scenario.is_active = bool(body["is_active"])
+    if "org_id" in body and body["org_id"]:
+        org = db.query(Organization).filter(Organization.id == body["org_id"]).first()
+        if not org:
+            raise HTTPException(status_code=404, detail="Organization not found")
+        scenario.org_id = org.id
+    db.commit()
+    db.refresh(scenario)
+    org = db.query(Organization).filter(Organization.id == scenario.org_id).first()
+    return {
+        "id": str(scenario.id),
+        "name": scenario.name,
+        "description": scenario.description,
+        "system_prompt": scenario.system_prompt,
+        "is_active": scenario.is_active,
+        "org_id": str(scenario.org_id),
+        "org_name": org.name if org else None,
+    }
+
+
 @router.delete("/scenarios/{scenario_id}")
 def admin_delete_scenario(scenario_id: str, request: Request, db: Session = Depends(get_db)):
     require_admin(request)
