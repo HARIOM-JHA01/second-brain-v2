@@ -80,16 +80,19 @@ def semantic_search(
     if not q or len(q.strip()) < 2:
         raise HTTPException(status_code=400, detail="Query too short")
 
-    results = search_knowledge_base(q.strip(), top_k=top_k)
+    # Fetch many chunks so deduplication still yields enough unique files
+    chunks = search_knowledge_base(q.strip(), top_k=top_k * 10)
 
-    # Deduplicate by filename — keep highest score + best preview per file
+    # Deduplicate by filename — keep highest-score chunk per file
     seen: dict = {}
-    for r in results:
+    for r in chunks:
         fname = r.get("filename") or ""
         if fname not in seen or r["score"] > seen[fname]["score"]:
             seen[fname] = r
 
-    return list(seen.values())
+    # Return top_k unique files sorted by score
+    unique = sorted(seen.values(), key=lambda x: x["score"], reverse=True)
+    return unique[:top_k]
 
 
 @router.delete("/api/rag/files")
