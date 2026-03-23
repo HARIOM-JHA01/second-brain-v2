@@ -985,6 +985,7 @@ def process_incoming_messages(form_data, redis_client=r):
                     message_type=msg_type,
                     language=current_lang,
                 )
+                log_message_to_db(phone_number, message_type=msg_type)
                 redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
                 print(f"Greeting/Help response sent: {msg_type}")
                 return "Success"

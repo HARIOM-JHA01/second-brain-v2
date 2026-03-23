@@ -9,10 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 uv sync
 
 # Run the FastAPI server
-uv run uvicorn agente_rolplay.main:app --reload --host 0.0.0.0 --port 5001
-
-# Run the Celery audio worker (separate terminal)
-celery -A agente_rolplay.messaging.audio_worker worker --loglevel=info --concurrency=1 --queues=audio
+uv run uvicorn agente_rolplay.main:app --reload --host 0.0.0.0
 
 # Run tests
 pytest tests/ -v

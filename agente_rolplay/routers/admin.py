@@ -266,3 +266,55 @@ def toggle_user_active(profile_id: str, request: Request, db: Session = Depends(
     profile.is_active = not profile.is_active
     db.commit()
     return {"is_active": profile.is_active}
+
+
+# ── Delete user ────────────────────────────────────────────────────────────────
+
+@router.delete("/users/{user_id}")
+def delete_user(user_id: str, request: Request, db: Session = Depends(get_db)):
+    require_admin(request)
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Clear owner_id references so org deletion isn't blocked
+    db.query(Organization).filter(Organization.owner_id == user.id).update(
+        {"owner_id": None}, synchronize_session=False
+    )
+    db.delete(user)  # cascades to Profile via relationship
+    db.commit()
+    return {"ok": True}
+
+
+# ── Delete organization ────────────────────────────────────────────────────────
+
+@router.delete("/organizations/{org_id}")
+def delete_organization(org_id: str, request: Request, db: Session = Depends(get_db)):
+    require_admin(request)
+
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    # Collect user_ids belonging solely to this org before cascade removes profiles
+    profiles = db.query(Profile).filter(Profile.org_id == org.id).all()
+    sole_user_ids = []
+    for p in profiles:
+        other = db.query(Profile).filter(
+            Profile.user_id == p.user_id, Profile.org_id != org.id
+        ).first()
+        if not other:
+            sole_user_ids.append(p.user_id)
+
+    db.delete(org)  # cascades to Profiles, Roles, Documents
+    db.flush()
+
+    # Delete users that no longer have any profile
+    for uid in sole_user_ids:
+        u = db.query(User).filter(User.id == uid).first()
+        if u:
+            db.delete(u)
+
+    db.commit()
+    return {"ok": True}

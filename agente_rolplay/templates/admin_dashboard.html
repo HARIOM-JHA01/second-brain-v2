@@ -4,209 +4,415 @@
 {% block page_title %}Dashboard{% endblock %}
 {% block page_subtitle %}Real-time platform health &amp; growth metrics{% endblock %}
 
+{% block extra_style %}
+  /* ── Filter bar ────────────────────────────────────── */
+  .filter-bar {
+    display: flex; align-items: center; gap: .75rem;
+    margin-bottom: 1.5rem;
+    padding: .75rem 1rem;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+  .filter-label {
+    font-size: .75rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .5px; color: var(--text-muted); margin-right: .25rem;
+  }
+  .period-tabs {
+    display: flex; gap: .3rem;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 9px; padding: 3px;
+  }
+  .period-tab {
+    padding: .32rem .85rem; border-radius: 7px; border: none;
+    background: transparent; color: var(--text-muted);
+    font-size: .8rem; font-weight: 600; font-family: inherit;
+    cursor: pointer; transition: all .18s; white-space: nowrap;
+  }
+  .period-tab:hover:not(.active) { color: var(--text-dim); }
+  .period-tab.active {
+    background: var(--admin-accent); color: #fff;
+    box-shadow: 0 2px 8px rgba(239,68,68,.35);
+  }
+  .filter-period-note {
+    margin-left: auto; font-size: .75rem; color: var(--text-muted);
+    font-style: italic;
+  }
+
+  /* ── KPI grid ──────────────────────────────────────── */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 1rem; margin-bottom: 1rem;
+  }
+  @media (max-width: 1200px) { .kpi-grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 700px)  { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .kpi-card {
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: 14px; padding: 1.1rem 1.2rem;
+    display: flex; flex-direction: column; gap: .35rem;
+    transition: border-color .2s, background .3s;
+    position: relative; overflow: hidden;
+  }
+  .kpi-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    border-radius: 14px 14px 0 0;
+    background: var(--kpi-accent, rgba(255,255,255,.06));
+  }
+  .kpi-card:hover { border-color: var(--border-hover); }
+  .kpi-top { display: flex; align-items: center; justify-content: space-between; }
+  .kpi-icon {
+    width: 30px; height: 30px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .9rem; background: var(--kpi-icon-bg, rgba(255,255,255,.06));
+  }
+  .kpi-trend {
+    font-size: .68rem; font-weight: 700; letter-spacing: .2px;
+    padding: .18rem .45rem; border-radius: 20px;
+  }
+  .trend-up   { background: rgba(52,211,153,.12);  color: #34d399; }
+  .trend-down { background: rgba(248,113,113,.12); color: #f87171; }
+  .trend-neu  { background: rgba(255,255,255,.07); color: var(--text-muted); }
+  [data-theme="light"] .trend-neu { background: rgba(0,0,0,.06); }
+  .kpi-val {
+    font-size: 1.75rem; font-weight: 900; letter-spacing: -.5px;
+    line-height: 1; color: var(--kpi-color, var(--text));
+    transition: opacity .25s;
+  }
+  .kpi-label {
+    font-size: .72rem; font-weight: 600; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: .4px;
+  }
+  .kpi-sub { font-size: .75rem; color: var(--text-muted); margin-top: .05rem; transition: opacity .25s; }
+
+  /* ── Charts layout ─────────────────────────────────── */
+  .charts-row   { display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+  .charts-row-2 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+  @media (max-width: 1100px) {
+    .charts-row   { grid-template-columns: 1fr; }
+    .charts-row-2 { grid-template-columns: 1fr; }
+  }
+
+  .chart-card {
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: 14px; padding: 1.35rem 1.5rem;
+    transition: background .3s, border-color .3s;
+    position: relative; overflow: hidden;
+  }
+  .chart-card-header {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    margin-bottom: 1.25rem; gap: 1rem;
+  }
+  .chart-card-title { font-size: .88rem; font-weight: 700; color: var(--text); letter-spacing: -.2px; }
+  .chart-card-sub   { font-size: .75rem; color: var(--text-muted); margin-top: .2rem; }
+  .chart-legend     { display: flex; align-items: center; gap: .85rem; flex-wrap: wrap; }
+  .legend-item      { display: flex; align-items: center; gap: .35rem; font-size: .72rem; color: var(--text-muted); white-space: nowrap; }
+  .legend-dot       { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  canvas { display: block; width: 100% !important; }
+  .chart-wrap { position: relative; width: 100%; }
+
+  /* ── Skeleton shimmer ──────────────────────────────── */
+  @keyframes shimmer {
+    0%   { background-position: -600px 0; }
+    100% { background-position: 600px 0; }
+  }
+  .skel-line {
+    border-radius: 6px;
+    background: linear-gradient(90deg,
+      var(--border) 25%,
+      var(--surface-hover, rgba(255,255,255,.07)) 50%,
+      var(--border) 75%);
+    background-size: 1200px 100%;
+    animation: shimmer 1.5s infinite linear;
+  }
+  /* card-level skeleton overlay */
+  .card-skel {
+    position: absolute; inset: 0; border-radius: 14px;
+    background: var(--card-bg);
+    padding: 1.35rem 1.5rem;
+    display: flex; flex-direction: column; gap: .65rem;
+    z-index: 5; pointer-events: none;
+    transition: opacity .3s;
+  }
+  .card-skel.gone { opacity: 0; pointer-events: none; }
+  /* kpi-card skeleton is inlined smaller */
+  .kpi-skel { gap: .5rem; padding: 1.1rem 1.2rem; }
+
+  /* ── Metric list ───────────────────────────────────── */
+  .metric-list { display: flex; flex-direction: column; gap: .55rem; }
+  .metric-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: .55rem .7rem; border-radius: 8px;
+    background: var(--surface); border: 1px solid var(--border);
+    transition: border-color .15s, opacity .25s;
+  }
+  .metric-row:hover { border-color: var(--border-hover); }
+  .metric-name { font-size: .82rem; color: var(--text-dim); }
+  .metric-val  { font-size: .88rem; font-weight: 700; }
+{% endblock %}
+
 {% block content %}
 
-<!-- ── KPI stat cards — row 1: platform overview ───────────── -->
-<div class="stats-grid" id="statsGrid">
-  <div class="stat-card">
-    <div class="stat-label">Organizations</div>
-    <div class="stat-value stat-blue" id="kpi-orgs">—</div>
-    <div class="stat-sub" id="kpi-orgs-sub">Loading…</div>
+<!-- ── Global period filter bar ───────────────────────────── -->
+<div class="filter-bar">
+  <span class="filter-label">Period</span>
+  <div class="period-tabs" role="group">
+    <button class="period-tab active" data-days="7"  onclick="setPeriod(7)">Last 7 days</button>
+    <button class="period-tab"        data-days="30" onclick="setPeriod(30)">Last 30 days</button>
   </div>
-  <div class="stat-card">
-    <div class="stat-label">Total Users</div>
-    <div class="stat-value stat-purple" id="kpi-users">—</div>
-    <div class="stat-sub" id="kpi-users-sub">Loading…</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">Active Users</div>
-    <div class="stat-value stat-green" id="kpi-active">—</div>
-    <div class="stat-sub" id="kpi-active-sub">Loading…</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">Inactive Users</div>
-    <div class="stat-value stat-red" id="kpi-inactive">—</div>
-    <div class="stat-sub">Access revoked</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">Documents (total)</div>
-    <div class="stat-value stat-orange" id="kpi-docs">—</div>
-    <div class="stat-sub" id="kpi-docs-sub">Loading…</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">Avg Users / Org</div>
-    <div class="stat-value stat-blue" id="kpi-avg">—</div>
-    <div class="stat-sub">Across all organizations</div>
-  </div>
+  <span class="filter-period-note" id="periodNote">Showing last 7 days</span>
 </div>
 
-<!-- ── KPI stat cards — row 2: usage & engagement ─────────── -->
-<div class="stats-grid" style="margin-bottom:1.5rem;">
-  <div class="stat-card">
-    <div class="stat-label">Messages (7d)</div>
-    <div class="stat-value stat-green" id="kpi-msg-7d">—</div>
-    <div class="stat-sub" id="kpi-msg-30d-sub">Loading…</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">Truly Active Users (7d)</div>
-    <div class="stat-value stat-purple" id="kpi-truly-active">—</div>
-    <div class="stat-sub">Messaged the bot this week</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">Voice Notes (7d)</div>
-    <div class="stat-value stat-blue" id="kpi-voice-7d">—</div>
-    <div class="stat-sub" id="kpi-voice-30d-sub">Loading…</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">KB Vectors (Pinecone)</div>
-    <div class="stat-value stat-orange" id="kpi-vectors">—</div>
-    <div class="stat-sub">Total indexed chunks</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">Avg Response Time</div>
-    <div class="stat-value stat-green" id="kpi-resp-ms">—</div>
-    <div class="stat-sub">Last 30 days (ms)</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">Errors (7d)</div>
-    <div class="stat-value stat-red" id="kpi-errors">—</div>
-    <div class="stat-sub">Failed responses</div>
-  </div>
-</div>
+<!-- ── KPI strip ──────────────────────────────────────────── -->
+<div class="kpi-grid">
 
-<!-- ── Second row: charts ──────────────────────────────────── -->
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem;">
-
-  <!-- Messages chart -->
-  <div class="section-card">
-    <div class="section-card-header">
-      <div class="section-card-title">Messages Processed — Last 30 Days</div>
+  <div class="kpi-card" style="--kpi-accent:#3b82f6;--kpi-color:var(--stat-blue);--kpi-icon-bg:rgba(96,165,250,.12);">
+    <div class="card-skel kpi-skel">
+      <div class="skel-line" style="height:20px;width:55%;"></div>
+      <div class="skel-line" style="height:32px;width:40%;margin-top:.25rem;"></div>
+      <div class="skel-line" style="height:11px;width:70%;"></div>
     </div>
-    <div style="display:flex;gap:1.5rem;margin-bottom:1rem;">
-      <div>
-        <div style="font-size:.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:.25rem;">Last 7 days</div>
-        <div style="font-size:1.5rem;font-weight:900;color:var(--stat-green);" id="g-msg-7d">—</div>
-      </div>
-      <div>
-        <div style="font-size:.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:.25rem;">Last 30 days</div>
-        <div style="font-size:1.5rem;font-weight:900;color:var(--stat-green);" id="g-msg-30d">—</div>
-      </div>
-    </div>
-    <div class="mini-chart" id="messagesChart" style="height:80px;">
-      <div style="color:var(--text-muted);font-size:.8rem;align-self:center;">Loading…</div>
-    </div>
-    <div style="display:flex;justify-content:space-between;margin-top:.4rem;font-size:.72rem;color:var(--text-muted);" id="msgChartLabels"></div>
+    <div class="kpi-top"><div class="kpi-icon">🏢</div><span class="kpi-trend trend-up" id="kpi-orgs-trend">—</span></div>
+    <div class="kpi-val" id="kpi-orgs">—</div>
+    <div class="kpi-label" id="kpi-orgs-label">Organizations</div>
+    <div class="kpi-sub"  id="kpi-orgs-sub">—</div>
   </div>
 
-  <!-- Signups chart -->
-  <div class="section-card">
-    <div class="section-card-header">
-      <div class="section-card-title">New User Signups — Last 30 Days</div>
+  <div class="kpi-card" style="--kpi-accent:#8b5cf6;--kpi-color:#a78bfa;--kpi-icon-bg:rgba(139,92,246,.12);">
+    <div class="card-skel kpi-skel">
+      <div class="skel-line" style="height:20px;width:55%;"></div>
+      <div class="skel-line" style="height:32px;width:40%;margin-top:.25rem;"></div>
+      <div class="skel-line" style="height:11px;width:70%;"></div>
     </div>
-    <div style="display:flex;gap:1.5rem;margin-bottom:1rem;">
-      <div>
-        <div style="font-size:.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:.25rem;">Last 7 days</div>
-        <div style="font-size:1.5rem;font-weight:900;color:var(--stat-purple);" id="g-users-7d">—</div>
-      </div>
-      <div>
-        <div style="font-size:.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:.25rem;">Last 30 days</div>
-        <div style="font-size:1.5rem;font-weight:900;color:var(--stat-purple);" id="g-users-30d">—</div>
-      </div>
+    <div class="kpi-top"><div class="kpi-icon">👥</div><span class="kpi-trend trend-up" id="kpi-users-trend">—</span></div>
+    <div class="kpi-val" id="kpi-users">—</div>
+    <div class="kpi-label" id="kpi-users-label">New Users</div>
+    <div class="kpi-sub"  id="kpi-users-sub">—</div>
+  </div>
+
+  <div class="kpi-card" style="--kpi-accent:#10b981;--kpi-color:var(--stat-green);--kpi-icon-bg:rgba(52,211,153,.12);">
+    <div class="card-skel kpi-skel">
+      <div class="skel-line" style="height:20px;width:55%;"></div>
+      <div class="skel-line" style="height:32px;width:40%;margin-top:.25rem;"></div>
+      <div class="skel-line" style="height:11px;width:70%;"></div>
     </div>
-    <div class="mini-chart" id="signupsChart" style="height:80px;">
-      <div style="color:var(--text-muted);font-size:.8rem;align-self:center;">Loading…</div>
+    <div class="kpi-top"><div class="kpi-icon">✅</div><span class="kpi-trend" id="kpi-active-trend">—</span></div>
+    <div class="kpi-val" id="kpi-active">—</div>
+    <div class="kpi-label">Active Users</div>
+    <div class="kpi-sub" id="kpi-active-sub">—</div>
+  </div>
+
+  <div class="kpi-card" style="--kpi-accent:#f59e0b;--kpi-color:var(--stat-orange);--kpi-icon-bg:rgba(251,146,60,.12);">
+    <div class="card-skel kpi-skel">
+      <div class="skel-line" style="height:20px;width:55%;"></div>
+      <div class="skel-line" style="height:32px;width:40%;margin-top:.25rem;"></div>
+      <div class="skel-line" style="height:11px;width:70%;"></div>
     </div>
-    <div style="display:flex;justify-content:space-between;margin-top:.4rem;font-size:.72rem;color:var(--text-muted);" id="chartLabels"></div>
+    <div class="kpi-top"><div class="kpi-icon">💬</div><span class="kpi-trend trend-up" id="kpi-msg-trend">—</span></div>
+    <div class="kpi-val" id="kpi-msgs">—</div>
+    <div class="kpi-label" id="kpi-msgs-label">Messages</div>
+    <div class="kpi-sub"  id="kpi-msgs-sub">—</div>
+  </div>
+
+  <div class="kpi-card" style="--kpi-accent:#06b6d4;--kpi-color:#67e8f9;--kpi-icon-bg:rgba(6,182,212,.12);">
+    <div class="card-skel kpi-skel">
+      <div class="skel-line" style="height:20px;width:55%;"></div>
+      <div class="skel-line" style="height:32px;width:40%;margin-top:.25rem;"></div>
+      <div class="skel-line" style="height:11px;width:70%;"></div>
+    </div>
+    <div class="kpi-top"><div class="kpi-icon">🗂️</div><span class="kpi-trend trend-neu" id="kpi-docs-trend">—</span></div>
+    <div class="kpi-val" id="kpi-docs">—</div>
+    <div class="kpi-label">Documents</div>
+    <div class="kpi-sub" id="kpi-docs-sub">—</div>
+  </div>
+
+  <div class="kpi-card" style="--kpi-accent:#ef4444;--kpi-color:var(--stat-red);--kpi-icon-bg:rgba(239,68,68,.12);">
+    <div class="card-skel kpi-skel">
+      <div class="skel-line" style="height:20px;width:55%;"></div>
+      <div class="skel-line" style="height:32px;width:40%;margin-top:.25rem;"></div>
+      <div class="skel-line" style="height:11px;width:70%;"></div>
+    </div>
+    <div class="kpi-top"><div class="kpi-icon">⚡</div><span class="kpi-trend trend-neu">ms</span></div>
+    <div class="kpi-val" id="kpi-resp-ms">—</div>
+    <div class="kpi-label">Avg Response</div>
+    <div class="kpi-sub">Last 30 days</div>
   </div>
 
 </div>
 
-<!-- ── Third row: org growth + docs ───────────────────────── -->
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem;">
+<!-- ── Row 1: messages area + user doughnut ──────────────── -->
+<div class="charts-row">
 
-  <!-- Org growth -->
-  <div class="section-card">
-    <div class="section-card-header">
-      <div class="section-card-title">Organization Growth</div>
+  <div class="chart-card">
+    <div class="card-skel">
+      <div class="skel-line" style="height:14px;width:35%;"></div>
+      <div class="skel-line" style="height:10px;width:22%;"></div>
+      <div class="skel-line" style="flex:1;margin-top:.5rem;"></div>
     </div>
-    <div style="display:flex;gap:1.5rem;margin-bottom:1rem;">
+    <div class="chart-card-header">
       <div>
-        <div style="font-size:.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:.25rem;">New (7 days)</div>
-        <div style="font-size:1.5rem;font-weight:900;color:var(--stat-blue);" id="g-orgs-7d">—</div>
+        <div class="chart-card-title">Messages Processed</div>
+        <div class="chart-card-sub" id="msg-chart-sub">Daily volume</div>
       </div>
-      <div>
-        <div style="font-size:.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:.25rem;">New (30 days)</div>
-        <div style="font-size:1.5rem;font-weight:900;color:var(--stat-blue);" id="g-orgs-30d">—</div>
+      <div class="legend-item">
+        <span class="legend-dot" style="background:#ef4444;"></span>
+        <span style="font-weight:800;color:#ef4444;" id="leg-msg-total">—</span>
+        <span style="color:var(--text-muted);">total</span>
       </div>
     </div>
-    <div style="margin-top:1rem;border-top:1px solid var(--border);padding-top:1rem;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem;">
-        <span style="font-size:.82rem;color:var(--text-dim);">User activation rate</span>
-        <span style="font-size:.82rem;font-weight:700;color:var(--stat-green);" id="activation-rate">—</span>
-      </div>
-      <div style="height:6px;background:var(--border);border-radius:10px;overflow:hidden;">
-        <div id="activation-bar" style="height:100%;background:linear-gradient(90deg,#34d399,#059669);border-radius:10px;width:0%;transition:width .8s ease;"></div>
-      </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:.75rem;">
-        <span style="font-size:.82rem;color:var(--text-dim);">Total roles defined</span>
-        <span style="font-size:.82rem;font-weight:700;color:var(--stat-orange);" id="g-roles">—</span>
-      </div>
+    <div class="chart-wrap" style="height:140px;">
+      <canvas id="msgChart"></canvas>
     </div>
   </div>
 
-  <!-- KB & Docs -->
-  <div class="section-card">
-    <div class="section-card-header">
-      <div class="section-card-title">Knowledge Base Activity</div>
+  <div class="chart-card">
+    <div class="card-skel">
+      <div class="skel-line" style="height:14px;width:40%;"></div>
+      <div class="skel-line" style="height:10px;width:28%;"></div>
+      <div class="skel-line" style="width:160px;height:160px;border-radius:50%;align-self:center;margin-top:.75rem;"></div>
     </div>
-    <div style="display:flex;gap:1.5rem;margin-bottom:1rem;">
+    <div class="chart-card-header">
       <div>
-        <div style="font-size:.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:.25rem;">Docs uploaded (7d)</div>
-        <div style="font-size:1.5rem;font-weight:900;color:var(--stat-orange);" id="g-docs-7d">—</div>
-      </div>
-      <div>
-        <div style="font-size:.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:.25rem;">Docs uploaded (30d)</div>
-        <div style="font-size:1.5rem;font-weight:900;color:var(--stat-orange);" id="g-docs-30d">—</div>
+        <div class="chart-card-title">User Status</div>
+        <div class="chart-card-sub">Active vs inactive</div>
       </div>
     </div>
-    <div style="margin-top:1rem;border-top:1px solid var(--border);padding-top:1rem;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
-        <span style="font-size:.82rem;color:var(--text-dim);">Voice notes (30 days)</span>
-        <span style="font-size:.82rem;font-weight:700;color:var(--stat-blue);" id="g-voice-30d">—</span>
-      </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
-        <span style="font-size:.82rem;color:var(--text-dim);">RAG queries (7 days)</span>
-        <span style="font-size:.82rem;font-weight:700;color:var(--stat-purple);" id="g-rag-7d">—</span>
-      </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;">
-        <span style="font-size:.82rem;color:var(--text-dim);">Pinecone vectors</span>
-        <span style="font-size:.82rem;font-weight:700;color:var(--stat-green);" id="g-vectors">—</span>
-      </div>
+    <div class="chart-wrap" style="height:160px;">
+      <canvas id="userDonut"></canvas>
+    </div>
+    <div style="display:flex;justify-content:center;gap:1.5rem;margin-top:1rem;">
+      <div class="legend-item"><span class="legend-dot" style="background:#34d399;"></span>Active&nbsp;<strong id="leg-active">—</strong></div>
+      <div class="legend-item"><span class="legend-dot" style="background:#f87171;"></span>Inactive&nbsp;<strong id="leg-inactive">—</strong></div>
     </div>
   </div>
 
 </div>
 
-<!-- ── Recent organizations table ─────────────────────────── -->
-<div class="section-card">
-  <div class="section-card-header">
-    <div class="section-card-title">Top Organizations</div>
+<!-- ── Row 2: signups + org growth + KB metrics ─────────── -->
+<div class="charts-row-2">
+
+  <div class="chart-card">
+    <div class="card-skel">
+      <div class="skel-line" style="height:14px;width:35%;"></div>
+      <div class="skel-line" style="height:10px;width:22%;"></div>
+      <div class="skel-line" style="flex:1;margin-top:.5rem;"></div>
+    </div>
+    <div class="chart-card-header">
+      <div>
+        <div class="chart-card-title">New Signups</div>
+        <div class="chart-card-sub" id="signup-chart-sub">Daily signups</div>
+      </div>
+      <div class="legend-item">
+        <span class="legend-dot" style="background:#818cf8;"></span>
+        <span style="font-weight:800;color:#818cf8;" id="leg-su-total">—</span>
+        <span style="color:var(--text-muted);">total</span>
+      </div>
+    </div>
+    <div class="chart-wrap" style="height:140px;">
+      <canvas id="signupChart"></canvas>
+    </div>
+  </div>
+
+  <div class="chart-card">
+    <div class="card-skel">
+      <div class="skel-line" style="height:14px;width:45%;"></div>
+      <div class="skel-line" style="height:10px;width:30%;"></div>
+      <div class="skel-line" style="flex:1;margin-top:.5rem;"></div>
+    </div>
+    <div class="chart-card-header">
+      <div>
+        <div class="chart-card-title">Organization Growth</div>
+        <div class="chart-card-sub" id="org-chart-sub">New orgs &amp; activation</div>
+      </div>
+    </div>
+    <div class="chart-wrap" style="height:110px;">
+      <canvas id="orgChart"></canvas>
+    </div>
+    <div style="margin-top:1rem;padding-top:.9rem;border-top:1px solid var(--border);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem;">
+        <span style="font-size:.78rem;color:var(--text-dim);">Activation rate</span>
+        <span style="font-size:.8rem;font-weight:800;color:#34d399;" id="activation-rate">—</span>
+      </div>
+      <div style="height:5px;background:var(--border);border-radius:10px;overflow:hidden;">
+        <div id="activation-bar" style="height:100%;border-radius:10px;background:linear-gradient(90deg,#34d399,#059669);width:0%;transition:width .9s ease;"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="chart-card">
+    <div class="card-skel">
+      <div class="skel-line" style="height:14px;width:40%;"></div>
+      <div class="skel-line" style="height:10px;width:28%;"></div>
+      <div style="display:flex;flex-direction:column;gap:.55rem;margin-top:.75rem;">
+        <div class="skel-line" style="height:38px;border-radius:8px;"></div>
+        <div class="skel-line" style="height:38px;border-radius:8px;"></div>
+        <div class="skel-line" style="height:38px;border-radius:8px;"></div>
+        <div class="skel-line" style="height:38px;border-radius:8px;"></div>
+        <div class="skel-line" style="height:38px;border-radius:8px;"></div>
+      </div>
+    </div>
+    <div class="chart-card-header">
+      <div>
+        <div class="chart-card-title">Knowledge Base</div>
+        <div class="chart-card-sub" id="kb-sub">Usage &amp; indexing stats</div>
+      </div>
+    </div>
+    <div class="metric-list">
+      <div class="metric-row">
+        <span class="metric-name">🔍 RAG queries</span>
+        <span class="metric-val" style="color:#60a5fa;" id="m-rag">—</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-name">🎙️ Voice notes</span>
+        <span class="metric-val" style="color:#a78bfa;" id="m-voice">—</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-name">📌 Pinecone vectors</span>
+        <span class="metric-val" style="color:#fb923c;" id="m-vectors">—</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-name">⚠️ Errors</span>
+        <span class="metric-val" style="color:#f87171;" id="m-errors">—</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-name">🔑 Total roles</span>
+        <span class="metric-val" style="color:#34d399;" id="m-roles">—</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Top organizations table ───────────────────────────── -->
+<div class="chart-card" style="margin-bottom:0;">
+  <div class="card-skel">
+    <div class="skel-line" style="height:14px;width:25%;"></div>
+    <div class="skel-line" style="height:10px;width:18%;"></div>
+    <div style="display:flex;flex-direction:column;gap:.4rem;margin-top:.75rem;">
+      <div class="skel-line" style="height:40px;border-radius:4px;"></div>
+      <div class="skel-line" style="height:40px;border-radius:4px;opacity:.7;"></div>
+      <div class="skel-line" style="height:40px;border-radius:4px;opacity:.5;"></div>
+      <div class="skel-line" style="height:40px;border-radius:4px;opacity:.35;"></div>
+    </div>
+  </div>
+  <div class="chart-card-header" style="margin-bottom:.75rem;">
+    <div>
+      <div class="chart-card-title">Top Organizations</div>
+      <div class="chart-card-sub">Ranked by user count</div>
+    </div>
     <a href="/admin/organizations" class="btn btn-secondary btn-sm">View all →</a>
   </div>
   <div class="table-wrap">
     <table>
       <thead>
         <tr>
-          <th>Organization</th>
-          <th>Owner</th>
-          <th>Users</th>
-          <th>Active</th>
-          <th>Docs</th>
-          <th>Joined</th>
+          <th>Organization</th><th>Owner</th><th>Users</th>
+          <th>Active</th><th>Docs</th><th>Joined</th>
         </tr>
       </thead>
       <tbody id="topOrgsTable">
-        <tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted);">Loading…</td></tr>
+        <tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted);">—</td></tr>
       </tbody>
     </table>
   </div>
@@ -215,99 +421,310 @@
 {% endblock %}
 
 {% block extra_script %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script>
+Chart.defaults.color = getComputedStyle(document.documentElement).getPropertyValue('--text-muted').trim();
+Chart.defaults.font.family = 'Inter, -apple-system, sans-serif';
+Chart.defaults.font.size = 11;
+
+const isDark   = () => document.documentElement.getAttribute('data-theme') !== 'light';
+const gridClr  = () => getComputedStyle(document.documentElement).getPropertyValue('--border').trim();
+const tipTheme = () => ({
+  backgroundColor: isDark() ? '#1a1a2e' : '#fff',
+  titleColor:      isDark() ? '#f1f1f5' : '#0d0d18',
+  borderColor:     gridClr(), borderWidth: 1, padding: 10,
+});
+
+function sparseLabels(data, max = 6) {
+  if (!data?.length) return [];
+  return data.map((d, i) => {
+    const step = Math.max(1, Math.floor(data.length / (max - 1)));
+    return (i === 0 || i === data.length - 1 || i % step === 0) ? d.day.slice(5) : '';
+  });
+}
+
+function hideSkel(el) {
+  el.classList.add('gone');
+  setTimeout(() => el.remove(), 320);
+}
+
+// ── Chart instances (so we can update them on period change)
+let msgChart = null, signupChart = null, orgChart = null, donutChart = null;
+let _s = null; // cached stats
+
+// ── Global period state
+let currentPeriod = 7;
+
+function setPeriod(days) {
+  if (days === currentPeriod || !_s) return;
+  currentPeriod = days;
+
+  // update tab buttons
+  document.querySelectorAll('.period-tab').forEach(b => {
+    b.classList.toggle('active', +b.dataset.days === days);
+  });
+
+  renderPeriod(days);
+}
+
+function renderPeriod(days) {
+  const s   = _s;
+  const d   = days;
+  const tag = `${d}d`;
+
+  document.getElementById('periodNote').textContent = `Showing last ${d} days`;
+
+  // ── KPI values
+  const msgs     = d === 7 ? (s.messages_7d    ?? 0) : (s.messages_30d    ?? 0);
+  const newUsers = d === 7 ? (s.new_users_7d   ?? 0) : (s.new_users_30d   ?? 0);
+  const newOrgs  = d === 7 ? (s.new_orgs_7d    ?? 0) : (s.new_orgs_30d    ?? 0);
+  const newDocs  = d === 7 ? (s.docs_uploaded_7d ?? 0) : (s.docs_uploaded_30d ?? 0);
+  const voice    = d === 7 ? (s.voice_notes_7d  ?? 0) : (s.voice_notes_30d  ?? 0);
+  const errors   = s.errors_7d ?? 0; // only 7d available
+
+  const activeRate = s.total_users ? Math.round(s.active_users / s.total_users * 100) : 0;
+
+  set('kpi-orgs',        newOrgs);
+  set('kpi-orgs-trend',  `+${newOrgs}`);
+  set('kpi-orgs-sub',    `+${newOrgs} new this period`);
+  set('kpi-orgs-label',  'New Orgs');
+
+  set('kpi-users',       newUsers);
+  set('kpi-users-trend', `+${newUsers}`);
+  set('kpi-users-sub',   `+${newUsers} signed up`);
+  set('kpi-users-label', 'New Users');
+
+  set('kpi-active',      s.active_users);
+  set('kpi-active-sub',  `${activeRate}% of total`);
+  const at = document.getElementById('kpi-active-trend');
+  at.textContent = activeRate + '%';
+  at.className   = 'kpi-trend ' + (activeRate >= 70 ? 'trend-up' : activeRate >= 40 ? 'trend-neu' : 'trend-down');
+
+  set('kpi-msgs',        msgs);
+  set('kpi-msgs-trend',  `+${msgs}`);
+  set('kpi-msgs-sub',    `messages in ${tag}`);
+  set('kpi-msgs-label',  `Messages (${tag})`);
+
+  set('kpi-docs',        newDocs);
+  set('kpi-docs-trend',  `+${newDocs}`);
+  set('kpi-docs-sub',    `+${newDocs} uploaded`);
+
+  set('kpi-resp-ms',     s.avg_response_ms != null ? s.avg_response_ms : '—');
+
+  set('leg-active',   s.active_users);
+  set('leg-inactive', s.inactive_users);
+
+  // ── Activation bar
+  set('activation-rate', activeRate + '%');
+  document.getElementById('activation-bar').style.width = activeRate + '%';
+
+  // ── KB metrics
+  set('m-rag',     s.rag_queries_7d ?? 0);
+  set('m-voice',   voice);
+  set('m-vectors', s.pinecone_vector_count != null ? s.pinecone_vector_count.toLocaleString() : '—');
+  set('m-errors',  errors);
+  set('m-roles',   s.total_roles ?? 0);
+  set('kb-sub',    `Last ${d} days`);
+
+  // ── Chart data sliced to period
+  const msgData = (s.messages_chart || []).slice(-d);
+  const suData  = (s.signups_chart  || []).slice(-d);
+
+  set('msg-chart-sub',    `Daily volume — last ${d} days`);
+  set('leg-msg-total',    msgData.reduce((a, x) => a + x.count, 0));
+  set('signup-chart-sub', `Daily signups — last ${d} days`);
+  set('leg-su-total',     suData.reduce((a, x) => a + x.count, 0));
+  set('org-chart-sub',    `New in last ${d} days`);
+
+  // ── Update messages chart
+  if (msgChart) {
+    msgChart.data.labels = sparseLabels(msgData);
+    msgChart.data.datasets[0].data     = msgData.map(x => x.count);
+    msgChart.data.datasets[0]._rawData = msgData;
+    msgChart.update('active');
+  }
+
+  // ── Update signups chart
+  if (signupChart) {
+    signupChart.data.labels = sparseLabels(suData);
+    signupChart.data.datasets[0].data     = suData.map(x => x.count);
+    signupChart.data.datasets[0]._rawData = suData;
+    signupChart.update('active');
+  }
+
+  // ── Update org chart
+  if (orgChart) {
+    orgChart.data.labels = [`New (${tag})`, 'Total'];
+    orgChart.data.datasets[0].data = [newOrgs, s.total_orgs];
+    orgChart.update('active');
+  }
+}
+
+function set(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+
+// ── Build charts (called once after data loads)
+function buildCharts(s) {
+  const days   = currentPeriod;
+  const msgData = (s.messages_chart || []).slice(-days);
+  const suData  = (s.signups_chart  || []).slice(-days);
+  const tip     = tipTheme();
+
+  // Messages area
+  msgChart = new Chart(document.getElementById('msgChart'), {
+    type: 'line',
+    data: {
+      labels: sparseLabels(msgData),
+      datasets: [{
+        data: msgData.map(x => x.count),
+        _rawData: msgData,
+        borderColor: '#ef4444', borderWidth: 2,
+        pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: '#ef4444',
+        fill: true,
+        backgroundColor: ctx => {
+          const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, ctx.chart.height);
+          g.addColorStop(0, 'rgba(239,68,68,.22)');
+          g.addColorStop(1, 'rgba(239,68,68,.01)');
+          return g;
+        },
+        tension: 0.45,
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: { duration: 350 },
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: { ...tip, bodyColor: '#ef4444', borderColor: 'rgba(239,68,68,.3)',
+          callbacks: {
+            title: items => msgChart.data.datasets[0]._rawData?.[items[0].dataIndex]?.day || '',
+            label: i => `  ${i.raw} messages`,
+          },
+        },
+      },
+      scales: {
+        x: { grid: { color: gridClr() }, ticks: { maxRotation: 0 } },
+        y: { grid: { color: gridClr() }, beginAtZero: true, ticks: { precision: 0 } },
+      },
+    },
+  });
+
+  // User doughnut (static — doesn't change with period)
+  donutChart = new Chart(document.getElementById('userDonut'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Active', 'Inactive'],
+      datasets: [{
+        data: [s.active_users || 0, s.inactive_users || 0],
+        backgroundColor: ['rgba(52,211,153,.85)', 'rgba(248,113,113,.75)'],
+        borderColor: ['#34d399', '#f87171'], borderWidth: 1.5, hoverOffset: 6,
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '68%',
+      plugins: { legend: { display: false }, tooltip: { ...tip, bodyColor: 'rgba(255,255,255,.65)' } },
+    },
+  });
+
+  // Signups bar
+  signupChart = new Chart(document.getElementById('signupChart'), {
+    type: 'bar',
+    data: {
+      labels: sparseLabels(suData),
+      datasets: [{
+        data: suData.map(x => x.count),
+        _rawData: suData,
+        backgroundColor: 'rgba(129,140,248,.7)', borderColor: '#818cf8',
+        borderWidth: 1, borderRadius: 4, borderSkipped: false,
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: { duration: 350 },
+      plugins: {
+        legend: { display: false },
+        tooltip: { ...tip, bodyColor: '#818cf8', borderColor: 'rgba(129,140,248,.3)',
+          callbacks: {
+            title: items => signupChart.data.datasets[0]._rawData?.[items[0].dataIndex]?.day || '',
+            label: i => `  ${i.raw} signups`,
+          },
+        },
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { maxRotation: 0 } },
+        y: { grid: { color: gridClr() }, beginAtZero: true, ticks: { precision: 0 } },
+      },
+    },
+  });
+
+  // Org bar
+  const newOrgs = days === 7 ? (s.new_orgs_7d ?? 0) : (s.new_orgs_30d ?? 0);
+  orgChart = new Chart(document.getElementById('orgChart'), {
+    type: 'bar',
+    data: {
+      labels: [`New (${days}d)`, 'Total'],
+      datasets: [{
+        data: [newOrgs, s.total_orgs],
+        backgroundColor: ['rgba(96,165,250,.75)', 'rgba(96,165,250,.3)'],
+        borderColor: '#60a5fa', borderWidth: 1.5, borderRadius: 6, borderSkipped: false,
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: { duration: 350 },
+      plugins: {
+        legend: { display: false },
+        tooltip: { ...tip, bodyColor: '#60a5fa', borderColor: 'rgba(96,165,250,.3)' },
+      },
+      scales: {
+        x: { grid: { display: false } },
+        y: { grid: { color: gridClr() }, beginAtZero: true, ticks: { precision: 0 } },
+      },
+    },
+  });
+}
+
 async function loadDashboard() {
-  const [statsRes, orgsRes] = await Promise.all([
-    fetch('/admin/api/stats'),
-    fetch('/admin/api/organizations'),
-  ]);
-
-  if (statsRes.status === 403 || orgsRes.status === 403) {
-    window.location.href = '/admin/login';
-    return;
-  }
-
-  const s = await statsRes.json();
-  const orgs = await orgsRes.json();
-
-  // ── KPI cards — row 1
-  document.getElementById('kpi-orgs').textContent = s.total_orgs;
-  document.getElementById('kpi-orgs-sub').textContent = `+${s.new_orgs_7d} this week`;
-  document.getElementById('kpi-users').textContent = s.total_users;
-  document.getElementById('kpi-users-sub').textContent = `+${s.new_users_7d} this week`;
-  document.getElementById('kpi-active').textContent = s.active_users;
-  document.getElementById('kpi-active-sub').textContent = `${s.total_users ? Math.round(s.active_users/s.total_users*100) : 0}% of total`;
-  document.getElementById('kpi-inactive').textContent = s.inactive_users;
-  document.getElementById('kpi-docs').textContent = s.total_documents;
-  document.getElementById('kpi-docs-sub').textContent = `+${s.docs_uploaded_7d} this week`;
-  document.getElementById('kpi-avg').textContent = s.avg_users_per_org;
-
-  // ── KPI cards — row 2 (usage)
-  document.getElementById('kpi-msg-7d').textContent = s.messages_7d ?? 0;
-  document.getElementById('kpi-msg-30d-sub').textContent = `${s.messages_30d ?? 0} last 30 days`;
-  document.getElementById('kpi-truly-active').textContent = s.truly_active_users_7d ?? 0;
-  document.getElementById('kpi-voice-7d').textContent = s.voice_notes_7d ?? 0;
-  document.getElementById('kpi-voice-30d-sub').textContent = `${s.voice_notes_30d ?? 0} last 30 days`;
-  document.getElementById('kpi-vectors').textContent = s.pinecone_vector_count != null ? s.pinecone_vector_count.toLocaleString() : '—';
-  document.getElementById('kpi-resp-ms').textContent = s.avg_response_ms != null ? s.avg_response_ms + ' ms' : '—';
-  document.getElementById('kpi-errors').textContent = s.errors_7d ?? 0;
-
-  // ── Growth panel
-  document.getElementById('g-users-7d').textContent = `+${s.new_users_7d}`;
-  document.getElementById('g-users-30d').textContent = `+${s.new_users_30d}`;
-  document.getElementById('g-orgs-7d').textContent = `+${s.new_orgs_7d}`;
-  document.getElementById('g-orgs-30d').textContent = `+${s.new_orgs_30d}`;
-  document.getElementById('g-roles').textContent = s.total_roles;
-  document.getElementById('g-msg-7d').textContent = s.messages_7d ?? 0;
-  document.getElementById('g-msg-30d').textContent = s.messages_30d ?? 0;
-  document.getElementById('g-docs-7d').textContent = s.docs_uploaded_7d ?? 0;
-  document.getElementById('g-docs-30d').textContent = s.docs_uploaded_30d ?? 0;
-  document.getElementById('g-voice-30d').textContent = s.voice_notes_30d ?? 0;
-  document.getElementById('g-rag-7d').textContent = s.rag_queries_7d ?? 0;
-  document.getElementById('g-vectors').textContent = s.pinecone_vector_count != null ? s.pinecone_vector_count.toLocaleString() : '—';
-
-  const rate = s.total_users ? Math.round(s.active_users / s.total_users * 100) : 0;
-  document.getElementById('activation-rate').textContent = rate + '%';
-  document.getElementById('activation-bar').style.width = rate + '%';
-
-  // ── Messages chart
-  function renderMiniChart(chartData, elId, labelElId, titleSingular) {
-    if (chartData && chartData.length) {
-      const max = Math.max(...chartData.map(d => d.count), 1);
-      document.getElementById(elId).innerHTML = chartData.map(d => {
-        const pct = Math.max(4, Math.round((d.count / max) * 100));
-        return `<div class="bar" style="height:${pct}%" title="${d.day}: ${d.count} ${titleSingular}"></div>`;
-      }).join('');
-      const labelsEl = document.getElementById(labelElId);
-      if (chartData.length >= 2) {
-        labelsEl.innerHTML = `<span>${chartData[0].day.slice(5)}</span><span>${chartData[chartData.length-1].day.slice(5)}</span>`;
-      }
-    } else {
-      document.getElementById(elId).innerHTML = '<div style="color:var(--text-muted);font-size:.8rem;align-self:center;width:100%;text-align:center;">No data yet</div>';
+  try {
+    const [statsRes, orgsRes] = await Promise.all([
+      fetch('/admin/api/stats'),
+      fetch('/admin/api/organizations'),
+    ]);
+    if (statsRes.status === 403 || orgsRes.status === 403) {
+      window.location.href = '/admin/login'; return;
     }
-  }
 
-  renderMiniChart(s.messages_chart, 'messagesChart', 'msgChartLabels', 'messages');
+    const s    = await statsRes.json();
+    const orgs = await orgsRes.json();
+    _s = s;
 
-  // ── Mini signup chart
-  renderMiniChart(s.signups_chart, 'signupsChart', 'chartLabels', 'signups');
+    // Build charts first, then populate text values
+    buildCharts(s);
+    renderPeriod(currentPeriod);
 
-  // ── Top orgs table (top 5 by user count)
-  const sorted = [...orgs].sort((a, b) => b.user_count - a.user_count).slice(0, 5);
-  const tbody = document.getElementById('topOrgsTable');
-  if (!sorted.length) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted);">No organizations yet</td></tr>';
-  } else {
-    tbody.innerHTML = sorted.map(o => `
-      <tr>
-        <td class="td-main">${o.name}</td>
-        <td>${o.owner_email || '—'}</td>
-        <td>${o.user_count}</td>
-        <td><span style="color:var(--stat-green);font-weight:600;">${o.active_user_count}</span></td>
-        <td>${o.document_count}</td>
-        <td style="color:var(--text-muted);">${new Date(o.created_at).toLocaleDateString()}</td>
-      </tr>
-    `).join('');
+    // ── Top orgs table
+    const sorted = [...orgs].sort((a, b) => b.user_count - a.user_count).slice(0, 5);
+    const tbody  = document.getElementById('topOrgsTable');
+    tbody.innerHTML = !sorted.length
+      ? '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted);">No organizations yet</td></tr>'
+      : sorted.map(o => `
+          <tr>
+            <td class="td-main">${o.name}</td>
+            <td>${o.owner_email || '—'}</td>
+            <td>${o.user_count}</td>
+            <td><span class="badge badge-active">${o.active_user_count}</span></td>
+            <td>${o.document_count}</td>
+            <td style="color:var(--text-muted);">${new Date(o.created_at).toLocaleDateString()}</td>
+          </tr>`).join('');
+
+    // ── Hide all skeletons
+    document.querySelectorAll('.card-skel').forEach(hideSkel);
+
+  } catch (err) {
+    console.error('Dashboard load failed', err);
+    document.querySelectorAll('.card-skel').forEach(el => {
+      el.innerHTML = '<div style="color:var(--error);font-size:.8rem;font-weight:600;align-self:center;margin:auto;">Failed to load</div>';
+    });
   }
 }
 

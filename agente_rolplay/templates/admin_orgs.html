@@ -15,6 +15,25 @@
 
 {% block content %}
 
+<!-- ── Confirm Delete Modal ─────────────────────────────── -->
+<div id="confirmModal" class="modal">
+  <div class="modal-content" style="max-width:400px;">
+    <div class="modal-header">
+      <h2 style="color:var(--error);">⚠️ Delete Organization</h2>
+      <button class="modal-close" onclick="closeConfirm()">&times;</button>
+    </div>
+    <p style="font-size:.88rem;color:var(--text-dim);line-height:1.6;margin-bottom:1rem;">
+      You are about to permanently delete <strong id="confirmOrgName" style="color:var(--text);"></strong>.
+      This will remove all its users, roles, and documents. <strong style="color:var(--error);">This cannot be undone.</strong>
+    </p>
+    <div style="display:flex;gap:.65rem;">
+      <button class="btn btn-secondary" style="flex:1;justify-content:center;" onclick="closeConfirm()">Cancel</button>
+      <button class="btn btn-danger" style="flex:1;justify-content:center;" id="confirmDeleteBtn" onclick="confirmDelete()">Delete</button>
+    </div>
+    <div id="confirmError" style="color:var(--error);font-size:.82rem;margin-top:.65rem;display:none;"></div>
+  </div>
+</div>
+
 <div class="section-card">
   <div class="section-card-header">
     <div class="section-card-title">All Organizations <span class="count-chip" id="orgCount">—</span></div>
@@ -107,11 +126,53 @@ function renderOrgs(list) {
         <td>${o.document_count}</td>
         <td style="color:var(--text-muted);">${new Date(o.created_at).toLocaleDateString()}</td>
         <td>
-          <a href="/admin/users?org=${encodeURIComponent(o.name)}" class="btn btn-secondary btn-sm">View Users</a>
+          <div style="display:flex;gap:.4rem;">
+            <a href="/admin/users?org=${encodeURIComponent(o.name)}" class="btn btn-secondary btn-sm">View Users</a>
+            <button class="btn btn-danger btn-sm" onclick="openConfirm('${o.id}','${o.name.replace(/'/g,"\\'")}')">
+              🗑 Delete
+            </button>
+          </div>
         </td>
       </tr>
     `;
   }).join('');
+}
+
+let _pendingDeleteId = null;
+
+function openConfirm(orgId, orgName) {
+  _pendingDeleteId = orgId;
+  document.getElementById('confirmOrgName').textContent = orgName;
+  document.getElementById('confirmError').style.display = 'none';
+  document.getElementById('confirmDeleteBtn').disabled = false;
+  document.getElementById('confirmDeleteBtn').textContent = 'Delete';
+  document.getElementById('confirmModal').classList.add('show');
+}
+
+function closeConfirm() {
+  _pendingDeleteId = null;
+  document.getElementById('confirmModal').classList.remove('show');
+}
+
+async function confirmDelete() {
+  if (!_pendingDeleteId) return;
+  const btn = document.getElementById('confirmDeleteBtn');
+  const err = document.getElementById('confirmError');
+  btn.disabled = true;
+  btn.textContent = 'Deleting…';
+  err.style.display = 'none';
+
+  const res = await fetch(`/admin/api/organizations/${_pendingDeleteId}`, { method: 'DELETE' });
+  if (res.ok) {
+    closeConfirm();
+    loadOrgs();
+  } else {
+    const d = await res.json().catch(() => ({}));
+    err.textContent = d.detail || 'Delete failed';
+    err.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Delete';
+  }
 }
 
 loadOrgs();

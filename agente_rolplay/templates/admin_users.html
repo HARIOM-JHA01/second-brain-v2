@@ -2,91 +2,327 @@
 
 {% block title %}Users{% endblock %}
 {% block page_title %}All Users{% endblock %}
-{% block page_subtitle %}Every user across all organizations — change passwords, toggle access{% endblock %}
+{% block page_subtitle %}Every user across all organizations — manage access, passwords &amp; more{% endblock %}
 
 {% block extra_style %}
-.filter-bar { display: flex; align-items: center; gap: .75rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
-.count-chip {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 20px; padding: .25rem .75rem;
-  font-size: .78rem; font-weight: 600; color: var(--text-muted);
-}
-.org-tag {
-  display: inline-block; background: rgba(220,38,38,.12); color: #818cf8;
-  border-radius: 5px; padding: .18rem .5rem; font-size: .72rem; font-weight: 600;
-}
+  /* ── Summary strip ─────────────────────────────── */
+  .summary-strip {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: .75rem; margin-bottom: 1.25rem;
+  }
+  @media (max-width: 800px) { .summary-strip { grid-template-columns: repeat(2,1fr); } }
+  .summary-card {
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: 12px; padding: .9rem 1.1rem;
+    display: flex; align-items: center; gap: .85rem;
+    transition: border-color .2s;
+  }
+  .summary-card:hover { border-color: var(--border-hover); }
+  .summary-icon {
+    width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 1rem;
+  }
+  .summary-val { font-size: 1.45rem; font-weight: 900; letter-spacing: -.4px; line-height: 1; }
+  .summary-label { font-size: .72rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .4px; margin-top: .15rem; }
+
+  /* ── Filter bar ────────────────────────────────── */
+  .filter-bar {
+    display: flex; align-items: center; gap: .65rem;
+    margin-bottom: 1.1rem; flex-wrap: wrap;
+  }
+  .filter-search {
+    flex: 1; min-width: 220px; position: relative;
+  }
+  .filter-search svg {
+    position: absolute; left: .75rem; top: 50%; transform: translateY(-50%);
+    width: 15px; height: 15px; color: var(--text-muted); pointer-events: none;
+  }
+  .filter-search input {
+    width: 100%; padding: .62rem 1rem .62rem 2.3rem;
+    background: var(--input-bg); border: 1px solid var(--border);
+    border-radius: 9px; color: var(--input-color);
+    font-size: .875rem; font-family: inherit; outline: none;
+    transition: border-color .2s;
+  }
+  .filter-search input:focus { border-color: var(--admin-accent); }
+  .filter-search input::placeholder { color: var(--placeholder); }
+  .filter-select {
+    padding: .62rem .9rem; background: var(--input-bg);
+    border: 1px solid var(--border); border-radius: 9px;
+    color: var(--text); font-size: .82rem; font-family: inherit;
+    outline: none; cursor: pointer; transition: border-color .2s;
+    min-width: 150px;
+  }
+  .filter-select:focus { border-color: var(--admin-accent); }
+  .count-pill {
+    background: var(--admin-accent-dim); color: var(--admin-accent);
+    border: 1px solid rgba(239,68,68,.2);
+    border-radius: 20px; padding: .22rem .7rem;
+    font-size: .75rem; font-weight: 700; white-space: nowrap;
+  }
+
+  /* ── Table enhancements ────────────────────────── */
+  .user-avatar {
+    width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .72rem; font-weight: 800; color: #fff;
+    text-transform: uppercase; letter-spacing: .3px;
+  }
+  .user-cell { display: flex; align-items: center; gap: .65rem; }
+  .user-cell-info { display: flex; flex-direction: column; gap: .1rem; }
+  .user-name { font-weight: 700; color: var(--text); font-size: .875rem; }
+  .user-email { font-size: .75rem; color: var(--text-muted); }
+
+  .org-tag {
+    display: inline-flex; align-items: center; gap: .3rem;
+    background: rgba(129,140,248,.12); color: #818cf8;
+    border: 1px solid rgba(129,140,248,.2);
+    border-radius: 6px; padding: .2rem .55rem;
+    font-size: .72rem; font-weight: 600; white-space: nowrap;
+  }
+  .role-tag {
+    display: inline-flex; align-items: center;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 6px; padding: .2rem .55rem;
+    font-size: .72rem; color: var(--text-muted); white-space: nowrap;
+  }
+
+  /* ── Icon action buttons ───────────────────────── */
+  .action-group { display: flex; align-items: center; gap: .35rem; }
+  .icon-btn {
+    width: 30px; height: 30px; border-radius: 7px; border: 1px solid var(--border);
+    background: var(--surface); display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all .15s; flex-shrink: 0; position: relative;
+  }
+  .icon-btn svg { width: 14px; height: 14px; pointer-events: none; }
+  .icon-btn:hover { border-color: var(--border-hover); }
+  .icon-btn.ib-key:hover   { background: rgba(251,146,60,.12); border-color: rgba(251,146,60,.3); color: #fb923c; }
+  .icon-btn.ib-toggle:hover { background: rgba(52,211,153,.12);  border-color: rgba(52,211,153,.3);  color: #34d399; }
+  .icon-btn.ib-toggle.is-active:hover { background: rgba(248,113,113,.1); border-color: rgba(248,113,113,.3); color: #f87171; }
+  .icon-btn.ib-del:hover   { background: rgba(248,113,113,.1);  border-color: rgba(248,113,113,.3); color: #f87171; }
+  .icon-btn[title]:hover::after {
+    content: attr(title);
+    position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+    background: #1a1a2e; color: #f1f1f5; font-size: .68rem; font-weight: 600;
+    padding: .25rem .55rem; border-radius: 5px; white-space: nowrap; pointer-events: none;
+    border: 1px solid rgba(255,255,255,.08); z-index: 20;
+  }
+
+  /* ── Skeleton ──────────────────────────────────── */
+  @keyframes shimmer {
+    0%   { background-position: -600px 0; }
+    100% { background-position:  600px 0; }
+  }
+  .skel {
+    border-radius: 5px;
+    background: linear-gradient(90deg, var(--border) 25%, var(--surface-hover, rgba(255,255,255,.07)) 50%, var(--border) 75%);
+    background-size: 1200px 100%;
+    animation: shimmer 1.5s infinite linear;
+  }
+  .skel-row td { padding: .85rem 1rem; }
+
+  /* ── Empty state ───────────────────────────────── */
+  .empty-state {
+    display: flex; flex-direction: column; align-items: center;
+    padding: 3.5rem 2rem; gap: .75rem; color: var(--text-muted);
+  }
+  .empty-state svg { width: 44px; height: 44px; opacity: .3; }
+  .empty-state p { font-size: .88rem; }
+
+  /* ── Modal polish ──────────────────────────────── */
+  .modal-user-card {
+    display: flex; align-items: center; gap: .85rem;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: .85rem 1rem; margin-bottom: 1.25rem;
+  }
+  .pw-field-wrap { position: relative; }
+  .pw-field-wrap input { padding-right: 2.5rem; }
+  .pw-eye {
+    position: absolute; right: .7rem; top: 50%; transform: translateY(-50%);
+    background: none; border: none; cursor: pointer; color: var(--text-muted);
+    display: flex; align-items: center; padding: 0; transition: color .2s;
+  }
+  .pw-eye:hover { color: var(--text-dim); }
+  .pw-eye svg { width: 16px; height: 16px; pointer-events: none; }
 {% endblock %}
 
 {% block content %}
 
-<!-- ── Change Password Modal ────────────────────────────── -->
-<div id="pwModal" class="modal">
-  <div class="modal-content">
+<!-- ── Delete Modal ─────────────────────────────────────── -->
+<div id="deleteModal" class="modal">
+  <div class="modal-content" style="max-width:420px;">
     <div class="modal-header">
-      <h2>Change Password</h2>
+      <div style="display:flex;align-items:center;gap:.65rem;">
+        <div style="width:34px;height:34px;border-radius:9px;background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.2);display:flex;align-items:center;justify-content:center;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="#f87171" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+        </div>
+        <h2 style="font-size:1rem;">Delete User</h2>
+      </div>
+      <button class="modal-close" onclick="closeDeleteModal()">&times;</button>
+    </div>
+    <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:.85rem;line-height:1.6;">
+      This will permanently remove the user and all their data. This cannot be undone.
+    </p>
+    <div class="modal-user-card">
+      <div class="user-avatar" id="delAvatar" style="background:#6366f1;width:38px;height:38px;font-size:.85rem;">—</div>
+      <div>
+        <div style="font-weight:700;color:var(--text);font-size:.9rem;" id="delUserName">—</div>
+        <div style="font-size:.78rem;color:var(--text-muted);" id="delUserEmail">—</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:.65rem;">
+      <button class="btn btn-secondary" style="flex:1;justify-content:center;" onclick="closeDeleteModal()">Cancel</button>
+      <button class="btn btn-danger" style="flex:1;justify-content:center;" id="delConfirmBtn" onclick="confirmDeleteUser()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:.3rem;">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+        </svg>
+        Delete user
+      </button>
+    </div>
+    <div id="delError" style="color:var(--error);font-size:.82rem;margin-top:.65rem;display:none;padding:.5rem .75rem;background:rgba(248,113,113,.08);border-radius:7px;border:1px solid rgba(248,113,113,.2);"></div>
+  </div>
+</div>
+
+<!-- ── Password Modal ───────────────────────────────────── -->
+<div id="pwModal" class="modal">
+  <div class="modal-content" style="max-width:420px;">
+    <div class="modal-header">
+      <div style="display:flex;align-items:center;gap:.65rem;">
+        <div style="width:34px;height:34px;border-radius:9px;background:rgba(251,146,60,.1);border:1px solid rgba(251,146,60,.2);display:flex;align-items:center;justify-content:center;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="#fb923c" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
+          </svg>
+        </div>
+        <h2 style="font-size:1rem;">Change Password</h2>
+      </div>
       <button class="modal-close" onclick="closePwModal()">&times;</button>
     </div>
-    <div style="margin-bottom:1.25rem;">
-      <div style="font-size:.82rem;color:var(--text-muted);">User</div>
-      <div style="font-size:.95rem;font-weight:700;color:var(--text);margin-top:.2rem;" id="pwUserLabel">—</div>
-      <div style="font-size:.8rem;color:var(--text-muted);" id="pwUserEmail">—</div>
+    <div class="modal-user-card">
+      <div class="user-avatar" id="pwAvatar" style="background:#6366f1;width:38px;height:38px;font-size:.85rem;">—</div>
+      <div>
+        <div style="font-weight:700;color:var(--text);font-size:.9rem;" id="pwUserLabel">—</div>
+        <div style="font-size:.78rem;color:var(--text-muted);" id="pwUserEmail">—</div>
+      </div>
     </div>
     <form id="pwForm">
       <input type="hidden" id="pwUserId" />
       <div class="form-group">
         <label>New Password</label>
-        <input type="password" id="pwNewPassword" required placeholder="Min 6 characters" minlength="6" autocomplete="new-password" />
+        <div class="pw-field-wrap">
+          <input type="password" id="pwNewPassword" required placeholder="Min 6 characters" minlength="6" autocomplete="new-password" />
+          <button type="button" class="pw-eye" onclick="togglePwVis('pwNewPassword',this)">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+            </svg>
+          </button>
+        </div>
       </div>
       <div class="form-group">
         <label>Confirm Password</label>
-        <input type="password" id="pwConfirm" required placeholder="Repeat password" autocomplete="new-password" />
+        <div class="pw-field-wrap">
+          <input type="password" id="pwConfirm" required placeholder="Repeat password" autocomplete="new-password" />
+          <button type="button" class="pw-eye" onclick="togglePwVis('pwConfirm',this)">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+            </svg>
+          </button>
+        </div>
       </div>
-      <button type="submit" class="btn btn-danger" style="width:100%;justify-content:center;margin-top:.5rem;">
-        🔑 Set New Password
+      <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:.5rem;">
+        Set new password
       </button>
     </form>
-    <div id="pwError" style="color:var(--error);font-size:.82rem;margin-top:.6rem;display:none;"></div>
-    <div id="pwSuccess" style="color:var(--success);font-size:.82rem;margin-top:.6rem;display:none;">Password updated successfully.</div>
+    <div id="pwError"   style="color:var(--error);font-size:.82rem;margin-top:.6rem;display:none;padding:.5rem .75rem;background:rgba(248,113,113,.08);border-radius:7px;border:1px solid rgba(248,113,113,.2);"></div>
+    <div id="pwSuccess" style="color:var(--success);font-size:.82rem;margin-top:.6rem;display:none;padding:.5rem .75rem;background:rgba(52,211,153,.08);border-radius:7px;border:1px solid rgba(52,211,153,.2);">
+      ✓ Password updated successfully.
+    </div>
   </div>
 </div>
 
-<!-- ── Users table ─────────────────────────────────────── -->
+<!-- ── Summary strip ────────────────────────────────────── -->
+<div class="summary-strip">
+  <div class="summary-card">
+    <div class="summary-icon" style="background:rgba(96,165,250,.12);">👥</div>
+    <div>
+      <div class="summary-val" style="color:var(--stat-blue);" id="sum-total">—</div>
+      <div class="summary-label">Total Users</div>
+    </div>
+  </div>
+  <div class="summary-card">
+    <div class="summary-icon" style="background:rgba(52,211,153,.12);">✅</div>
+    <div>
+      <div class="summary-val" style="color:var(--stat-green);" id="sum-active">—</div>
+      <div class="summary-label">Active</div>
+    </div>
+  </div>
+  <div class="summary-card">
+    <div class="summary-icon" style="background:rgba(248,113,113,.1);">🚫</div>
+    <div>
+      <div class="summary-val" style="color:var(--stat-red);" id="sum-inactive">—</div>
+      <div class="summary-label">Inactive</div>
+    </div>
+  </div>
+  <div class="summary-card">
+    <div class="summary-icon" style="background:rgba(129,140,248,.12);">🏢</div>
+    <div>
+      <div class="summary-val" style="color:#818cf8;" id="sum-orgs">—</div>
+      <div class="summary-label">Organizations</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Main card ────────────────────────────────────────── -->
 <div class="section-card">
   <div class="section-card-header">
-    <div class="section-card-title">All Users <span class="count-chip" id="userCount">—</span></div>
+    <div style="display:flex;align-items:center;gap:.75rem;">
+      <div class="section-card-title">Users</div>
+      <span class="count-pill" id="userCount">—</span>
+    </div>
   </div>
 
+  <!-- Filter bar -->
   <div class="filter-bar">
-    <div class="search-bar" style="flex:1;min-width:220px;margin-bottom:0;">
+    <div class="filter-search">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/>
+      </svg>
       <input type="text" id="searchInput" placeholder="Search name, email, org, WhatsApp…" oninput="filterUsers()" />
     </div>
-    <select id="orgFilter" onchange="filterUsers()" style="padding:.6rem .9rem;background:var(--input-bg);border:1px solid var(--border);border-radius:9px;color:var(--text);font-size:.875rem;font-family:inherit;outline:none;">
+    <select id="orgFilter" class="filter-select" onchange="filterUsers()">
       <option value="">All Organizations</option>
     </select>
-    <select id="statusFilter" onchange="filterUsers()" style="padding:.6rem .9rem;background:var(--input-bg);border:1px solid var(--border);border-radius:9px;color:var(--text);font-size:.875rem;font-family:inherit;outline:none;">
-      <option value="">All Statuses</option>
-      <option value="active">Active only</option>
-      <option value="inactive">Inactive only</option>
+    <select id="statusFilter" class="filter-select" onchange="filterUsers()" style="min-width:130px;">
+      <option value="">All statuses</option>
+      <option value="active">Active</option>
+      <option value="inactive">Inactive</option>
     </select>
   </div>
 
+  <!-- Table -->
   <div class="table-wrap">
     <table>
       <thead>
         <tr>
-          <th>Name</th>
-          <th>Email</th>
+          <th>User</th>
           <th>WhatsApp</th>
           <th>Job Title</th>
           <th>Organization</th>
           <th>Role</th>
           <th>Status</th>
           <th>Joined</th>
-          <th>Actions</th>
+          <th style="text-align:right;">Actions</th>
         </tr>
       </thead>
       <tbody id="usersTable">
-        <tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--text-muted);">Loading…</td></tr>
+        <!-- skeleton rows -->
+        <tr class="skel-row"><td colspan="8"><div class="skel" style="height:18px;width:100%;"></div></td></tr>
+        <tr class="skel-row"><td colspan="8"><div class="skel" style="height:18px;width:92%;opacity:.7;"></div></td></tr>
+        <tr class="skel-row"><td colspan="8"><div class="skel" style="height:18px;width:85%;opacity:.5;"></div></td></tr>
+        <tr class="skel-row"><td colspan="8"><div class="skel" style="height:18px;width:78%;opacity:.35;"></div></td></tr>
       </tbody>
     </table>
   </div>
@@ -98,18 +334,43 @@
 <script>
 let users = [];
 
+// ── Avatar helpers ────────────────────────────────────────
+const AVATAR_COLORS = ['#6366f1','#ec4899','#f59e0b','#10b981','#3b82f6','#8b5cf6','#ef4444','#06b6d4'];
+function avatarColor(name) {
+  let h = 0;
+  for (let i = 0; i < (name||'').length; i++) h = (h + name.charCodeAt(i)) % AVATAR_COLORS.length;
+  return AVATAR_COLORS[h];
+}
+function initials(name) {
+  const parts = (name || '?').trim().split(' ');
+  return (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase();
+}
+function maskPhone(num) {
+  if (!num) return '—';
+  const s = String(num);
+  return '•'.repeat(Math.max(0, s.length - 2)) + s.slice(-2);
+}
+
 async function loadUsers() {
   const res = await fetch('/admin/api/users');
   if (res.status === 403) { window.location.href = '/admin/login'; return; }
   users = await res.json();
+
+  // Summary strip
+  const active   = users.filter(u => u.is_active).length;
+  const inactive = users.length - active;
+  const orgCount = new Set(users.map(u => u.org_id).filter(Boolean)).size;
+  document.getElementById('sum-total').textContent   = users.length;
+  document.getElementById('sum-active').textContent  = active;
+  document.getElementById('sum-inactive').textContent = inactive;
+  document.getElementById('sum-orgs').textContent    = orgCount;
 
   // Populate org filter
   const orgs = [...new Set(users.map(u => u.org_name).filter(Boolean))].sort();
   const sel = document.getElementById('orgFilter');
   orgs.forEach(o => {
     const opt = document.createElement('option');
-    opt.value = o; opt.textContent = o;
-    sel.appendChild(opt);
+    opt.value = o; opt.textContent = o; sel.appendChild(opt);
   });
 
   // Pre-filter from URL ?org= param
@@ -120,16 +381,16 @@ async function loadUsers() {
 }
 
 function filterUsers() {
-  const q = document.getElementById('searchInput').value.toLowerCase();
-  const orgF = document.getElementById('orgFilter').value;
+  const q       = document.getElementById('searchInput').value.toLowerCase();
+  const orgF    = document.getElementById('orgFilter').value;
   const statusF = document.getElementById('statusFilter').value;
 
   const filtered = users.filter(u => {
     const matchQ = !q || [u.full_name, u.email, u.org_name, u.whatsapp_number, u.job_title]
       .some(v => (v || '').toLowerCase().includes(q));
-    const matchOrg = !orgF || u.org_name === orgF;
+    const matchOrg    = !orgF    || u.org_name === orgF;
     const matchStatus = !statusF ||
-      (statusF === 'active' && u.is_active) ||
+      (statusF === 'active'   && u.is_active)  ||
       (statusF === 'inactive' && !u.is_active);
     return matchQ && matchOrg && matchStatus;
   });
@@ -141,73 +402,116 @@ function filterUsers() {
 function renderUsers(list) {
   const tbody = document.getElementById('usersTable');
   if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--text-muted);">No users found</td></tr>';
+    tbody.innerHTML = `
+      <tr><td colspan="8">
+        <div class="empty-state">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/>
+          </svg>
+          <p>No users found</p>
+        </div>
+      </td></tr>`;
     return;
   }
-  tbody.innerHTML = list.map(u => `
-    <tr>
-      <td class="td-main">${u.full_name || '—'}</td>
-      <td style="font-size:.82rem;color:var(--text-dim);">${u.email || '—'}</td>
-      <td style="font-size:.82rem;">${u.whatsapp_number || '—'}</td>
-      <td style="font-size:.82rem;color:var(--text-muted);">${u.job_title || '—'}</td>
-      <td><span class="org-tag">${u.org_name || '—'}</span></td>
-      <td style="font-size:.82rem;color:var(--text-muted);">${u.role_name || '—'}</td>
-      <td>
-        <span class="badge ${u.is_active ? 'badge-active' : 'badge-inactive'}">
-          ${u.is_active ? 'Active' : 'Inactive'}
-        </span>
-      </td>
-      <td style="color:var(--text-muted);font-size:.82rem;">${new Date(u.created_at).toLocaleDateString()}</td>
-      <td>
-        <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
-          <button class="btn btn-danger btn-sm" onclick="openPwModal('${u.user_id}','${(u.full_name||'').replace(/'/g,"\\'")}','${(u.email||'').replace(/'/g,"\\'")}')">
-            🔑 Password
-          </button>
-          <button class="btn ${u.is_active ? 'btn-secondary' : 'btn-success'} btn-sm"
-            onclick="toggleActive('${u.profile_id}', this)">
-            ${u.is_active ? 'Revoke' : 'Activate'}
-          </button>
-        </div>
-      </td>
-    </tr>
-  `).join('');
+
+  tbody.innerHTML = list.map(u => {
+    const color = avatarColor(u.full_name);
+    const ini   = initials(u.full_name);
+    const joined = new Date(u.created_at).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+    const toggleTitle = u.is_active ? 'Revoke access' : 'Activate user';
+    const toggleIcon  = u.is_active
+      ? `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>`
+      : `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
+
+    return `
+      <tr>
+        <td>
+          <div class="user-cell">
+            <div class="user-avatar" style="background:${color};">${ini}</div>
+            <div class="user-cell-info">
+              <div class="user-name">${u.full_name || '—'}</div>
+            </div>
+          </div>
+        </td>
+        <td style="font-size:.82rem;color:var(--text-dim);letter-spacing:.04em;">${maskPhone(u.whatsapp_number)}</td>
+        <td style="font-size:.82rem;color:var(--text-muted);">${u.job_title || '—'}</td>
+        <td><span class="org-tag">${u.org_name || '—'}</span></td>
+        <td><span class="role-tag">${u.role_name || '—'}</span></td>
+        <td>
+          <span class="badge ${u.is_active ? 'badge-active' : 'badge-inactive'}">
+            <span style="width:5px;height:5px;border-radius:50%;background:currentColor;display:inline-block;margin-right:.3rem;"></span>
+            ${u.is_active ? 'Active' : 'Inactive'}
+          </span>
+        </td>
+        <td style="color:var(--text-muted);font-size:.8rem;white-space:nowrap;">${joined}</td>
+        <td>
+          <div class="action-group" style="justify-content:flex-end;">
+            <button class="icon-btn ib-key" title="Change password"
+              onclick="openPwModal('${u.user_id}','${esc(u.full_name)}','${esc(u.email)}','${esc(u.full_name)}')">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z"/>
+              </svg>
+            </button>
+            <button class="icon-btn ib-toggle ${u.is_active ? 'is-active' : ''}" title="${toggleTitle}"
+              onclick="toggleActive('${u.profile_id}',this)">
+              ${toggleIcon}
+            </button>
+            <button class="icon-btn ib-del" title="Delete user"
+              onclick="openDeleteModal('${u.user_id}','${esc(u.full_name)}','${esc(u.email)}')">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+              </svg>
+            </button>
+          </div>
+        </td>
+      </tr>`;
+  }).join('');
 }
 
+function esc(s) { return (s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+
+// ── Password modal ────────────────────────────────────────
 function openPwModal(userId, name, email) {
-  document.getElementById('pwUserId').value = userId;
-  document.getElementById('pwUserLabel').textContent = name || 'Unknown';
-  document.getElementById('pwUserEmail').textContent = email || '';
+  document.getElementById('pwUserId').value           = userId;
+  document.getElementById('pwUserLabel').textContent  = name  || 'Unknown';
+  document.getElementById('pwUserEmail').textContent  = email || '';
+  const color = avatarColor(name);
+  const av = document.getElementById('pwAvatar');
+  av.textContent = initials(name); av.style.background = color;
   document.getElementById('pwNewPassword').value = '';
-  document.getElementById('pwConfirm').value = '';
-  document.getElementById('pwError').style.display = 'none';
+  document.getElementById('pwConfirm').value     = '';
+  document.getElementById('pwError').style.display   = 'none';
   document.getElementById('pwSuccess').style.display = 'none';
   document.getElementById('pwModal').classList.add('show');
 }
+function closePwModal() { document.getElementById('pwModal').classList.remove('show'); }
 
-function closePwModal() {
-  document.getElementById('pwModal').classList.remove('show');
+function togglePwVis(inputId, btn) {
+  const inp = document.getElementById(inputId);
+  const show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  btn.querySelector('svg').innerHTML = show
+    ? '<path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>'
+    : '<path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>';
 }
 
 document.getElementById('pwForm').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const pw = document.getElementById('pwNewPassword').value;
+  const pw   = document.getElementById('pwNewPassword').value;
   const conf = document.getElementById('pwConfirm').value;
   const errEl = document.getElementById('pwError');
-  const okEl = document.getElementById('pwSuccess');
+  const okEl  = document.getElementById('pwSuccess');
   errEl.style.display = 'none'; okEl.style.display = 'none';
 
-  if (pw !== conf) {
-    errEl.textContent = 'Passwords do not match'; errEl.style.display = 'block'; return;
-  }
+  if (pw !== conf) { errEl.textContent = 'Passwords do not match'; errEl.style.display = 'block'; return; }
   const userId = document.getElementById('pwUserId').value;
   const res = await fetch(`/admin/api/users/${userId}/set-password`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ new_password: pw }),
   });
   if (res.ok) {
     okEl.style.display = 'block';
-    setTimeout(closePwModal, 1500);
+    setTimeout(closePwModal, 1600);
   } else {
     const d = await res.json().catch(() => ({}));
     errEl.textContent = d.detail || 'Error setting password';
@@ -215,12 +519,50 @@ document.getElementById('pwForm').addEventListener('submit', async (e) => {
   }
 });
 
-async function toggleActive(profileId, btn) {
+// ── Toggle active ─────────────────────────────────────────
+async function toggleActive(profileId) {
   const res = await fetch(`/admin/api/users/${profileId}/active`, { method: 'PATCH' });
-  if (res.ok) {
-    loadUsers(); // refresh table
-  } else {
-    alert('Error updating status');
+  if (res.ok) loadUsers();
+  else alert('Error updating status');
+}
+
+// ── Delete modal ──────────────────────────────────────────
+let _pendingDelUserId = null;
+
+function openDeleteModal(userId, name, email) {
+  _pendingDelUserId = userId;
+  document.getElementById('delUserName').textContent  = name  || 'Unknown';
+  document.getElementById('delUserEmail').textContent = email || '';
+  const color = avatarColor(name);
+  const av = document.getElementById('delAvatar');
+  av.textContent = initials(name); av.style.background = color;
+  document.getElementById('delError').style.display  = 'none';
+  document.getElementById('delConfirmBtn').disabled  = false;
+  document.getElementById('delConfirmBtn').innerHTML = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:.3rem;">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+    </svg> Delete user`;
+  document.getElementById('deleteModal').classList.add('show');
+}
+
+function closeDeleteModal() {
+  _pendingDelUserId = null;
+  document.getElementById('deleteModal').classList.remove('show');
+}
+
+async function confirmDeleteUser() {
+  if (!_pendingDelUserId) return;
+  const btn = document.getElementById('delConfirmBtn');
+  const err = document.getElementById('delError');
+  btn.disabled = true; btn.textContent = 'Deleting…'; err.style.display = 'none';
+
+  const res = await fetch(`/admin/api/users/${_pendingDelUserId}`, { method: 'DELETE' });
+  if (res.ok) { closeDeleteModal(); loadUsers(); }
+  else {
+    const d = await res.json().catch(() => ({}));
+    err.textContent = d.detail || 'Delete failed'; err.style.display = 'block';
+    btn.disabled = false;
+    btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:.3rem;"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg> Delete user`;
   }
 }
 

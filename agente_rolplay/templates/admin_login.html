@@ -3,29 +3,48 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Admin Login — Rolplay</title>
+  <title>Super Admin — Rolplay</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <script src="/static/theme.js"></script>
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
     :root, [data-theme="dark"] {
-      --bg: #050508; --text: #f1f1f5; --text-dim: rgba(255,255,255,.65);
-      --text-muted: rgba(255,255,255,.38); --border: rgba(255,255,255,.08);
-      --border-focus: #ef4444; --input-bg: rgba(255,255,255,.06);
-      --input-color: #fff; --placeholder: rgba(255,255,255,.28);
-      --surface: rgba(255,255,255,.04); --error: #f87171;
+      --bg: #050508;
+      --text: #f1f1f5;
+      --text-dim: rgba(255,255,255,.65);
+      --text-muted: rgba(255,255,255,.38);
+      --border: rgba(255,255,255,.08);
+      --border-focus: #ef4444;
+      --input-bg: rgba(255,255,255,.06);
+      --input-color: #fff;
+      --placeholder: rgba(255,255,255,.28);
+      --error: #f87171;
       --toggle-bg: rgba(255,255,255,.1);
-      --card-bg: rgba(255,255,255,.04);
+      --card-bg: rgba(255,255,255,.03);
+      --warn-bg: rgba(239,68,68,.07);
+      --warn-border: rgba(239,68,68,.18);
+      --warn-text: rgba(248,113,113,.85);
+      --grid: rgba(239,68,68,.04);
     }
     [data-theme="light"] {
-      --bg: #f4f4f8; --text: #0d0d18; --text-dim: rgba(0,0,0,.65);
-      --text-muted: rgba(0,0,0,.4); --border: rgba(0,0,0,.09);
-      --border-focus: #dc2626; --input-bg: rgba(0,0,0,.04);
-      --input-color: #0d0d18; --placeholder: rgba(0,0,0,.3);
-      --surface: rgba(0,0,0,.02); --error: #dc2626;
+      --bg: #f0f0f6;
+      --text: #0d0d18;
+      --text-dim: rgba(0,0,0,.65);
+      --text-muted: rgba(0,0,0,.4);
+      --border: rgba(0,0,0,.09);
+      --border-focus: #dc2626;
+      --input-bg: rgba(0,0,0,.04);
+      --input-color: #0d0d18;
+      --placeholder: rgba(0,0,0,.3);
+      --error: #dc2626;
       --toggle-bg: rgba(0,0,0,.07);
       --card-bg: #fff;
+      --warn-bg: rgba(220,38,38,.06);
+      --warn-border: rgba(220,38,38,.15);
+      --warn-text: #b91c1c;
+      --grid: rgba(220,38,38,.03);
     }
+
     html, body { height: 100%; }
     body {
       font-family: 'Inter', -apple-system, sans-serif;
@@ -33,75 +52,148 @@
       display: flex; align-items: center; justify-content: center;
       min-height: 100vh;
       transition: background .3s, color .3s;
+      position: relative; overflow: hidden;
+    }
+
+    /* Subtle grid background */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background-image:
+        linear-gradient(var(--grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+      background-size: 44px 44px;
+    }
+    /* Red glow behind card */
+    body::after {
+      content: '';
+      position: fixed; z-index: 0; pointer-events: none;
+      width: 520px; height: 520px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(220,38,38,.11) 0%, transparent 68%);
+      top: 50%; left: 50%; transform: translate(-50%, -50%);
     }
 
     .theme-toggle {
-      position: fixed; top: 1.1rem; right: 1.5rem;
+      position: fixed; top: 1.1rem; right: 1.5rem; z-index: 10;
       width: 34px; height: 34px; border-radius: 8px;
       background: var(--toggle-bg); border: 1px solid var(--border);
       display: flex; align-items: center; justify-content: center;
-      cursor: pointer; font-size: .9rem; z-index: 10;
-      transition: all .2s;
+      cursor: pointer; font-size: .9rem; transition: all .2s;
     }
 
+    /* ── Card ─────────────────────────────────── */
     .login-card {
-      width: 100%; max-width: 380px; padding: 2.5rem;
-      background: var(--card-bg); border: 1px solid var(--border);
+      position: relative; z-index: 1;
+      width: 100%; max-width: 400px; padding: 2.75rem 2.5rem;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
       border-radius: 20px;
-      box-shadow: 0 0 0 1px rgba(239,68,68,.08), 0 32px 80px rgba(0,0,0,.35);
+      box-shadow:
+        0 0 0 1px rgba(239,68,68,.1),
+        0 40px 100px rgba(0,0,0,.5),
+        inset 0 1px 0 rgba(255,255,255,.05);
     }
 
+    /* ── Brand row ────────────────────────────── */
     .brand {
-      display: flex; align-items: center; gap: .75rem; margin-bottom: 2rem;
+      display: flex; align-items: center; justify-content: center; gap: .75rem; margin-bottom: 2rem;
     }
     .brand-logo img { height: 24px; object-fit: contain; display: block; }
     .brand-divider { width: 1px; height: 16px; background: var(--border); flex-shrink: 0; }
     .brand-text { display: flex; flex-direction: column; gap: .2rem; }
     .brand-text img { height: 18px; object-fit: contain; display: block; }
-    .brand-text span {
-      font-size: .6rem; font-weight: 700; text-transform: uppercase;
-      letter-spacing: .8px; color: #ef4444;
+    .brand-console {
+      font-size: .58rem; font-weight: 800; text-transform: uppercase;
+      letter-spacing: 1px; color: #ef4444;
     }
 
-    .admin-chip {
+    /* ── Shield icon ──────────────────────────── */
+    .shield-wrap {
+      display: flex; justify-content: center; margin-bottom: 1.5rem;
+    }
+    .shield {
+      width: 56px; height: 56px; border-radius: 16px;
+      background: rgba(239,68,68,.1);
+      border: 1px solid rgba(239,68,68,.22);
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 0 28px rgba(239,68,68,.18), inset 0 1px 0 rgba(255,255,255,.05);
+    }
+    .shield svg { width: 28px; height: 28px; color: #ef4444; }
+
+    /* ── Heading ──────────────────────────────── */
+    .heading { text-align: center; margin-bottom: 1.5rem; }
+    .heading h2 {
+      font-size: 1.55rem; font-weight: 900; letter-spacing: -.5px;
+      color: var(--text); line-height: 1.15; margin-bottom: .3rem;
+    }
+    .heading h2 span { color: #ef4444; }
+    .heading .subtitle { color: var(--text-muted); font-size: .85rem; }
+
+    /* ── Access tier badge ────────────────────── */
+    .tier-badge {
+      display: flex; align-items: center; justify-content: center; gap: .5rem;
+      margin-bottom: 1.5rem;
+    }
+    .tier-line { flex: 1; height: 1px; background: var(--border); }
+    .tier-pill {
       display: inline-flex; align-items: center; gap: .35rem;
-      background: rgba(239,68,68,.12); color: #f87171;
-      border: 1px solid rgba(239,68,68,.2);
-      border-radius: 6px; padding: .28rem .65rem;
-      font-size: .7rem; font-weight: 700; letter-spacing: .4px;
-      margin-bottom: 1rem;
+      background: rgba(239,68,68,.1); color: #f87171;
+      border: 1px solid rgba(239,68,68,.22);
+      border-radius: 100px; padding: .25rem .75rem;
+      font-size: .68rem; font-weight: 800; letter-spacing: .5px; text-transform: uppercase;
     }
-    .admin-chip::before { content: '🔐'; }
+    .tier-pill svg { width: 10px; height: 10px; }
 
-    h2 {
-      font-size: 1.45rem; font-weight: 900; letter-spacing: -.4px;
-      margin-bottom: .3rem; color: var(--text);
+    /* ── Warning banner ───────────────────────── */
+    .warn-banner {
+      background: var(--warn-bg);
+      border: 1px solid var(--warn-border);
+      border-radius: 9px;
+      padding: .65rem .9rem;
+      margin-bottom: 1.5rem;
+      display: flex; align-items: flex-start; gap: .55rem;
     }
-    .subtitle { color: var(--text-muted); font-size: .85rem; margin-bottom: 1.75rem; }
+    .warn-banner svg { width: 15px; height: 15px; color: #f87171; flex-shrink: 0; margin-top: 1px; }
+    .warn-banner p { font-size: .78rem; color: var(--warn-text); line-height: 1.5; }
 
+    /* ── Form ─────────────────────────────────── */
     .form-group { margin-bottom: .9rem; }
     label { display: block; font-size: .8rem; font-weight: 600; color: var(--text-dim); margin-bottom: .38rem; }
-    input {
+    .input-wrap { position: relative; }
+    .input-wrap input {
       width: 100%; padding: .72rem .95rem;
       background: var(--input-bg); border: 1px solid var(--border);
       border-radius: 9px; color: var(--input-color);
       font-size: .9rem; font-family: inherit; outline: none;
-      transition: border-color .2s;
+      transition: border-color .2s, box-shadow .2s;
     }
-    input::placeholder { color: var(--placeholder); }
-    input:focus { border-color: var(--border-focus); }
+    .input-wrap input.has-toggle { padding-right: 2.6rem; }
+    .input-wrap input::placeholder { color: var(--placeholder); }
+    .input-wrap input:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px rgba(239,68,68,.1);
+    }
+    .pwd-toggle {
+      position: absolute; right: .7rem; top: 50%; transform: translateY(-50%);
+      background: none; border: none; padding: 0; cursor: pointer;
+      color: var(--text-muted); display: flex; align-items: center;
+      transition: color .2s;
+    }
+    .pwd-toggle:hover { color: var(--text-dim); }
+    .pwd-toggle svg { width: 17px; height: 17px; pointer-events: none; }
 
     .btn-submit {
-      width: 100%; padding: .85rem;
+      width: 100%; padding: .88rem;
       background: linear-gradient(135deg, #dc2626, #b91c1c);
       border: none; border-radius: 10px;
       color: #fff; font-size: .95rem; font-weight: 700;
       font-family: inherit; cursor: pointer; margin-top: .75rem;
       transition: all .2s;
-      box-shadow: 0 4px 15px rgba(220,38,38,.4);
+      box-shadow: 0 4px 18px rgba(220,38,38,.4);
+      letter-spacing: .1px;
     }
-    .btn-submit:hover { transform: translateY(-1px); box-shadow: 0 8px 25px rgba(220,38,38,.5); }
-    .btn-submit:disabled { opacity: .6; cursor: not-allowed; transform: none; }
+    .btn-submit:hover { transform: translateY(-1px); box-shadow: 0 8px 28px rgba(220,38,38,.5); }
+    .btn-submit:disabled { opacity: .6; cursor: not-allowed; transform: none; box-shadow: none; }
 
     .error-msg {
       color: var(--error); font-size: .82rem; margin-top: .6rem;
@@ -114,47 +206,120 @@
       color: var(--text-muted); font-size: .82rem; text-decoration: none;
       transition: color .2s;
     }
-    .back-link:hover { color: var(--text); }
+    .back-link:hover { color: var(--text-dim); }
+
+    /* ── Footer stamp ─────────────────────────── */
+    .security-stamp {
+      display: flex; align-items: center; justify-content: center; gap: .4rem;
+      margin-top: 2rem; padding-top: 1.25rem;
+      border-top: 1px solid var(--border);
+      color: var(--text-muted); font-size: .7rem; letter-spacing: .3px;
+    }
+    .security-stamp svg { width: 12px; height: 12px; opacity: .5; }
   </style>
 </head>
 <body>
   <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()">🌙</button>
 
   <div class="login-card">
+
+    <!-- Brand -->
     <div class="brand">
       <div class="brand-logo"><img src="/static/second-brain-logo.png" alt="Second Brain" /></div>
       <span class="brand-divider"></span>
       <div class="brand-text">
         <img src="/static/rolplay-logo.png" alt="Rolplay" />
-        <span>Admin Console</span>
+        <span class="brand-console">Super Admin Console</span>
       </div>
     </div>
 
-    <div class="admin-chip">Restricted Access</div>
-    <h2>Admin Sign In</h2>
-    <p class="subtitle">Only authorised Rolplay personnel</p>
+    <!-- Shield -->
+    <div class="shield-wrap">
+      <div class="shield">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+        </svg>
+      </div>
+    </div>
 
+    <!-- Heading -->
+    <div class="heading">
+      <h2>Super<span>Admin</span> Access</h2>
+      <p class="subtitle">Rolplay internal use only</p>
+    </div>
+
+    <!-- Tier badge -->
+    <div class="tier-badge">
+      <span class="tier-line"></span>
+      <span class="tier-pill">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
+        </svg>
+        Highest Privilege Level
+      </span>
+      <span class="tier-line"></span>
+    </div>
+
+    <!-- Warning -->
+    <div class="warn-banner">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+      </svg>
+      <p>This portal grants unrestricted access to all organisations, users, and platform data. Unauthorised access is prohibited.</p>
+    </div>
+
+    <!-- Form -->
     <form id="adminLoginForm">
       <div class="form-group">
         <label>Admin Email</label>
-        <input type="email" id="adm_email" required placeholder="admin@rolplay.ai" autocomplete="email" />
+        <div class="input-wrap">
+          <input type="email" id="adm_email" required placeholder="admin@rolplay.ai" autocomplete="email" />
+        </div>
       </div>
       <div class="form-group">
         <label>Password</label>
-        <input type="password" id="adm_password" required placeholder="••••••••" autocomplete="current-password" />
+        <div class="input-wrap">
+          <input type="password" id="adm_password" required placeholder="••••••••" autocomplete="current-password" class="has-toggle" />
+          <button type="button" class="pwd-toggle" onclick="togglePwd('adm_password', this)" aria-label="Toggle password visibility">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+            </svg>
+          </button>
+        </div>
       </div>
-      <button type="submit" class="btn-submit" id="loginBtn">Sign In to Admin</button>
+      <button type="submit" class="btn-submit" id="loginBtn">Sign In to Super Admin</button>
     </form>
     <div class="error-msg" id="loginError"></div>
+
     <a href="/" class="back-link">← Back to platform</a>
+
+    <!-- Security stamp -->
+    <div class="security-stamp">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+      </svg>
+      All sessions are logged and monitored
+    </div>
+
   </div>
 
   <script>
+    function togglePwd(inputId, btn) {
+      const input = document.getElementById(inputId);
+      const svg = btn.querySelector('svg');
+      const isHidden = input.type === 'password';
+      input.type = isHidden ? 'text' : 'password';
+      svg.innerHTML = isHidden
+        ? '<path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>'
+        : '<path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>';
+    }
+
     document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const btn = document.getElementById('loginBtn');
       const err = document.getElementById('loginError');
-      btn.disabled = true; btn.textContent = 'Signing in…'; err.style.display = 'none';
+      btn.disabled = true; btn.textContent = 'Authenticating…'; err.style.display = 'none';
       try {
         const res = await fetch('/admin/api/login', {
           method: 'POST',
@@ -170,12 +335,12 @@
           const d = await res.json().catch(() => ({}));
           err.textContent = d.detail || 'Invalid credentials';
           err.style.display = 'block';
-          btn.disabled = false; btn.textContent = 'Sign In to Admin';
+          btn.disabled = false; btn.textContent = 'Sign In to Super Admin';
         }
       } catch (_) {
         err.textContent = 'Connection error. Please try again.';
         err.style.display = 'block';
-        btn.disabled = false; btn.textContent = 'Sign In to Admin';
+        btn.disabled = false; btn.textContent = 'Sign In to Super Admin';
       }
     });
   </script>
