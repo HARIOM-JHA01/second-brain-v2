@@ -68,6 +68,30 @@ def list_kb_files(current_user: User = Depends(get_current_user)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/api/rag/search")
+def semantic_search(
+    q: str,
+    top_k: int = 5,
+    current_user: User = Depends(get_current_user),
+):
+    """Semantic vector search over the org's knowledge base."""
+    from agente_rolplay.storage.pinecone_client import search_knowledge_base
+
+    if not q or len(q.strip()) < 2:
+        raise HTTPException(status_code=400, detail="Query too short")
+
+    results = search_knowledge_base(q.strip(), top_k=top_k)
+
+    # Deduplicate by filename — keep highest score + best preview per file
+    seen: dict = {}
+    for r in results:
+        fname = r.get("filename") or ""
+        if fname not in seen or r["score"] > seen[fname]["score"]:
+            seen[fname] = r
+
+    return list(seen.values())
+
+
 @router.delete("/api/rag/files")
 def delete_kb_file(
     public_id: str,

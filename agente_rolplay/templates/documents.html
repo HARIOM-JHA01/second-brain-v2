@@ -96,6 +96,104 @@
   .doc-list.visible { display: block; }
   .doc-grid.visible { display: grid; }
   .doc-grid.hidden { display: none; }
+
+  /* ── Preview modal ──────────────────────────────── */
+  .preview-modal {
+    display: none; position: fixed; inset: 0; z-index: 600;
+    background: rgba(0,0,0,.72); backdrop-filter: blur(6px);
+    align-items: center; justify-content: center; padding: 1.5rem;
+  }
+  .preview-modal.show { display: flex; }
+  .preview-shell {
+    background: var(--modal-bg); border: 1px solid var(--border);
+    border-radius: 16px; width: 100%; max-width: 900px;
+    max-height: 90vh; display: flex; flex-direction: column;
+    box-shadow: 0 24px 64px rgba(0,0,0,.5);
+    overflow: hidden;
+  }
+  .preview-header {
+    display: flex; align-items: center; gap: .75rem;
+    padding: .9rem 1.25rem; border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .preview-header-name {
+    font-size: .9rem; font-weight: 700; color: var(--text);
+    flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .preview-header-meta { font-size: .75rem; color: var(--text-muted); flex-shrink: 0; }
+  .preview-close {
+    background: none; border: none; cursor: pointer;
+    color: var(--text-muted); font-size: 1.5rem; line-height: 1;
+    padding: 0; transition: color .2s; flex-shrink: 0;
+  }
+  .preview-close:hover { color: var(--text); }
+  .preview-body {
+    flex: 1; overflow: hidden; display: flex;
+    align-items: center; justify-content: center;
+    background: var(--surface); min-height: 0;
+  }
+  .preview-body img {
+    max-width: 100%; max-height: 100%;
+    object-fit: contain; display: block;
+  }
+  .preview-body iframe {
+    width: 100%; height: 100%; border: none; display: block;
+  }
+  .preview-unsupported {
+    text-align: center; padding: 3rem; color: var(--text-muted);
+  }
+  .preview-unsupported .u-icon { font-size: 3rem; margin-bottom: 1rem; display: block; }
+  .preview-footer {
+    display: flex; gap: .65rem; padding: .85rem 1.25rem;
+    border-top: 1px solid var(--border); flex-shrink: 0;
+    justify-content: flex-end;
+  }
+
+  /* semantic search result extras */
+  .doc-snippet {
+    font-size: .74rem; color: var(--text-dim); line-height: 1.5;
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+    overflow: hidden; margin-top: -.1rem;
+  }
+  .doc-thumb {
+    width: 100%; height: 130px; object-fit: cover;
+    border-radius: 8px; display: block;
+    background: var(--surface);
+  }
+
+  .relevance-badge {
+    display: inline-flex; align-items: center; gap: .25rem;
+    font-size: .65rem; font-weight: 700; letter-spacing: .2px;
+    background: rgba(99,102,241,.12); color: #818cf8;
+    border: 1px solid rgba(99,102,241,.25);
+    border-radius: 5px; padding: .12rem .45rem;
+  }
+  .search-mode-banner {
+    display: flex; align-items: center; gap: .5rem;
+    background: rgba(99,102,241,.08); border: 1px solid rgba(99,102,241,.2);
+    border-radius: 8px; padding: .5rem .9rem;
+    font-size: .8rem; color: #818cf8; font-weight: 600;
+    margin-bottom: 1rem;
+  }
+
+  /* shimmer animation (local copy for this page) */
+  @keyframes shimmer {
+    0%   { background-position: -400px 0; }
+    100% { background-position:  400px 0; }
+  }
+  .skel-line {
+    border-radius: 6px; height: 12px;
+    background: linear-gradient(90deg, var(--surface) 25%, var(--border) 50%, var(--surface) 75%);
+    background-size: 400px 100%;
+    animation: shimmer 1.4s infinite linear;
+  }
+
+  /* skeleton card */
+  .doc-card-skel {
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: 12px; padding: 1.2rem 1.25rem;
+    display: flex; flex-direction: column; gap: .75rem;
+  }
 </style>
 {% endblock %}
 
@@ -110,10 +208,17 @@
   <span class="count-chip" id="docCount">—</span>
 </div>
 
+<!-- ── Semantic search banner ─────────────────────── -->
+<div class="search-mode-banner" id="semanticBanner" style="display:none;">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+  Semantic search — showing results ranked by relevance
+  <button onclick="clearSearch()" style="margin-left:auto;background:none;border:none;color:#818cf8;cursor:pointer;font-size:.78rem;font-weight:700;">✕ Clear</button>
+</div>
+
 <!-- ── Filter bar ────────────────────────────────── -->
 <div class="filter-bar">
   <div class="search-bar">
-    <input type="text" id="searchInput" data-i18n-ph="docs.search.ph" placeholder="Buscar documentos…" oninput="filterDocs()" />
+    <input type="text" id="searchInput" data-i18n-ph="docs.search.ph" placeholder="Search documents semantically…" oninput="onSearchInput(this.value)" />
   </div>
   <select class="filter-select" id="typeFilter" onchange="filterDocs()">
     <option value="" data-i18n="docs.filter.all">Todos los tipos</option>
@@ -131,7 +236,17 @@
 </div>
 
 <!-- ── Grid view ─────────────────────────────────── -->
-<div class="doc-grid visible" id="docGrid"></div>
+<div class="doc-grid visible" id="docGrid">
+  {% for _ in range(8) %}
+  <div class="doc-card-skel">
+    <div class="skel-line" style="width:2rem;height:2rem;border-radius:8px;"></div>
+    <div class="skel-line" style="width:75%;height:13px;"></div>
+    <div class="skel-line" style="width:45%;height:10px;"></div>
+    <div class="skel-line" style="width:55%;height:10px;"></div>
+    <div class="skel-line" style="width:100%;height:30px;border-radius:8px;margin-top:.2rem;"></div>
+  </div>
+  {% endfor %}
+</div>
 
 <!-- ── List view ─────────────────────────────────── -->
 <div class="doc-list" id="docList">
@@ -151,6 +266,25 @@
   </div>
 </div>
 
+<!-- ── Preview Modal ──────────────────────────────── -->
+<div class="preview-modal" id="previewModal" onclick="closePreview(event)">
+  <div class="preview-shell" onclick="event.stopPropagation()">
+    <div class="preview-header">
+      <span id="prevIcon" style="font-size:1.3rem;flex-shrink:0;"></span>
+      <span class="preview-header-name" id="prevName"></span>
+      <span class="preview-header-meta" id="prevMeta"></span>
+      <button class="preview-close" onclick="closePreview()">&times;</button>
+    </div>
+    <div class="preview-body" id="prevBody" style="height:70vh;"></div>
+    <div class="preview-footer">
+      <a id="prevDownload" href="#" target="_blank" class="btn btn-primary btn-sm">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Open / Download
+      </a>
+    </div>
+  </div>
+</div>
+
 <script>
 const token = () => localStorage.getItem('access_token');
 const authFetch = (url, opts = {}) => fetch(url, {
@@ -159,6 +293,61 @@ const authFetch = (url, opts = {}) => fetch(url, {
 
 let allDocs = [];
 let currentView = 'grid';
+let _searchTimer = null;
+let _semanticMode = false;
+
+// ── Preview modal ──────────────────────────────────────────────────────────────
+function openPreview(url, name, info, sizeFmt) {
+  document.getElementById('prevIcon').textContent = info.icon;
+  document.getElementById('prevName').textContent = name;
+  document.getElementById('prevMeta').textContent = sizeFmt || '';
+  document.getElementById('prevDownload').href = url;
+
+  const body = document.getElementById('prevBody');
+  body.innerHTML = '';
+
+  if (info.type === 'image') {
+    const img = document.createElement('img');
+    img.src = url;
+    img.alt = name;
+    img.style.cssText = 'max-width:100%;max-height:100%;object-fit:contain;';
+    body.appendChild(img);
+
+  } else if (info.type === 'pdf') {
+    const iframe = document.createElement('iframe');
+    iframe.src = url;
+    iframe.style.cssText = 'width:100%;height:100%;border:none;';
+    iframe.title = name;
+    body.appendChild(iframe);
+
+  } else if (['word','excel','ppt'].includes(info.type)) {
+    // Google Docs viewer for Office files
+    const iframe = document.createElement('iframe');
+    iframe.src = `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
+    iframe.style.cssText = 'width:100%;height:100%;border:none;';
+    iframe.title = name;
+    body.appendChild(iframe);
+
+  } else {
+    body.innerHTML = `
+      <div class="preview-unsupported">
+        <span class="u-icon">📎</span>
+        <div style="font-size:.95rem;font-weight:700;color:var(--text);margin-bottom:.4rem;">${name}</div>
+        <div style="margin-bottom:1.25rem;">Preview not available for this file type.</div>
+        <a href="${url}" target="_blank" class="btn btn-primary btn-sm">Open file ↗</a>
+      </div>`;
+  }
+
+  document.getElementById('previewModal').classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+
+function closePreview(e) {
+  if (e && e.target !== document.getElementById('previewModal')) return;
+  document.getElementById('previewModal').classList.remove('show');
+  document.getElementById('prevBody').innerHTML = '';   // stop iframe loading
+  document.body.style.overflow = '';
+}
 
 function getFileInfo(doc) {
   const fmt = (doc.format || '').toLowerCase();
@@ -198,20 +387,153 @@ async function loadDocs() {
   filterDocs();
 }
 
+// ── Keyword filter (type dropdown only, used when not in semantic mode) ───────
 function filterDocs() {
-  const q    = document.getElementById('searchInput').value.toLowerCase();
   const type = document.getElementById('typeFilter').value;
-
   const filtered = allDocs.filter(d => {
     const info = getFileInfo(d);
-    const matchQ = !q || (d.name || '').toLowerCase().includes(q);
-    const matchT = !type || info.type === type;
-    return matchQ && matchT;
+    return !type || info.type === type;
   });
-
   document.getElementById('docCount').textContent = filtered.length + ' file' + (filtered.length !== 1 ? 's' : '');
   renderGrid(filtered);
   renderList(filtered);
+}
+
+// ── Search input handler with debounce ────────────────────────────────────────
+function onSearchInput(val) {
+  clearTimeout(_searchTimer);
+  const q = val.trim();
+  if (!q) {
+    clearSearch();
+    return;
+  }
+  if (q.length < 2) return;
+  _searchTimer = setTimeout(() => runSemanticSearch(q), 420);
+}
+
+function clearSearch() {
+  _semanticMode = false;
+  document.getElementById('searchInput').value = '';
+  document.getElementById('semanticBanner').style.display = 'none';
+  document.getElementById('typeFilter').disabled = false;
+  filterDocs();
+}
+
+// ── Semantic search ───────────────────────────────────────────────────────────
+async function runSemanticSearch(q) {
+  _semanticMode = true;
+  document.getElementById('semanticBanner').style.display = 'flex';
+  document.getElementById('typeFilter').disabled = true;
+
+  // Show skeleton while waiting
+  const grid = document.getElementById('docGrid');
+  grid.innerHTML = Array(4).fill(`
+    <div class="doc-card-skel">
+      <div class="skel-line" style="width:2rem;height:2rem;border-radius:8px;"></div>
+      <div class="skel-line" style="width:75%;height:13px;"></div>
+      <div class="skel-line" style="width:45%;height:10px;"></div>
+      <div class="skel-line" style="width:55%;height:10px;"></div>
+      <div class="skel-line" style="width:100%;height:30px;border-radius:8px;margin-top:.2rem;"></div>
+    </div>`).join('');
+
+  const r = await authFetch(`/api/rag/search?q=${encodeURIComponent(q)}&top_k=5`);
+  if (!r.ok) {
+    grid.innerHTML = `<div style="grid-column:1/-1;padding:2rem;color:var(--text-muted);">Search failed. Try again.</div>`;
+    return;
+  }
+
+  const results = await r.json();
+  document.getElementById('docCount').textContent = results.length + ' result' + (results.length !== 1 ? 's' : '');
+  renderSemanticGrid(results);
+  renderSemanticList(results);
+}
+
+function renderSemanticGrid(results) {
+  const grid = document.getElementById('docGrid');
+  if (!results.length) {
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--text-muted);">
+      <span style="font-size:2.5rem;display:block;margin-bottom:.75rem;">🔍</span>No matching documents found</div>`;
+    return;
+  }
+
+  // Try to cross-reference with allDocs for full metadata (size, URL, etc.)
+  const docMap = {};
+  allDocs.forEach(d => { if (d.name) docMap[d.name.toLowerCase()] = d; });
+
+  grid.innerHTML = results.map((r, i) => {
+    const fname = r.filename || '—';
+    const matched = docMap[fname.toLowerCase()];
+    const info = matched ? getFileInfo(matched) : { icon: '📎', type: 'raw', label: 'File' };
+    const secureUrl = matched?.secure_url || r.cloudinary_url || null;
+    const isImage = info.type === 'image';
+    const score = Math.round((r.score || 0) * 100);
+    const preview = (r.text_preview || '').trim();
+    const date = matched?.created_at
+      ? new Date(matched.created_at).toLocaleDateString(getLang() === 'es' ? 'es-ES' : 'en-US')
+      : '—';
+
+    const topEl = isImage && secureUrl
+      ? `<img class="doc-thumb" src="${secureUrl}" alt="${fname}" loading="lazy">`
+      : `<span class="doc-icon">${info.icon}</span>`;
+
+    return `
+      <div class="doc-card">
+        ${topEl}
+        <div class="doc-name">${fname}</div>
+        ${!isImage && preview ? `<div class="doc-snippet">${preview}</div>` : ''}
+        <div class="doc-meta">
+          <span>
+            <span class="doc-badge ${info.type}">${info.label}</span>
+            <span class="relevance-badge" style="margin-left:.3rem;">⚡ ${score}% match</span>
+          </span>
+          ${matched ? `<span>${fmtBytes(matched.bytes)}</span>` : ''}
+          <span>${date}</span>
+        </div>
+        <div class="doc-actions">
+          ${secureUrl
+            ? `<button class="btn btn-secondary btn-sm" onclick="openPreview('${secureUrl}','${fname.replace(/'/g,"\\'")}',${JSON.stringify(info)},'${matched ? fmtBytes(matched.bytes) : ""}')">${t('docs.btn.view')}</button>`
+            : `<span class="btn btn-secondary btn-sm" style="opacity:.4;cursor:default;">${t('docs.no_url')}</span>`}
+          ${matched ? `<button class="btn btn-danger btn-sm" onclick="deleteDocByName('${encodeURIComponent(fname)}')">${t('docs.btn.delete')}</button>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function renderSemanticList(results) {
+  const tbody = document.getElementById('docListBody');
+  const docMap = {};
+  allDocs.forEach(d => { if (d.name) docMap[d.name.toLowerCase()] = d; });
+
+  tbody.innerHTML = results.map((r, i) => {
+    const fname = r.filename || '—';
+    const matched = docMap[fname.toLowerCase()];
+    const info = matched ? getFileInfo(matched) : { icon: '📎', type: 'raw', label: 'File' };
+    const secureUrl = matched?.secure_url || r.cloudinary_url || null;
+    const score = Math.round((r.score || 0) * 100);
+    const date = matched?.created_at
+      ? new Date(matched.created_at).toLocaleDateString(getLang() === 'es' ? 'es-ES' : 'en-US') : '—';
+    return `
+      <tr>
+        <td class="td-name">${info.icon} ${fname}</td>
+        <td><span class="doc-badge ${info.type}">${info.label}</span></td>
+        <td>${matched ? fmtBytes(matched.bytes) : '—'}</td>
+        <td>${date}</td>
+        <td>
+          <div class="actions">
+            ${secureUrl ? `<a href="${secureUrl}" target="_blank" class="btn btn-secondary btn-sm">${t('docs.btn.view')}</a>` : ''}
+            <span class="relevance-badge">⚡ ${score}%</span>
+          </div>
+        </td>
+      </tr>`;
+  }).join('');
+}
+
+async function deleteDocByName(encodedName) {
+  const fname = decodeURIComponent(encodedName);
+  const doc = allDocs.find(d => (d.name || '').toLowerCase() === fname.toLowerCase());
+  if (!doc) return;
+  const idx = allDocs.indexOf(doc);
+  await deleteDoc(idx);
 }
 
 function renderGrid(docs) {
@@ -226,10 +548,14 @@ function renderGrid(docs) {
   }
   grid.innerHTML = docs.map((d, i) => {
     const info = getFileInfo(d);
+    const isImage = info.type === 'image';
     const date = d.created_at ? new Date(d.created_at).toLocaleDateString(getLang() === 'es' ? 'es-ES' : 'en-US') : '—';
+    const topEl = isImage && d.secure_url
+      ? `<img class="doc-thumb" src="${d.secure_url}" alt="${d.name || ''}" loading="lazy">`
+      : `<span class="doc-icon">${info.icon}</span>`;
     return `
       <div class="doc-card">
-        <span class="doc-icon">${info.icon}</span>
+        ${topEl}
         <div class="doc-name">${d.name || 'Untitled'}</div>
         <div class="doc-meta">
           <span><span class="doc-badge ${info.type}">${info.label}</span></span>
@@ -238,7 +564,7 @@ function renderGrid(docs) {
         </div>
         <div class="doc-actions">
           ${d.secure_url
-            ? `<a href="${d.secure_url}" target="_blank" class="btn btn-secondary btn-sm">${t('docs.btn.view')}</a>`
+            ? `<button class="btn btn-secondary btn-sm" onclick="openPreview('${d.secure_url}','${(d.name||'').replace(/'/g,"\\'")}',getFileInfo(allDocs[${i}]),'${fmtBytes(d.bytes)}')">${t('docs.btn.view')}</button>`
             : `<span class="btn btn-secondary btn-sm" style="opacity:.4;cursor:default;">${t('docs.no_url')}</span>`}
           <button class="btn btn-danger btn-sm" onclick="deleteDoc(${i})">${t('docs.btn.delete')}</button>
         </div>
@@ -303,7 +629,8 @@ function setView(view) {
   document.getElementById('listViewBtn').classList.toggle('active', view === 'list');
 }
 
-document.addEventListener('langchange', () => filterDocs());
+document.addEventListener('langchange', () => { if (!_semanticMode) filterDocs(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { document.getElementById('prevBody').innerHTML = ''; document.getElementById('previewModal').classList.remove('show'); document.body.style.overflow = ''; } });
 
 loadDocs();
 </script>

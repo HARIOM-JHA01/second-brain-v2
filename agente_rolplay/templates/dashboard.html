@@ -271,6 +271,43 @@
   .progress-bar-wrap { height: 6px; background: var(--border); border-radius: 10px; overflow: hidden; margin-top: .4rem; }
   .progress-bar { height: 100%; border-radius: 10px; transition: width .8s ease; }
 
+  /* ── Global period selector ─────────────────── */
+  .period-tabs {
+    display: flex; gap: .35rem; align-items: center;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: .25rem;
+  }
+  .period-tab {
+    padding: .32rem .85rem; border-radius: 7px; border: none;
+    background: transparent; color: var(--text-muted);
+    font-size: .78rem; font-weight: 600; cursor: pointer;
+    font-family: inherit; transition: all .18s;
+  }
+  .period-tab:hover { color: var(--text); }
+  .period-tab.active {
+    background: var(--indigo); color: #fff;
+  }
+
+  /* ── Card skeleton loader ───────────────────── */
+  @keyframes shimmer {
+    0%   { background-position: -400px 0; }
+    100% { background-position:  400px 0; }
+  }
+  .card-skel {
+    position: absolute; inset: 0; border-radius: 14px; z-index: 10;
+    background: var(--card-bg);
+    display: flex; flex-direction: column; gap: .75rem;
+    padding: 1.4rem 1.5rem;
+  }
+  .card-skel.hidden { display: none; }
+  .skel-line {
+    border-radius: 6px; height: 12px;
+    background: linear-gradient(90deg, var(--surface) 25%, var(--border) 50%, var(--surface) 75%);
+    background-size: 400px 100%;
+    animation: shimmer 1.4s infinite linear;
+  }
+  .skel-line.tall  { height: 100%; border-radius: 10px; flex: 1; }
+
   /* ── Empty state ────────────────────────────── */
   .empty-state {
     text-align: center; padding: 2.5rem 1rem; color: var(--text-muted); font-size: .88rem;
@@ -316,9 +353,15 @@
         <h1 id="welcomeTitle" data-i18n="dash.title">Panel</h1>
         <div class="page-header-sub" id="welcomeSub" data-i18n="dash.loading">Cargando tu espacio de trabajo…</div>
       </div>
-      <button class="btn btn-primary" id="addUserBtn" onclick="document.getElementById('addUserModal').classList.add('show')" data-i18n="dash.add_user">
-        + Agregar usuario
-      </button>
+      <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;">
+        <div class="period-tabs" id="periodTabs">
+          <button class="period-tab" data-days="7" onclick="setPeriod(7)">7d</button>
+          <button class="period-tab active" data-days="30" onclick="setPeriod(30)">30d</button>
+        </div>
+        <button class="btn btn-primary" id="addUserBtn" onclick="document.getElementById('addUserModal').classList.add('show')" data-i18n="dash.add_user">
+          + Agregar usuario
+        </button>
+      </div>
     </div>
 
     <!-- ── Summary pills ───────────────────────────── -->
@@ -354,27 +397,19 @@
     <div class="charts-grid" style="grid-template-columns:2fr 1fr;">
       <!-- Messages over time -->
       <div class="chart-card">
+        <div class="card-skel" id="skelMessages">
+          <div class="skel-line" style="width:55%;"></div>
+          <div class="skel-line" style="width:35%;height:9px;"></div>
+          <div class="skel-line tall"></div>
+        </div>
         <div class="chart-card-header">
           <div>
             <div class="chart-card-title" data-i18n="dash.chart.msg_activity">Actividad de mensajes</div>
             <div class="chart-card-sub" id="msgActivitySub" data-i18n="dash.chart.msg_per_day">Mensajes por día en tu organización</div>
           </div>
-          <div class="chart-range-ctrl">
-            <select class="chart-range-select" id="msgsRangeSelect" onchange="onMsgsRangeChange(this.value)">
-              <option value="3">3d</option>
-              <option value="7">7d</option>
-              <option value="15">15d</option>
-              <option value="30" selected>1m</option>
-              <option value="90">3m</option>
-              <option value="180">6m</option>
-              <option value="custom" data-i18n="dash.range.custom">Custom</option>
-            </select>
-            <div class="chart-date-inputs" id="msgsDates" style="display:none;">
-              <input type="date" id="msgsFrom" />
-              <span class="date-sep">–</span>
-              <input type="date" id="msgsTo" />
-              <button class="date-apply-btn" onclick="applyMsgsCustom()" data-i18n="dash.range.apply">Apply</button>
-            </div>
+          <div style="text-align:right;">
+            <div class="chart-card-stat" id="stat-msgs-total">—</div>
+            <div class="chart-card-stat-label" id="stat-msgs-label">mensajes</div>
           </div>
         </div>
         <div class="chart-canvas-wrap" style="height:200px;">
@@ -384,6 +419,11 @@
 
       <!-- User status donut -->
       <div class="chart-card">
+        <div class="card-skel" id="skelUserStatus">
+          <div class="skel-line" style="width:60%;"></div>
+          <div class="skel-line" style="width:40%;height:9px;"></div>
+          <div class="skel-line tall"></div>
+        </div>
         <div class="chart-card-header">
           <div>
             <div class="chart-card-title" data-i18n="dash.chart.team_status">Estado del equipo</div>
@@ -404,14 +444,19 @@
     <div class="charts-grid" style="grid-template-columns:1fr 1fr;">
       <!-- Signups over time -->
       <div class="chart-card">
+        <div class="card-skel" id="skelSignups">
+          <div class="skel-line" style="width:55%;"></div>
+          <div class="skel-line" style="width:35%;height:9px;"></div>
+          <div class="skel-line tall"></div>
+        </div>
         <div class="chart-card-header">
           <div>
             <div class="chart-card-title" data-i18n="dash.chart.team_growth">Crecimiento del equipo</div>
-            <div class="chart-card-sub" data-i18n="dash.chart.new_members">Nuevos miembros por día (30d)</div>
+            <div class="chart-card-sub" data-i18n="dash.chart.new_members">Nuevos miembros por día</div>
           </div>
-          <div>
+          <div style="text-align:right;">
             <div class="chart-card-stat" id="stat-new7">—</div>
-            <div class="chart-card-stat-label" data-i18n="dash.lbl.new_week">nuevos esta semana</div>
+            <div class="chart-card-stat-label" id="stat-new7-label" data-i18n="dash.lbl.new_week">nuevos esta semana</div>
           </div>
         </div>
         <div class="chart-canvas-wrap" style="height:180px;">
@@ -421,27 +466,15 @@
 
       <!-- Message types breakdown donut -->
       <div class="chart-card">
+        <div class="card-skel" id="skelMsgTypes">
+          <div class="skel-line" style="width:60%;"></div>
+          <div class="skel-line" style="width:40%;height:9px;"></div>
+          <div class="skel-line tall"></div>
+        </div>
         <div class="chart-card-header">
           <div>
             <div class="chart-card-title" data-i18n="dash.chart.msg_breakdown">Desglose de mensajes</div>
-            <div class="chart-card-sub" id="breakdownSub" data-i18n="dash.chart.by_type">Por tipo, últimos 30 días</div>
-          </div>
-          <div class="chart-range-ctrl">
-            <select class="chart-range-select" id="breakdownRangeSelect" onchange="onBreakdownRangeChange(this.value)">
-              <option value="3">3d</option>
-              <option value="7">7d</option>
-              <option value="15">15d</option>
-              <option value="30" selected>1m</option>
-              <option value="90">3m</option>
-              <option value="180">6m</option>
-              <option value="custom" data-i18n="dash.range.custom">Custom</option>
-            </select>
-            <div class="chart-date-inputs" id="breakdownDates" style="display:none;">
-              <input type="date" id="breakdownFrom" />
-              <span class="date-sep">–</span>
-              <input type="date" id="breakdownTo" />
-              <button class="date-apply-btn" onclick="applyBreakdownCustom()" data-i18n="dash.range.apply">Apply</button>
-            </div>
+            <div class="chart-card-sub" id="breakdownSub" data-i18n="dash.chart.by_type">Por tipo</div>
           </div>
         </div>
         <div class="chart-canvas-wrap" style="height:150px;">
@@ -543,12 +576,8 @@
             data,
             borderColor: color,
             backgroundColor: color.replace(')', ', 0.12)').replace('rgb', 'rgba'),
-            borderWidth: 2,
-            pointRadius: 3,
-            pointHoverRadius: 6,
-            pointBackgroundColor: color,
-            tension: 0.35,
-            fill: true,
+            borderWidth: 2, pointRadius: 3, pointHoverRadius: 6,
+            pointBackgroundColor: color, tension: 0.35, fill: true,
           }]
         },
         options: {
@@ -557,28 +586,15 @@
           plugins: {
             legend: { display: false },
             tooltip: {
-              backgroundColor: d.tooltipBg,
-              titleColor: d.tickColor,
-              bodyColor: d.tooltipColor,
-              borderColor: 'rgba(220,38,38,0.3)',
-              borderWidth: 1,
-              padding: 10,
-              callbacks: {
-                title: items => items[0].label,
-                label: item => ` ${item.raw} messages`,
-              }
+              backgroundColor: d.tooltipBg, titleColor: d.tickColor,
+              bodyColor: d.tooltipColor, borderColor: 'rgba(220,38,38,0.3)',
+              borderWidth: 1, padding: 10,
+              callbacks: { title: items => items[0].label, label: item => ` ${item.raw} messages` }
             }
           },
           scales: {
-            x: {
-              grid: { color: d.gridColor },
-              ticks: { color: d.tickColor, maxTicksLimit: 8, font: { size: 11 } },
-            },
-            y: {
-              grid: { color: d.gridColor },
-              ticks: { color: d.tickColor, font: { size: 11 }, precision: 0 },
-              beginAtZero: true,
-            }
+            x: { grid: { color: d.gridColor }, ticks: { color: d.tickColor, maxTicksLimit: 8, font: { size: 11 } } },
+            y: { grid: { color: d.gridColor }, ticks: { color: d.tickColor, font: { size: 11 }, precision: 0 }, beginAtZero: true }
           }
         }
       });
@@ -594,10 +610,7 @@
           datasets: [{
             data,
             backgroundColor: color.replace(')', ', 0.7)').replace('rgb', 'rgba'),
-            borderColor: color,
-            borderWidth: 1.5,
-            borderRadius: 5,
-            borderSkipped: false,
+            borderColor: color, borderWidth: 1.5, borderRadius: 5, borderSkipped: false,
           }]
         },
         options: {
@@ -606,25 +619,15 @@
           plugins: {
             legend: { display: false },
             tooltip: {
-              backgroundColor: d.tooltipBg,
-              titleColor: d.tickColor,
-              bodyColor: d.tooltipColor,
-              borderColor: 'rgba(220,38,38,0.3)',
-              borderWidth: 1,
-              padding: 10,
+              backgroundColor: d.tooltipBg, titleColor: d.tickColor,
+              bodyColor: d.tooltipColor, borderColor: 'rgba(220,38,38,0.3)',
+              borderWidth: 1, padding: 10,
               callbacks: { label: item => ` ${item.raw} new members` }
             }
           },
           scales: {
-            x: {
-              grid: { display: false },
-              ticks: { color: d.tickColor, maxTicksLimit: 8, font: { size: 11 } },
-            },
-            y: {
-              grid: { color: d.gridColor },
-              ticks: { color: d.tickColor, font: { size: 11 }, precision: 0 },
-              beginAtZero: true,
-            }
+            x: { grid: { display: false }, ticks: { color: d.tickColor, maxTicksLimit: 8, font: { size: 11 } } },
+            y: { grid: { color: d.gridColor }, ticks: { color: d.tickColor, font: { size: 11 }, precision: 0 }, beginAtZero: true }
           }
         }
       });
@@ -633,53 +636,34 @@
     function makeDonutChart(id, labels, data, colors) {
       const ctx = document.getElementById(id).getContext('2d');
       const d = chartDefaults();
-      const chart = new Chart(ctx, {
+      return new Chart(ctx, {
         type: 'doughnut',
-        data: {
-          labels,
-          datasets: [{ data, backgroundColor: colors, borderWidth: 2,
-            borderColor: isDark() ? '#151823' : '#ffffff',
-            hoverOffset: 6 }]
-        },
+        data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 2,
+          borderColor: isDark() ? '#151823' : '#ffffff', hoverOffset: 6 }] },
         options: {
-          responsive: true, maintainAspectRatio: false,
-          cutout: '68%',
+          responsive: true, maintainAspectRatio: false, cutout: '68%',
           plugins: {
             legend: { display: false },
             tooltip: {
-              backgroundColor: d.tooltipBg,
-              titleColor: d.tickColor,
-              bodyColor: d.tooltipColor,
-              borderColor: 'rgba(220,38,38,0.3)',
-              borderWidth: 1,
-              padding: 10,
-              callbacks: {
-                label: item => ` ${item.label}: ${item.raw}`
-              }
+              backgroundColor: d.tooltipBg, titleColor: d.tickColor,
+              bodyColor: d.tooltipColor, borderColor: 'rgba(220,38,38,0.3)',
+              borderWidth: 1, padding: 10,
+              callbacks: { label: item => ` ${item.label}: ${item.raw}` }
             }
           }
         }
       });
-      return chart;
     }
 
     // ── State ──────────────────────────────────────────────────────────────────
-    let msgsChartFull = [];      // all fetched daily message data
-    let breakdownTypeFull = {};  // message type breakdown from last API fetch
+    let _stats = null;           // raw API response stored after first fetch
+    let msgsChartFull = [];
+    let signupsChartFull = [];
     let chartMsgs = null;
+    let chartSignups = null;
     let chartMsgTypes = null;
-
-    const RANGE_LABELS = { 3:'3d', 7:'7d', 15:'15d', 30:'1m', 90:'3m', 180:'6m' };
-
-    function todayStr() { return new Date().toISOString().slice(0,10); }
-    function daysAgoStr(n) { return new Date(Date.now() - n*86400000).toISOString().slice(0,10); }
-
-    function initDatePickers() {
-      document.getElementById('msgsFrom').value = daysAgoStr(7);
-      document.getElementById('msgsTo').value   = todayStr();
-      document.getElementById('breakdownFrom').value = daysAgoStr(7);
-      document.getElementById('breakdownTo').value   = todayStr();
-    }
+    let chartUserStatus = null;
+    let currentPeriod = 30;
 
     function buildDateLabels(data, days) {
       const map = {};
@@ -694,87 +678,71 @@
       return { labels, counts };
     }
 
-    function buildCustomDateLabels(data, from, to) {
-      const map = {};
-      data.forEach(r => { map[r.day] = r.count; });
-      const labels = [], counts = [];
-      const end = new Date(to);
-      for (let d = new Date(from); d <= end; d.setDate(d.getDate() + 1)) {
-        const key = d.toISOString().slice(0, 10);
-        labels.push(new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
-        counts.push(map[key] ?? 0);
+    // ── Skeleton helpers ───────────────────────────────────────────────────────
+    function showSkels() {
+      ['skelMessages','skelUserStatus','skelSignups','skelMsgTypes'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.remove('hidden');
+      });
+    }
+    function hideSkel(id) {
+      const el = document.getElementById(id);
+      if (el) el.classList.add('hidden');
+    }
+
+    // ── Global period selector ─────────────────────────────────────────────────
+    function setPeriod(days) {
+      currentPeriod = days;
+      document.querySelectorAll('.period-tab').forEach(btn => {
+        btn.classList.toggle('active', parseInt(btn.dataset.days) === days);
+      });
+      if (_stats) renderPeriod(days);
+    }
+
+    function renderPeriod(days) {
+      const s = _stats;
+
+      // Pills
+      document.getElementById('pill-msgs').textContent =
+        days === 7 ? (s.messages_7d ?? 0) : (s.messages_30d ?? 0);
+
+      // Stat numbers on cards
+      document.getElementById('stat-msgs-total').textContent =
+        days === 7 ? (s.messages_7d ?? 0) : (s.messages_30d ?? 0);
+      document.getElementById('stat-msgs-label').textContent =
+        days === 7 ? 'mensajes (7d)' : 'mensajes (30d)';
+
+      document.getElementById('stat-new7').textContent =
+        `+${days === 7 ? (s.new_users_7d ?? 0) : (s.new_users_30d ?? 0)}`;
+      document.getElementById('stat-new7-label').textContent =
+        days === 7 ? 'nuevos (7d)' : 'nuevos (30d)';
+
+      // Messages chart
+      const { labels: ml, counts: mc } = buildDateLabels(msgsChartFull, days);
+      if (chartMsgs) {
+        chartMsgs.data.labels = ml;
+        chartMsgs.data.datasets[0].data = mc;
+        chartMsgs.update('active');
       }
-      return { labels, counts };
-    }
 
-    // ── Message Activity handlers ───────────────────────────────────────────────
-    function onMsgsRangeChange(val) {
-      const datesEl = document.getElementById('msgsDates');
-      if (val === 'custom') {
-        datesEl.style.display = 'flex';
-      } else {
-        datesEl.style.display = 'none';
-        applyMsgsDays(parseInt(val));
+      // Signups chart
+      const { labels: sl, counts: sc } = buildDateLabels(signupsChartFull, days);
+      if (chartSignups) {
+        chartSignups.data.labels = sl;
+        chartSignups.data.datasets[0].data = sc;
+        chartSignups.update('active');
       }
-    }
 
-    function applyMsgsDays(days) {
-      if (!chartMsgs) return;
-      const { labels, counts } = buildDateLabels(msgsChartFull, days);
-      chartMsgs.data.labels = labels;
-      chartMsgs.data.datasets[0].data = counts;
-      chartMsgs.update();
-    }
-
-    function applyMsgsCustom() {
-      const from = document.getElementById('msgsFrom').value;
-      const to   = document.getElementById('msgsTo').value;
-      if (!from || !to || from > to) return;
-      const { labels, counts } = buildCustomDateLabels(msgsChartFull, from, to);
-      chartMsgs.data.labels = labels;
-      chartMsgs.data.datasets[0].data = counts;
-      chartMsgs.update();
-    }
-
-    // ── Message Breakdown handlers ──────────────────────────────────────────────
-    function onBreakdownRangeChange(val) {
-      const datesEl = document.getElementById('breakdownDates');
-      if (val === 'custom') {
-        datesEl.style.display = 'flex';
-      } else {
-        datesEl.style.display = 'none';
-        fetchBreakdown(parseInt(val));
-      }
-    }
-
-    function applyBreakdownCustom() {
-      const from = document.getElementById('breakdownFrom').value;
-      const to   = document.getElementById('breakdownTo').value;
-      if (!from || !to || from > to) return;
-      fetchBreakdown(null, from, to);
-    }
-
-    async function fetchBreakdown(days, from, to) {
-      if (!chartMsgTypes) return;
-      let url = '/api/users/dashboard-stats';
-      if (days)       url += `?days=${days}`;
-      else if (from)  url += `?from=${from}&to=${to}`;
-      const r = await authFetch(url);
-      if (!r.ok) return;
-      const s = await r.json();
-      const mt = s.message_types_breakdown || breakdownTypeFull;
-      const typeVals = [mt.text??0, mt.audio??0, mt.image??0, mt.document??0];
-      chartMsgTypes.data.datasets[0].data = typeVals.some(v=>v>0) ? typeVals : [1,0,0,0];
-      chartMsgTypes.update();
-      document.getElementById('lbl-text').textContent     = mt.text     ?? 0;
-      document.getElementById('lbl-audio').textContent    = mt.audio    ?? 0;
-      document.getElementById('lbl-image').textContent    = mt.image    ?? 0;
-      document.getElementById('lbl-document').textContent = mt.document ?? 0;
+      // Message types breakdown (already in _stats for 30d; approximate for 7d via messages_7d ratio)
+      // We use what the API gave us; breakdown doesn't change — it's always 30d from initial fetch
+      // The donut just stays as-is when period changes (it reflects full data available)
     }
 
     // ── Main load ──────────────────────────────────────────────────────────────
     async function loadDashboard() {
       if (!token()) { window.location.href = '/login'; return; }
+
+      showSkels();
 
       const [statsRes, usersRes] = await Promise.all([
         authFetch('/api/users/dashboard-stats'),
@@ -787,23 +755,20 @@
 
       if (statsRes.ok) {
         const s = await statsRes.json();
+        _stats = s;
 
         // Header
         document.getElementById('welcomeTitle').textContent =
           s.org_name ? `${s.org_name} ${t('dash.title')}` : t('dash.title');
         document.getElementById('welcomeSub').textContent =
-          `${new Date().toLocaleDateString(getLang() === 'es' ? 'es-ES' : 'en-US', {weekday:'long', month:'long', day:'numeric'})}`;
+          new Date().toLocaleDateString(getLang() === 'es' ? 'es-ES' : 'en-US', {weekday:'long', month:'long', day:'numeric'});
 
-        // Summary pills
+        // Static pills
         document.getElementById('pill-total').textContent = s.total_users ?? '—';
         document.getElementById('pill-active').textContent = s.active_users ?? '—';
-        document.getElementById('pill-msgs').textContent = s.messages_7d ?? 0;
         document.getElementById('pill-docs').textContent = s.total_docs ?? '—';
         document.getElementById('pill-resp').textContent =
           s.avg_response_ms != null ? s.avg_response_ms + ' ms' : '—';
-
-        // Signups card stat
-        document.getElementById('stat-new7').textContent = `+${s.new_users_7d ?? 0}`;
 
         // User status labels
         const total = (s.active_users ?? 0) + (s.inactive_users ?? 0) || 1;
@@ -819,38 +784,42 @@
         document.getElementById('lbl-image').textContent = mt.image ?? 0;
         document.getElementById('lbl-document').textContent = mt.document ?? 0;
 
-        // ── Chart 1: Messages over time (line)
+        // Store full chart data
         msgsChartFull = s.messages_chart || [];
-        const { labels: ml, counts: mc } = buildDateLabels(msgsChartFull, 30);
-        if (chartMsgs) { chartMsgs.destroy(); }
-        chartMsgs = makeLineChart('chartMessages', ml, mc, 'rgb(99,102,241)');
-        document.getElementById('msgsRangeSelect').value = '30';
+        signupsChartFull = s.signups_chart || [];
 
-        // ── Chart 2: User status (donut)
-        makeDonutChart(
+        // ── Build charts ──────────────────────────────────────────────────────
+        const { labels: ml, counts: mc } = buildDateLabels(msgsChartFull, currentPeriod);
+        if (chartMsgs) chartMsgs.destroy();
+        chartMsgs = makeLineChart('chartMessages', ml, mc, 'rgb(99,102,241)');
+        hideSkel('skelMessages');
+
+        if (chartUserStatus) chartUserStatus.destroy();
+        chartUserStatus = makeDonutChart(
           'chartUserStatus',
           [t('common.active'), t('common.inactive')],
           [s.active_users ?? 0, s.inactive_users ?? 0],
           ['#34d399', '#f87171']
         );
+        hideSkel('skelUserStatus');
 
-        // ── Chart 3: Signups (bar)
-        const sigData = s.signups_chart || [];
-        const { labels: sl, counts: sc } = buildDateLabels(sigData, 30);
-        makeBarChart('chartSignups', sl, sc, 'rgb(99,102,241)');
+        const { labels: sl, counts: sc } = buildDateLabels(signupsChartFull, currentPeriod);
+        if (chartSignups) chartSignups.destroy();
+        chartSignups = makeBarChart('chartSignups', sl, sc, 'rgb(99,102,241)');
+        hideSkel('skelSignups');
 
-        // ── Chart 4: Message types (donut)
-        breakdownTypeFull = mt;
         const typeVals = [mt.text ?? 0, mt.audio ?? 0, mt.image ?? 0, mt.document ?? 0];
-        const hasTypes = typeVals.some(v => v > 0);
-        if (chartMsgTypes) { chartMsgTypes.destroy(); }
+        if (chartMsgTypes) chartMsgTypes.destroy();
         chartMsgTypes = makeDonutChart(
           'chartMsgTypes',
           [t('dash.lbl.text'), t('dash.lbl.audio'), t('dash.lbl.images'), t('dash.lbl.docs')],
-          hasTypes ? typeVals : [1, 0, 0, 0],
+          typeVals.some(v => v > 0) ? typeVals : [1, 0, 0, 0],
           ['#60a5fa', '#ef4444', '#34d399', '#fb923c']
         );
-        document.getElementById('breakdownRangeSelect').value = '30';
+        hideSkel('skelMsgTypes');
+
+        // Apply period-specific KPIs
+        renderPeriod(currentPeriod);
       }
 
       // Team table
@@ -917,10 +886,7 @@
       }
     });
 
-    // Re-render when language changes
     document.addEventListener('langchange', () => loadDashboard());
-
-    initDatePickers();
     loadDashboard();
     </script>
 
