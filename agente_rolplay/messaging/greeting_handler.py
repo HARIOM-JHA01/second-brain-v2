@@ -386,13 +386,47 @@ def is_menu_selection(text: str):
     """
     if not text:
         return None
+
     cleaned = text.strip().lower()
-    if cleaned in ("1", "1️⃣", "chat", "1. chat"):
+    cleaned = re.sub(r"^[\s\"'`“”‘’]+|[\s\"'`“”‘’]+$", "", cleaned)
+    compact = re.sub(r"\s+", " ", cleaned)
+
+    # Direct digit / emoji / number-word forms.
+    direct_map = {
+        "1": "1",
+        "1️⃣": "1",
+        "one": "1",
+        "uno": "1",
+        "2": "2",
+        "2️⃣": "2",
+        "two": "2",
+        "dos": "2",
+        "3": "3",
+        "3️⃣": "3",
+        "three": "3",
+        "tres": "3",
+    }
+    if compact in direct_map:
+        return direct_map[compact]
+
+    # Natural "option/select/choose" phrasings, e.g. "option 1", "I choose one".
+    option_match = re.search(
+        r"\b(?:option|opcion|opción|menu|number|numero|número|choose|pick|select|elijo|escojo|selecciono)\b"
+        r"[\s:,-]*(?:number|numero|número|option|opcion|opción)?[\s:,-]*(1|2|3|one|two|three|uno|dos|tres)\b",
+        compact,
+    )
+    if option_match:
+        token = option_match.group(1)
+        return direct_map.get(token)
+
+    # Intent word fallback for natural replies.
+    if re.search(r"\b(chat|questions?|preguntas?)\b", compact):
         return "1"
-    if cleaned in ("2", "2️⃣", "subir", "upload", "2. subir", "2. upload"):
+    if re.search(r"\b(upload|subir|document|documento|file|archivo)\b", compact):
         return "2"
-    if cleaned in ("3", "3️⃣", "coaching", "3. coaching"):
+    if re.search(r"\b(coaching|coach|sesi[oó]n)\b", compact):
         return "3"
+
     return None
 
 

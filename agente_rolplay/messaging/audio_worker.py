@@ -6,12 +6,7 @@ Usage:
     celery -A audio_worker worker --loglevel=info --concurrency=1 --queues=audio
 """
 
-from agente_rolplay.agent.roleplay_agent import responder_usuario
 from celery import Celery, Task
-from agente_rolplay.messaging.chat_history_manager import (
-    add_to_chat_history,
-    get_chat_history,
-)
 from datetime import datetime
 from agente_rolplay.messaging.process_messages import enviar_mensaje_twilio
 from agente_rolplay.messaging.whisper_service import transcribe_audio_from_url
@@ -76,8 +71,6 @@ def _process_audio_inline(job_dict: dict) -> dict:
     try:
         media_url = job_dict.get("media_url")
         phone_number = job_dict.get("phone_number")
-        id_conversacion = job_dict.get("id_conversacion")
-        timestamp = job_dict.get("timestamp")
         user_data = job_dict.get("user_data", {})
         message_sid = job_dict.get("message_sid")
 
@@ -102,44 +95,19 @@ def _process_audio_inline(job_dict: dict) -> dict:
         transcript_text = transcription_result.get("text", "")
         logger.info(f"Transcription: {transcript_text[:80]}...")
 
-        data = {
-            "id": message_sid,
-            "from": from_number,
-            "body": transcript_text,
-            "fromMe": False,
-            "type": "text",
-            "pushName": user_data.get("Usuario", ""),
-            "timestamp": timestamp,
-            "user_data": user_data,
-            "media": media_url,
-            "media_content_type": "audio/ogg",
+        from agente_rolplay.messaging.message_processor import process_incoming_messages
+        transcribed_sid = f"{message_sid}:tx" if message_sid else f"audio-tx-{int(time.time())}"
+        transcribed_form_data = {
+            "From": from_number,
+            "To": job_dict.get("to", ""),
+            "Body": transcript_text,
+            "MessageSid": transcribed_sid,
+            "NumMedia": "0",
+            "ProfileName": user_data.get("Usuario", ""),
         }
-
-        id_chat_history = f"fp-chatHistory:{from_number}"
-        id_phone_number = f"fp-idPhone:{phone_number}"
-        messages = get_chat_history(id_chat_history, phone=phone_number)
-
         _t0 = time.time()
-        answer_data = responder_usuario(
-            messages,
-            data,
-            telefono=phone_number,
-            id_conversacion=id_conversacion,
-            id_phone_number=id_phone_number,
-        )
+        process_incoming_messages(transcribed_form_data, redis_client=redis_client)
         _response_ms = int((time.time() - _t0) * 1000)
-
-        resultado_envio = enviar_mensaje_twilio(
-            from_number, str(answer_data.get("answer", "Sin respuesta"))
-        )
-
-        if not resultado_envio.get("success", False):
-            logger.error(f"Could not send response: {resultado_envio.get('error')}")
-
-        add_to_chat_history(id_chat_history, transcript_text, "user", phone_number)
-        add_to_chat_history(
-            id_chat_history, answer_data.get("answer", ""), "assistant", phone_number
-        )
 
         log_message_to_db(phone_number, message_type="audio", is_voice_note=True, response_time_ms=_response_ms)
         logger.info(f"Audio processed successfully for: {phone_number}")
@@ -201,8 +169,6 @@ def process_audio_job(self, job_dict: dict) -> dict:
         media_url = job_dict.get("media_url")
         phone_number = job_dict.get("phone_number")
         from_number = job_dict.get("from")
-        id_conversacion = job_dict.get("id_conversacion")
-        timestamp = job_dict.get("timestamp")
         user_data = job_dict.get("user_data", {})
         message_sid = job_dict.get("message_sid")
 
@@ -236,68 +202,24 @@ def process_audio_job(self, job_dict: dict) -> dict:
         transcript_text = transcription_result.get("text", "")
         logger.info(f"Transcription successful: {transcript_text[:80]}...")
 
-        # 2. INJECT INTO CHAT PIPELINE
-        logger.info("Injecting transcription into pipeline...")
-
-        # Build data compatible with responder_usuario
-        data = {
-            "id": message_sid,
-            "from": from_number,
-            "body": transcript_text,  # The transcription is the "body"
-            "fromMe": False,
-            "type": "text",  # Treat as text after transcribing
-            "pushName": user_data.get("Usuario", ""),
-            "timestamp": timestamp,
-            "user_data": user_data,
-            "media": media_url,
-            "media_content_type": "audio/ogg",
+        # 2. INJECT TRANSCRIPTION INTO THE STANDARD MESSAGE PIPELINE
+        logger.info("Injecting transcription into standard message pipeline...")
+        from agente_rolplay.messaging.message_processor import process_incoming_messages
+        transcribed_sid = f"{message_sid}:tx" if message_sid else f"audio-tx-{int(time.time())}"
+        transcribed_form_data = {
+            "From": from_number,
+            "To": job_dict.get("to", ""),
+            "Body": transcript_text,
+            "MessageSid": transcribed_sid,
+            "NumMedia": "0",
+            "ProfileName": user_data.get("Usuario", ""),
         }
-
-        # Get history
-        id_chat_history = f"fp-chatHistory:{from_number}"
-        id_phone_number = f"fp-idPhone:{phone_number}"
-        messages = get_chat_history(id_chat_history, phone=phone_number)
-
-        # 3. GENERATE RESPONSE WITH AGENT
-        logger.info("Generating response...")
         _t0 = time.time()
-        answer_data = responder_usuario(
-            messages,
-            data,
-            telefono=phone_number,
-            id_conversacion=id_conversacion,
-            id_phone_number=id_phone_number,
-        )
+        process_incoming_messages(transcribed_form_data, redis_client=redis_client)
         _response_ms = int((time.time() - _t0) * 1000)
 
-        logger.info(f"Response generated: {str(answer_data.get('answer', ''))[:80]}...")
-
-        # 4. SEND RESPONSE TO USER
-        logger.info("Sending response...")
-        resultado_envio = enviar_mensaje_twilio(
-            from_number, str(answer_data.get("answer", "Sin respuesta"))
-        )
-
-        if not resultado_envio.get("success", False):
-            logger.error(f"Could not send response: {resultado_envio.get('error')}")
-            log_message_to_db(phone_number, message_type="audio", is_voice_note=True, response_time_ms=_response_ms, is_error=True)
-            return {
-                "status": "failed",
-                "transcript": transcript_text,
-                "reply_sent": False,
-                "message_sid": message_sid,
-                "error": f"Send failed: {resultado_envio.get('error')}",
-            }
-
-        # 5. SAVE TO CHAT HISTORY
-        logger.info("Saving to history...")
-        add_to_chat_history(id_chat_history, transcript_text, "user", phone_number)
-        add_to_chat_history(
-            id_chat_history, answer_data.get("answer", ""), "assistant", phone_number
-        )
-
         log_message_to_db(phone_number, message_type="audio", is_voice_note=True, response_time_ms=_response_ms)
-        logger.info(f"Audio processed and responded successfully for: {phone_number}")
+        logger.info(f"Audio processed and routed successfully for: {phone_number}")
 
         return {
             "status": "ok",

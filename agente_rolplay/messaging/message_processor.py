@@ -118,6 +118,9 @@ def _should_refresh_language(text: str) -> bool:
     """Refresh language only when message has alphabetic content."""
     if not text:
         return False
+    # Keep current language for menu choices like "1", "\"1\"", "option 1", etc.
+    if is_menu_selection(text):
+        return False
     return bool(re.search(r"[A-Za-zÀ-ÿ]", text))
 
 
