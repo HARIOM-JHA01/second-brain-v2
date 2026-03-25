@@ -438,6 +438,52 @@ def delete_user(
     return {"message": "User access revoked"}
 
 
+@router.delete("/{user_id}/hard-delete")
+def hard_delete_user(
+    user_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org = get_org_for_user(db, current_user.id)
+
+    profile = (
+        db.query(Profile)
+        .filter(Profile.id == user_id, Profile.org_id == org.id)
+        .first()
+    )
+    if not profile:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if profile.user_id == current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You cannot delete your own account",
+        )
+
+    target_user_id = profile.user_id
+
+    # If this user is set as org owner, clear the reference before deletion.
+    db.query(Organization).filter(Organization.owner_id == target_user_id).update(
+        {"owner_id": None}, synchronize_session=False
+    )
+
+    db.delete(profile)
+    db.flush()
+
+    remaining_profiles = (
+        db.query(Profile)
+        .filter(Profile.user_id == target_user_id)
+        .first()
+    )
+    if not remaining_profiles:
+        user = db.query(User).filter(User.id == target_user_id).first()
+        if user:
+            db.delete(user)
+
+    db.commit()
+    return {"message": "User deleted permanently"}
+
+
 # ── Scenarios CRUD (org-scoped) ───────────────────────────────────────────────
 
 scenarios_router = APIRouter(prefix="/api/scenarios", tags=["scenarios"])

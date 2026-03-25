@@ -13,7 +13,6 @@
     <thead>
       <tr>
         <th data-i18n="users.col.name">Nombre</th>
-        <th data-i18n="users.col.email">Correo</th>
         <th data-i18n="users.col.whatsapp">WhatsApp</th>
         <th data-i18n="users.col.jobtitle">Cargo</th>
         <th data-i18n="users.col.role">Rol</th>
@@ -24,7 +23,7 @@
     <tbody id="usersTable">
       {% for _ in range(6) %}
       <tr class="skel-row">
-        {% for w in ['40%','30%','25%','20%','18%','12%','15%'] %}
+        {% for w in ['40%','25%','20%','18%','12%','15%'] %}
         <td style="padding:.85rem 1rem;">
           <div class="skel-line" style="width:{{ w }};height:11px;border-radius:5px;"></div>
         </td>
@@ -61,7 +60,7 @@
           <option value="" data-i18n="users.modal.role.ph">Selecciona un rol</option>
         </select>
       </div>
-      <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;" data-i18n="users.modal.add_btn">Agregar usuario</button>
+      <button type="submit" class="btn btn-primary" id="addUserSubmitBtn" style="width:100%;justify-content:center;" data-i18n="users.modal.add_btn">Agregar usuario</button>
       <div class="alert alert-error" id="addUserError" style="display:none;margin-top:.75rem;"></div>
     </form>
   </div>
@@ -99,8 +98,27 @@
   </div>
 </div>
 
+<!-- Delete User Modal -->
+<div id="deleteUserModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 data-i18n="users.modal.delete_title">Eliminar usuario</h2>
+      <button class="modal-close" onclick="closeDeleteModal()">&times;</button>
+    </div>
+    <p id="deleteUserBodyText" style="margin:0 0 1rem;color:var(--text-dim);" data-i18n="users.modal.delete_body">
+      ¿Eliminar este usuario de forma permanente?
+    </p>
+    <div class="alert alert-error" id="deleteUserError" style="display:none;margin-bottom:.75rem;"></div>
+    <div style="display:flex;gap:.6rem;justify-content:flex-end;">
+      <button type="button" class="btn btn-secondary" id="deleteUserCancelBtn" onclick="closeDeleteModal()" data-i18n="users.modal.delete_cancel">Cancelar</button>
+      <button type="button" class="btn btn-danger" id="deleteUserConfirmBtn" onclick="confirmHardDeleteUser()" data-i18n="users.modal.delete_confirm">Eliminar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 let users = [], roles = [];
+let pendingDeleteUserId = null;
 const token = () => localStorage.getItem('access_token');
 const authFetch = (url, opts = {}) => fetch(url, {
   ...opts, headers: { 'Authorization': 'Bearer ' + token(), ...(opts.headers || {}) }
@@ -132,14 +150,13 @@ async function loadRoles() {
 function renderUsers() {
   const tbody = document.getElementById('usersTable');
   if (!users.length) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted);">${t('users.empty')}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted);">${t('users.empty')}</td></tr>`;
     return;
   }
   tbody.innerHTML = users.map(u => `
     <tr>
       <td class="td-name">${u.full_name || u.username || '—'}</td>
-      <td>${u.user?.email || '—'}</td>
-      <td>${u.whatsapp_number || '—'}</td>
+      <td>${maskWhatsApp(u.whatsapp_number)}</td>
       <td>${u.job_title || '—'}</td>
       <td>${u.role?.name || '—'}</td>
       <td><span class="badge ${u.is_active ? 'badge-active' : 'badge-inactive'}">${u.is_active ? t('common.active') : t('common.inactive')}</span></td>
@@ -148,9 +165,20 @@ function renderUsers() {
         ${u.is_active
           ? `<button class="btn btn-danger btn-sm" onclick="revokeAccess('${u.id}')">${t('users.btn.revoke')}</button>`
           : `<button class="btn btn-success btn-sm" onclick="reactivateUser('${u.id}')">${t('users.btn.reactivate')}</button>`}
+        <button class="btn btn-danger btn-sm" onclick="hardDeleteUser('${u.id}')">${t('users.btn.delete')}</button>
       </td>
     </tr>
   `).join('');
+}
+
+function maskWhatsApp(phone) {
+  if (!phone) return '—';
+  const trimmed = String(phone).trim();
+  const plus = trimmed.startsWith('+') ? '+' : '';
+  const digits = trimmed.replace(/\D/g, '');
+  if (!digits) return '—';
+  if (digits.length <= 4) return `${plus}${digits}`;
+  return `${plus}${'*'.repeat(Math.max(0, digits.length - 4))}${digits.slice(-4)}`;
 }
 
 async function revokeAccess(id) {
@@ -162,6 +190,57 @@ async function revokeAccess(id) {
 async function reactivateUser(id) {
   await authFetch(`/api/users/${id}/reactivate`, { method: 'POST' });
   loadUsers();
+}
+
+function hardDeleteUser(id) {
+  pendingDeleteUserId = id;
+  const err = document.getElementById('deleteUserError');
+  err.style.display = 'none';
+  document.getElementById('deleteUserModal').classList.add('show');
+}
+
+function closeDeleteModal() {
+  pendingDeleteUserId = null;
+  const err = document.getElementById('deleteUserError');
+  err.style.display = 'none';
+  err.textContent = '';
+  document.getElementById('deleteUserModal').classList.remove('show');
+}
+
+async function confirmHardDeleteUser() {
+  if (!pendingDeleteUserId) return;
+  const err = document.getElementById('deleteUserError');
+  const confirmBtn = document.getElementById('deleteUserConfirmBtn');
+  const cancelBtn = document.getElementById('deleteUserCancelBtn');
+  const confirmLabel = t('users.modal.delete_confirm');
+  const loadingLabel = t('common.loading');
+  const setLoading = (isLoading) => {
+    confirmBtn.disabled = isLoading;
+    cancelBtn.disabled = isLoading;
+    confirmBtn.innerHTML = isLoading
+      ? `<span class="btn-spinner" aria-hidden="true"></span>${loadingLabel}`
+      : confirmLabel;
+  };
+
+  err.style.display = 'none';
+  err.textContent = '';
+  setLoading(true);
+  try {
+    const r = await authFetch(`/api/users/${pendingDeleteUserId}/hard-delete`, { method: 'DELETE' });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      err.textContent = d.detail || t('users.error.delete');
+      err.style.display = 'block';
+      return;
+    }
+    closeDeleteModal();
+    loadUsers();
+  } catch (error) {
+    err.textContent = t('users.error.delete');
+    err.style.display = 'block';
+  } finally {
+    setLoading(false);
+  }
 }
 
 function openEditModal(id) {
@@ -178,7 +257,17 @@ function openEditModal(id) {
 document.getElementById('addUserForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const err = document.getElementById('addUserError');
+  const submitBtn = document.getElementById('addUserSubmitBtn');
+  const submitLabel = t('users.modal.add_btn');
+  const loadingLabel = t('common.loading');
+  const setLoading = (isLoading) => {
+    submitBtn.disabled = isLoading;
+    submitBtn.innerHTML = isLoading
+      ? `<span class="btn-spinner" aria-hidden="true"></span>${loadingLabel}`
+      : submitLabel;
+  };
   err.style.display = 'none';
+  setLoading(true);
   const body = {
     full_name: document.getElementById('add_full_name').value,
     job_title: document.getElementById('add_job_title').value || null,
@@ -188,19 +277,26 @@ document.getElementById('addUserForm').addEventListener('submit', async (e) => {
     user_id: crypto.randomUUID(),
     org_id: null,
   };
-  const r = await authFetch('/api/users', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-  if (r.ok) {
-    document.getElementById('addUserModal').classList.remove('show');
-    document.getElementById('addUserForm').reset();
-    loadUsers();
-  } else {
-    const d = await r.json().catch(() => ({}));
-    err.textContent = d.detail || t('users.error.add');
+  try {
+    const r = await authFetch('/api/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (r.ok) {
+      document.getElementById('addUserModal').classList.remove('show');
+      document.getElementById('addUserForm').reset();
+      loadUsers();
+    } else {
+      const d = await r.json().catch(() => ({}));
+      err.textContent = d.detail || t('users.error.add');
+      err.style.display = 'block';
+    }
+  } catch (error) {
+    err.textContent = t('users.error.add');
     err.style.display = 'block';
+  } finally {
+    setLoading(false);
   }
 });
 

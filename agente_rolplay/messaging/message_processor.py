@@ -114,6 +114,13 @@ def _is_rate_limited(phone_number: str, redis_client) -> bool:
     return False
 
 
+def _should_refresh_language(text: str) -> bool:
+    """Refresh language only when message has alphabetic content."""
+    if not text:
+        return False
+    return bool(re.search(r"[A-Za-zÀ-ÿ]", text))
+
+
 def is_knowledge_base_inventory_query(user_message: str) -> bool:
     """Return True when the user asks to count/list files in the knowledge base."""
     if not user_message:
@@ -786,11 +793,10 @@ def process_incoming_messages_functional(form_data, redis_client=r):
 
     file_upload_pending_key = f"file_upload_pending:{phone_number}"
     lang_key = f"user:lang:{phone_number}"
-    if body and body.strip():
+    current_lang = redis_client.get(lang_key) or "es"
+    if body and body.strip() and _should_refresh_language(body):
         current_lang = detect_language(body)
         redis_client.set(lang_key, current_lang, ex=USER_LANG_TTL)
-    else:
-        current_lang = redis_client.get(lang_key) or "es"
 
     if body and body.strip() and num_media == 0:
         if is_knowledge_base_inventory_query(body):
@@ -1300,11 +1306,10 @@ def process_incoming_messages(form_data, redis_client=r):
     print(f"Processing new message: {dedup_key}")
 
     lang_key = f"user:lang:{phone_number}"
-    if body and body.strip():
+    current_lang = redis_client.get(lang_key) or "es"
+    if body and body.strip() and _should_refresh_language(body):
         current_lang = detect_language(body)
         redis_client.set(lang_key, current_lang, ex=USER_LANG_TTL)
-    else:
-        current_lang = redis_client.get(lang_key) or "es"
 
     if body and body.strip():
         if is_knowledge_base_inventory_query(body):

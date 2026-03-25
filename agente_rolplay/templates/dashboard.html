@@ -222,6 +222,15 @@
   .btn-danger { background: var(--badge-inactive-bg); color: var(--badge-inactive-color); border-color: rgba(248,113,113,.2); }
   .btn-danger:hover { background: rgba(248,113,113,.2); }
   .btn-success { background: var(--badge-active-bg); color: var(--badge-active-color); border-color: rgba(74,222,128,.2); }
+  .btn:disabled { opacity: .75; cursor: not-allowed; }
+  .btn-spinner {
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 2px solid rgba(255,255,255,.35);
+    border-top-color: rgba(255,255,255,.95);
+    animation: spin .8s linear infinite;
+    display: inline-block;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
 
   /* ── Modals ─────────────────────────────────── */
   .modal {
@@ -658,6 +667,16 @@
       });
     }
 
+    function maskWhatsApp(phone) {
+      if (!phone) return '—';
+      const trimmed = String(phone).trim();
+      const plus = trimmed.startsWith('+') ? '+' : '';
+      const digits = trimmed.replace(/\D/g, '');
+      if (!digits) return '—';
+      if (digits.length <= 4) return `${plus}${digits}`;
+      return `${plus}${'*'.repeat(Math.max(0, digits.length - 4))}${digits.slice(-4)}`;
+    }
+
     // ── State ──────────────────────────────────────────────────────────────────
     let _stats = null;           // raw API response stored after first fetch
     let msgsChartFull = [];
@@ -835,7 +854,7 @@
           tbody.innerHTML = users.slice(0, 8).map(u => `
             <tr>
               <td class="td-name">${u.full_name || u.username || '—'}</td>
-              <td>${u.whatsapp_number || '—'}</td>
+              <td>${maskWhatsApp(u.whatsapp_number)}</td>
               <td style="color:var(--text-muted);">${u.job_title || '—'}</td>
               <td>${u.role?.name || '—'}</td>
               <td><span class="badge ${u.is_active ? 'badge-active' : 'badge-inactive'}">${u.is_active ? t('common.active') : t('common.inactive')}</span></td>
@@ -863,7 +882,17 @@
     document.getElementById('addUserForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const err = document.getElementById('addUserError');
+      const submitBtn = document.getElementById('addUserSubmitBtn');
+      const submitLabel = t('dash.modal.btn');
+      const loadingLabel = t('common.loading');
+      const setLoading = (isLoading) => {
+        submitBtn.disabled = isLoading;
+        submitBtn.innerHTML = isLoading
+          ? `<span class="btn-spinner" aria-hidden="true"></span>${loadingLabel}`
+          : submitLabel;
+      };
       err.style.display = 'none';
+      setLoading(true);
       const body = {
         full_name: document.getElementById('add_full_name').value,
         job_title: document.getElementById('add_job_title').value || null,
@@ -873,19 +902,26 @@
         user_id: crypto.randomUUID(),
         org_id: null,
       };
-      const r = await authFetch('/api/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-      if (r.ok) {
-        document.getElementById('addUserModal').classList.remove('show');
-        document.getElementById('addUserForm').reset();
-        loadDashboard();
-      } else {
-        const d = await r.json().catch(() => ({}));
-        err.textContent = d.detail || t('dash.error.add_user');
+      try {
+        const r = await authFetch('/api/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        if (r.ok) {
+          document.getElementById('addUserModal').classList.remove('show');
+          document.getElementById('addUserForm').reset();
+          loadDashboard();
+        } else {
+          const d = await r.json().catch(() => ({}));
+          err.textContent = d.detail || t('dash.error.add_user');
+          err.style.display = 'block';
+        }
+      } catch (error) {
+        err.textContent = t('dash.error.add_user');
         err.style.display = 'block';
+      } finally {
+        setLoading(false);
       }
     });
 
