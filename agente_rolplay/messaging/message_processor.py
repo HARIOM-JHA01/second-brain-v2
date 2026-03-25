@@ -599,24 +599,76 @@ def _handle_scenario_selection(
         "org_id": str(org_id) if org_id else None,
         "started_at": datetime.utcnow().isoformat(),
     }
+    history_key = f"coaching:history:{phone}"
     redis_client.set(f"coaching:session:{phone}", json.dumps(session_data), ex=COACHING_SESSION_TTL)
-    redis_client.set(f"coaching:history:{phone}", json.dumps([]), ex=COACHING_HISTORY_TTL)
+    redis_client.set(history_key, json.dumps([]), ex=COACHING_HISTORY_TTL)
 
     if lang == "en":
         msg = (
             f"🎯 *Coaching session started!*\n\n"
             f"Scenario: *{chosen['name']}*\n\n"
-            f"The coach is ready. Type your first message to begin.\n\n"
+            f"The coach will start now.\n\n"
             f"_To end the session, type 'exit'. To get your report, type 'report'._"
         )
     else:
         msg = (
             f"🎯 *¡Sesión de coaching iniciada!*\n\n"
             f"Escenario: *{chosen['name']}*\n\n"
-            f"El coach está listo. Escribe tu primer mensaje para comenzar.\n\n"
+            f"El coach comenzará ahora.\n\n"
             f"_Para terminar la sesión escribe 'salir'. Para obtener tu reporte escribe 'reporte'._"
         )
     send_twilio_message(from_number, msg)
+
+    # Auto-start the roleplay with the coach's opening turn.
+    kickoff_instruction = (
+        "Start this roleplay now as the scenario counterpart. "
+        "Send the very first message to open the conversation naturally, "
+        "in 1-3 sentences, and end with one focused question."
+        if lang == "en"
+        else
+        "Inicia este roleplay ahora como la contraparte del escenario. "
+        "Envía el primer mensaje para abrir la conversación de forma natural, "
+        "en 1-3 oraciones, y termina con una pregunta concreta."
+    )
+    id_phone_number = f"fp-idPhone:{phone}"
+    id_conversacion = f"fp-idPhone:{phone}_{datetime.now().strftime('%Y-%m-%d_%H:%M')}"
+    kickoff_data = {"body": kickoff_instruction, "type": "text", "from": f"whatsapp:+{phone}"}
+
+    kickoff_reply = ""
+    kickoff_ms = None
+    try:
+        _t0 = time.time()
+        kickoff_answer = responder_usuario(
+            messages=[],
+            data=kickoff_data,
+            telefono=phone,
+            id_conversacion=id_conversacion,
+            id_phone_number=id_phone_number,
+            response_language=lang,
+            coaching_system_prompt=session_data["system_prompt"],
+        )
+        kickoff_ms = int((time.time() - _t0) * 1000)
+        kickoff_reply = str(kickoff_answer.get("answer", "")).strip()
+    except Exception as e:
+        print(f"Error generating coaching opener: {e}")
+
+    if not kickoff_reply:
+        kickoff_reply = (
+            "Thanks for joining. Let's begin: what's the most important outcome you want from this conversation today?"
+            if lang == "en"
+            else
+            "Gracias por unirte. Empecemos: ¿cuál es el resultado más importante que quieres lograr en esta conversación hoy?"
+        )
+
+    send_twilio_message(from_number, kickoff_reply)
+    redis_client.set(
+        history_key,
+        json.dumps([{"role": "assistant", "content": kickoff_reply}]),
+        ex=COACHING_HISTORY_TTL,
+    )
+    redis_client.set(f"coaching:session:{phone}", json.dumps(session_data), ex=COACHING_SESSION_TTL)
+    log_message_to_db(phone, message_type="text", response_time_ms=kickoff_ms)
+
     redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
     return "Success"
 
