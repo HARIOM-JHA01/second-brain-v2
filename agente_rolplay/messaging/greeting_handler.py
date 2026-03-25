@@ -321,6 +321,7 @@ RESET_PHRASES = {
     "forget everything",
     "reset memory",
     "new conversation",
+    "restart",
 }
 
 RESET_CONFIRMATION = {

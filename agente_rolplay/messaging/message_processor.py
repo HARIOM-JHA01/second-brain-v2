@@ -121,6 +121,14 @@ def _should_refresh_language(text: str) -> bool:
     return bool(re.search(r"[A-Za-zÀ-ÿ]", text))
 
 
+def _clear_coaching_state(phone: str, redis_client) -> None:
+    """Clear all Redis keys related to coaching flow for a phone number."""
+    redis_client.delete(f"coaching:session:{phone}")
+    redis_client.delete(f"coaching:history:{phone}")
+    redis_client.delete(f"coaching:scenario_pending:{phone}")
+    redis_client.delete(f"coaching:menu_pending:{phone}")
+
+
 def is_knowledge_base_inventory_query(user_message: str) -> bool:
     """Return True when the user asks to count/list files in the knowledge base."""
     if not user_message:
@@ -892,8 +900,11 @@ def process_incoming_messages_functional(form_data, redis_client=r):
                 redis_client=redis_client, dedup_key=dedup_key, lang=current_lang,
             )
 
+        _menu_pending_key = f"coaching:menu_pending:{phone_number}"
+        _menu_pending = redis_client.get(_menu_pending_key)
+
         _session_raw_f = redis_client.get(f"coaching:session:{phone_number}")
-        if _session_raw_f:
+        if _session_raw_f and not _menu_pending:
             _session_f = json.loads(_session_raw_f)
             if is_coaching_exit(body):
                 return _end_coaching_session(
@@ -912,15 +923,16 @@ def process_incoming_messages_functional(form_data, redis_client=r):
                 redis_client=redis_client, dedup_key=dedup_key, lang=current_lang,
             )
 
-        if redis_client.get(f"coaching:menu_pending:{phone_number}"):
+        if _menu_pending:
             selection_f = is_menu_selection(body)
-            redis_client.delete(f"coaching:menu_pending:{phone_number}")
+            redis_client.delete(_menu_pending_key)
             if selection_f == "2":
                 redis_client.set(file_upload_pending_key, "pending", ex=DEDUP_KEY_TTL)
                 send_twilio_message(from_number, "Please send me the file you want to upload.")
                 redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
                 return "Success"
             elif selection_f == "3":
+                _clear_coaching_state(phone_number, redis_client)
                 from agente_rolplay.db.whatsapp_auth import lookup_whatsapp_user as _lwa2
                 _wa_u2 = _lwa2(phone_number)
                 _oid2 = _wa_u2.get("org_id") if _wa_u2 else None
@@ -974,6 +986,7 @@ def process_incoming_messages_functional(form_data, redis_client=r):
 
     if body and is_reset_request(body):
         print(f"Executing memory deletion for: {phone_number}")
+        _clear_coaching_state(phone_number, redis_client)
         reset_chat_history(phone_number)
         clear_session_facts(phone_number)
         lang = detect_language(body)
@@ -1434,8 +1447,11 @@ def process_incoming_messages(form_data, redis_client=r):
             )
 
         # 2. Active coaching session
+        _menu_pending_key = f"coaching:menu_pending:{phone_number}"
+        _menu_pending = redis_client.get(_menu_pending_key)
+
         _session_raw = redis_client.get(f"coaching:session:{phone_number}")
-        if _session_raw:
+        if _session_raw and not _menu_pending:
             _session = json.loads(_session_raw)
             if is_coaching_exit(body):
                 return _end_coaching_session(
@@ -1455,9 +1471,9 @@ def process_incoming_messages(form_data, redis_client=r):
             )
 
         # 3. User is picking from 1/2/3 menu
-        if redis_client.get(f"coaching:menu_pending:{phone_number}"):
+        if _menu_pending:
             selection = is_menu_selection(body)
-            redis_client.delete(f"coaching:menu_pending:{phone_number}")
+            redis_client.delete(_menu_pending_key)
             if selection == "1":
                 pass  # fall through to normal agent
             elif selection == "2":
@@ -1468,6 +1484,7 @@ def process_incoming_messages(form_data, redis_client=r):
                 redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
                 return "Success"
             elif selection == "3":
+                _clear_coaching_state(phone_number, redis_client)
                 org_id = whatsapp_user.get("org_id") if whatsapp_user else None
                 return _start_coaching_scenario_selection(
                     phone=phone_number, from_number=from_number, org_id=org_id,
@@ -1586,6 +1603,7 @@ def process_incoming_messages(form_data, redis_client=r):
 
     if body and is_reset_request(body):
         print(f"Executing memory deletion for: {phone_number}")
+        _clear_coaching_state(phone_number, redis_client)
         reset_chat_history(phone_number)
         clear_session_facts(phone_number)
         lang = detect_language(body)
