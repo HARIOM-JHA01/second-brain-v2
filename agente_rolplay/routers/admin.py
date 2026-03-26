@@ -3,7 +3,11 @@ Rolplay Super-Admin API
 Access: session-based (ADMIN_EMAIL / ADMIN_PASSWORD from env).
 All routes under /admin/api/* require is_admin=True in session.
 """
+import os
+import tempfile
+from pathlib import Path
 from datetime import datetime, timedelta
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse
@@ -15,8 +19,79 @@ from agente_rolplay.config import ADMIN_EMAIL, ADMIN_PASSWORD
 from agente_rolplay.db.auth import get_password_hash
 from agente_rolplay.db.database import get_db
 from agente_rolplay.db.models import CoachingScenario, CoachingSession, Document, MessageLog, Organization, Profile, Role, User
+from agente_rolplay.storage.file_processor import SUPPORTED_TYPES, extract_text_from_file
 
 router = APIRouter(prefix="/admin/api", tags=["admin"])
+MAX_SCENARIO_REFERENCE_CHARS = 12000
+
+
+def _to_bool(value: Any, default: bool = False) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _resolve_mime_type(filename: str, incoming_mime: str | None) -> str:
+    if incoming_mime and incoming_mime in SUPPORTED_TYPES.values():
+        return incoming_mime
+    ext = Path(filename or "").suffix.lower().lstrip(".")
+    return SUPPORTED_TYPES.get(ext, incoming_mime or "")
+
+
+async def _parse_scenario_request(request: Request) -> tuple[dict[str, Any], Any]:
+    content_type = request.headers.get("content-type", "")
+    if "multipart/form-data" in content_type:
+        form = await request.form()
+        return (
+            {
+                "name": form.get("name"),
+                "system_prompt": form.get("system_prompt"),
+                "org_id": form.get("org_id"),
+                "description": form.get("description"),
+                "is_active": form.get("is_active"),
+                "clear_reference_file": form.get("clear_reference_file"),
+            },
+            form.get("reference_file"),
+        )
+    body = await request.json()
+    return body, None
+
+
+async def _extract_reference_file(upload_file) -> tuple[str, str]:
+    if not upload_file or not getattr(upload_file, "filename", None):
+        raise HTTPException(status_code=400, detail="No file provided")
+
+    mime_type = _resolve_mime_type(upload_file.filename, getattr(upload_file, "content_type", None))
+    if mime_type not in SUPPORTED_TYPES.values():
+        allowed = ", ".join(sorted(set(SUPPORTED_TYPES.keys())))
+        raise HTTPException(status_code=400, detail=f"Unsupported file type. Allowed: {allowed}")
+
+    suffix = Path(upload_file.filename).suffix or ".tmp"
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            tmp.write(await upload_file.read())
+            tmp_path = tmp.name
+
+        extraction = extract_text_from_file(tmp_path, mime_type)
+        if not extraction.get("success"):
+            detail = extraction.get("error") or "Could not extract text from file"
+            if detail == "password_protected":
+                detail = "The uploaded file is password-protected and cannot be processed."
+            raise HTTPException(status_code=400, detail=detail)
+
+        text = (extraction.get("text") or "").strip()
+        if not text:
+            raise HTTPException(status_code=400, detail="Extracted file text is empty")
+
+        # Keep prompt payload bounded and stable.
+        text = text[:MAX_SCENARIO_REFERENCE_CHARS]
+        return upload_file.filename, text
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            os.remove(tmp_path)
 
 
 # ── Auth guard ────────────────────────────────────────────────────────────────
@@ -344,6 +419,8 @@ def list_all_scenarios(request: Request, db: Session = Depends(get_db)):
             "name": s.name,
             "description": s.description,
             "system_prompt": s.system_prompt,
+            "reference_file_name": s.reference_file_name,
+            "has_reference_file": bool(s.reference_file_text),
             "is_active": s.is_active,
             "created_at": s.created_at.isoformat() if s.created_at else None,
             "org_id": str(s.org_id),
@@ -354,9 +431,10 @@ def list_all_scenarios(request: Request, db: Session = Depends(get_db)):
 
 
 @router.post("/scenarios")
-def admin_create_scenario(body: dict, request: Request, db: Session = Depends(get_db)):
+async def admin_create_scenario(request: Request, db: Session = Depends(get_db)):
     require_admin(request)
 
+    body, reference_file = await _parse_scenario_request(request)
     name = (body.get("name") or "").strip()
     system_prompt = (body.get("system_prompt") or "").strip()
     org_id = (body.get("org_id") or "").strip()
@@ -369,12 +447,20 @@ def admin_create_scenario(body: dict, request: Request, db: Session = Depends(ge
     org = db.query(Organization).filter(Organization.id == org_id).first()
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found")
+
+    reference_file_name = None
+    reference_file_text = None
+    if reference_file and getattr(reference_file, "filename", ""):
+        reference_file_name, reference_file_text = await _extract_reference_file(reference_file)
+
     scenario = CoachingScenario(
         org_id=org.id,
         name=name,
         description=(body.get("description") or "").strip() or None,
         system_prompt=system_prompt,
-        is_active=bool(body.get("is_active", True)),
+        reference_file_name=reference_file_name,
+        reference_file_text=reference_file_text,
+        is_active=_to_bool(body.get("is_active"), default=True),
     )
     db.add(scenario)
     db.commit()
@@ -384,6 +470,8 @@ def admin_create_scenario(body: dict, request: Request, db: Session = Depends(ge
         "name": scenario.name,
         "description": scenario.description,
         "system_prompt": scenario.system_prompt,
+        "reference_file_name": scenario.reference_file_name,
+        "has_reference_file": bool(scenario.reference_file_text),
         "is_active": scenario.is_active,
         "created_at": scenario.created_at.isoformat() if scenario.created_at else None,
         "org_id": str(scenario.org_id),
@@ -393,9 +481,10 @@ def admin_create_scenario(body: dict, request: Request, db: Session = Depends(ge
 
 
 @router.patch("/scenarios/{scenario_id}")
-def admin_update_scenario(scenario_id: str, body: dict, request: Request, db: Session = Depends(get_db)):
+async def admin_update_scenario(scenario_id: str, request: Request, db: Session = Depends(get_db)):
     require_admin(request)
 
+    body, reference_file = await _parse_scenario_request(request)
     scenario = db.query(CoachingScenario).filter(CoachingScenario.id == scenario_id).first()
     if not scenario:
         raise HTTPException(status_code=404, detail="Scenario not found")
@@ -405,8 +494,15 @@ def admin_update_scenario(scenario_id: str, body: dict, request: Request, db: Se
         scenario.description = (body["description"] or "").strip() or None
     if "system_prompt" in body and body["system_prompt"]:
         scenario.system_prompt = body["system_prompt"].strip()
+    if _to_bool(body.get("clear_reference_file"), default=False):
+        scenario.reference_file_name = None
+        scenario.reference_file_text = None
+    if reference_file and getattr(reference_file, "filename", ""):
+        file_name, file_text = await _extract_reference_file(reference_file)
+        scenario.reference_file_name = file_name
+        scenario.reference_file_text = file_text
     if "is_active" in body:
-        scenario.is_active = bool(body["is_active"])
+        scenario.is_active = _to_bool(body["is_active"], default=scenario.is_active)
     if "org_id" in body and body["org_id"]:
         org = db.query(Organization).filter(Organization.id == body["org_id"]).first()
         if not org:
@@ -420,6 +516,8 @@ def admin_update_scenario(scenario_id: str, body: dict, request: Request, db: Se
         "name": scenario.name,
         "description": scenario.description,
         "system_prompt": scenario.system_prompt,
+        "reference_file_name": scenario.reference_file_name,
+        "has_reference_file": bool(scenario.reference_file_text),
         "is_active": scenario.is_active,
         "org_id": str(scenario.org_id),
         "org_name": org.name if org else None,

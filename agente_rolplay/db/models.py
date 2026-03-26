@@ -114,6 +114,8 @@ class CoachingScenario(Base):
     name = Column(String(255), nullable=False)
     description = Column(String(500), nullable=True)
     system_prompt = Column(Text, nullable=False)
+    reference_file_name = Column(String(255), nullable=True)
+    reference_file_text = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 

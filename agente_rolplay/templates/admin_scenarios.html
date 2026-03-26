@@ -15,6 +15,20 @@
   max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   color: var(--text-dim); font-size: .82rem;
 }
+.file-badge {
+  display: inline-block;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  border-radius: 7px;
+  padding: .2rem .5rem;
+  font-size: .75rem;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
 .modal-overlay {
   display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5);
   z-index: 1000; align-items: center; justify-content: center;
@@ -64,6 +78,7 @@
           <th data-i18n="sadmin.scenarios.col.org">Organization</th>
           <th data-i18n="sadmin.scenarios.col.desc">Description</th>
           <th data-i18n="sadmin.scenarios.col.prompt">System Prompt</th>
+          <th data-i18n="sadmin.scenarios.col.file">Reference File</th>
           <th data-i18n="sadmin.common.status">Status</th>
           <th data-i18n="sadmin.scenarios.col.sessions">Sessions</th>
           <th data-i18n="sadmin.common.created">Created</th>
@@ -71,7 +86,7 @@
         </tr>
       </thead>
       <tbody id="scenariosTable">
-        <tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-muted);" data-i18n="sadmin.common.loading">Loading…</td></tr>
+        <tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--text-muted);" data-i18n="sadmin.common.loading">Loading…</td></tr>
       </tbody>
     </table>
   </div>
@@ -99,6 +114,10 @@
       <div class="form-field">
         <label data-i18n="sadmin.scenarios.modal.prompt">System Prompt *</label>
         <textarea id="c_system_prompt" required placeholder="You are an expert sales coach. The user will practice a sales pitch with you..."></textarea>
+      </div>
+      <div class="form-field">
+        <label data-i18n="sadmin.scenarios.modal.file">Reference File (optional)</label>
+        <input type="file" id="c_reference_file" accept=".pdf,.docx,.pptx,.txt" />
       </div>
       <div class="form-row">
         <label style="margin:0;font-size:.875rem;" data-i18n="sadmin.scenarios.modal.active">Active</label>
@@ -137,6 +156,15 @@
         <label data-i18n="sadmin.scenarios.modal.prompt">System Prompt *</label>
         <textarea id="e_system_prompt" required></textarea>
       </div>
+      <div class="form-field">
+        <label data-i18n="sadmin.scenarios.modal.file">Reference File (optional)</label>
+        <input type="file" id="e_reference_file" accept=".pdf,.docx,.pptx,.txt" />
+        <div id="e_reference_file_name" style="font-size:.8rem;color:var(--text-muted);"></div>
+      </div>
+      <div class="form-row">
+        <label style="margin:0;font-size:.875rem;" data-i18n="sadmin.scenarios.modal.remove_file">Remove current reference file</label>
+        <input type="checkbox" id="e_clear_reference_file" style="width:auto;" />
+      </div>
       <div class="form-row">
         <label style="margin:0;font-size:.875rem;" data-i18n="sadmin.scenarios.modal.active">Active</label>
         <input type="checkbox" id="e_is_active" style="width:auto;" />
@@ -160,7 +188,7 @@ async function loadData() {
     fetch('/admin/api/organizations'),
   ]);
   if (!scenariosRes.ok) {
-    document.getElementById('scenariosTable').innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--error);">${t('sadmin.scenarios.load_error')}</td></tr>`;
+    document.getElementById('scenariosTable').innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--error);">${t('sadmin.scenarios.load_error')}</td></tr>`;
     return;
   }
   allScenarios = await scenariosRes.json();
@@ -211,7 +239,7 @@ function filterScenarios() {
 function renderTable(data) {
   const tbody = document.getElementById('scenariosTable');
   if (!data.length) {
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-muted);">${t('sadmin.scenarios.empty')}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--text-muted);">${t('sadmin.scenarios.empty')}</td></tr>`;
     return;
   }
   tbody.innerHTML = data.map(s => `
@@ -220,6 +248,7 @@ function renderTable(data) {
       <td>${escHtml(s.org_name || '—')}</td>
       <td style="color:var(--text-dim);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(s.description || '—')}</td>
       <td class="prompt-preview" title="${escHtml(s.system_prompt)}">${escHtml(s.system_prompt)}</td>
+      <td>${s.reference_file_name ? `<span class="file-badge" title="${escHtml(s.reference_file_name)}">${escHtml(s.reference_file_name)}</span>` : '—'}</td>
       <td><span class="badge ${s.is_active ? 'badge-active' : 'badge-inactive'}">${s.is_active ? 'Active' : 'Inactive'}</span></td>
       <td>${s.session_count}</td>
       <td style="color:var(--text-muted);font-size:.8rem;">${fmtDate(s.created_at)}</td>
@@ -254,6 +283,11 @@ function openEditModal(id) {
   document.getElementById('e_org').value = s.org_id;
   document.getElementById('e_description').value = s.description || '';
   document.getElementById('e_system_prompt').value = s.system_prompt;
+  document.getElementById('e_reference_file').value = '';
+  document.getElementById('e_reference_file_name').textContent = s.reference_file_name
+    ? `Current file: ${s.reference_file_name}`
+    : 'No reference file attached';
+  document.getElementById('e_clear_reference_file').checked = false;
   document.getElementById('e_is_active').checked = s.is_active;
   document.getElementById('editError').style.display = 'none';
   document.getElementById('editModal').classList.add('show');
@@ -274,17 +308,17 @@ document.getElementById('createForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const errEl = document.getElementById('createError');
   errEl.style.display = 'none';
-  const body = {
-    name: document.getElementById('c_name').value.trim(),
-    org_id: document.getElementById('c_org').value,
-    description: document.getElementById('c_description').value.trim() || null,
-    system_prompt: document.getElementById('c_system_prompt').value.trim(),
-    is_active: document.getElementById('c_is_active').checked,
-  };
+  const body = new FormData();
+  body.append('name', document.getElementById('c_name').value.trim());
+  body.append('org_id', document.getElementById('c_org').value);
+  body.append('description', document.getElementById('c_description').value.trim() || '');
+  body.append('system_prompt', document.getElementById('c_system_prompt').value.trim());
+  body.append('is_active', String(document.getElementById('c_is_active').checked));
+  const createFile = document.getElementById('c_reference_file').files[0];
+  if (createFile) body.append('reference_file', createFile);
   const r = await fetch('/admin/api/scenarios', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    body,
   });
   if (r.ok) {
     const created = await r.json();
@@ -303,17 +337,18 @@ document.getElementById('editForm').addEventListener('submit', async (e) => {
   const errEl = document.getElementById('editError');
   errEl.style.display = 'none';
   const id = document.getElementById('e_id').value;
-  const body = {
-    name: document.getElementById('e_name').value.trim(),
-    org_id: document.getElementById('e_org').value,
-    description: document.getElementById('e_description').value.trim() || null,
-    system_prompt: document.getElementById('e_system_prompt').value.trim(),
-    is_active: document.getElementById('e_is_active').checked,
-  };
+  const body = new FormData();
+  body.append('name', document.getElementById('e_name').value.trim());
+  body.append('org_id', document.getElementById('e_org').value);
+  body.append('description', document.getElementById('e_description').value.trim() || '');
+  body.append('system_prompt', document.getElementById('e_system_prompt').value.trim());
+  body.append('is_active', String(document.getElementById('e_is_active').checked));
+  body.append('clear_reference_file', String(document.getElementById('e_clear_reference_file').checked));
+  const editFile = document.getElementById('e_reference_file').files[0];
+  if (editFile) body.append('reference_file', editFile);
   const r = await fetch(`/admin/api/scenarios/${id}`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    body,
   });
   if (r.ok) {
     const updated = await r.json();

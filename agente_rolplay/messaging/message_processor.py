@@ -98,6 +98,27 @@ ACRONYM_CLARIFICATION_MSG = {
 }
 
 
+def _compose_coaching_prompt(
+    system_prompt: str,
+    reference_file_name: str | None,
+    reference_file_text: str | None,
+) -> str:
+    text = (reference_file_text or "").strip()
+    if not text:
+        return system_prompt
+    file_label = (reference_file_name or "uploaded_reference").strip()
+    return (
+        f"{system_prompt}\n\n"
+        "REFERENCE MATERIAL (uploaded by admin):\n"
+        f"Filename: {file_label}\n"
+        "Use this material as factual grounding for this coaching scenario. "
+        "If a user asks something not covered by this material, say that clearly.\n"
+        "<reference_material>\n"
+        f"{text}\n"
+        "</reference_material>"
+    )
+
+
 def _is_rate_limited(phone_number: str, redis_client) -> bool:
     """
     Sliding-window rate limiter: max RATE_LIMIT_MAX_MESSAGES per RATE_LIMIT_WINDOW_SECONDS.
@@ -577,6 +598,30 @@ def _handle_scenario_selection(
     chosen = scenario_list[idx]
     redis_client.delete(f"coaching:scenario_pending:{phone}")
 
+    scenario_prompt = ""
+    reference_file_name = None
+    try:
+        from agente_rolplay.db.database import get_db
+        from agente_rolplay.db.models import CoachingScenario
+        import uuid as _uuid
+
+        db = next(get_db())
+        try:
+            scenario = db.query(CoachingScenario).filter(CoachingScenario.id == _uuid.UUID(chosen["id"])).first()
+            if scenario:
+                reference_file_name = scenario.reference_file_name
+                scenario_prompt = _compose_coaching_prompt(
+                    system_prompt=scenario.system_prompt,
+                    reference_file_name=scenario.reference_file_name,
+                    reference_file_text=scenario.reference_file_text,
+                )
+        finally:
+            db.close()
+    except Exception as e:
+        print(f"Error loading scenario prompt context: {e}")
+    if not scenario_prompt:
+        scenario_prompt = chosen.get("system_prompt") or ""
+
     # Create DB record
     session_id = None
     try:
@@ -606,7 +651,8 @@ def _handle_scenario_selection(
         "session_id": session_id,
         "scenario_id": chosen["id"],
         "scenario_name": chosen["name"],
-        "system_prompt": chosen["system_prompt"],
+        "system_prompt": scenario_prompt,
+        "reference_file_name": reference_file_name,
         "org_id": str(org_id) if org_id else None,
         "started_at": datetime.utcnow().isoformat(),
     }

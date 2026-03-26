@@ -455,6 +455,12 @@ let _s = null; // cached stats
 // ── Global period state
 let currentPeriod = 7;
 
+function tf(key, vars = {}, fallback = '') {
+  let template = t(key);
+  if (!template || template === key) template = fallback || key;
+  return String(template).replace(/\{(\w+)\}/g, (_, k) => (vars[k] ?? `{${k}}`));
+}
+
 function setPeriod(days) {
   if (days === currentPeriod || !_s) return;
   currentPeriod = days;
@@ -487,28 +493,28 @@ function renderPeriod(days) {
 
   set('kpi-orgs',        newOrgs);
   set('kpi-orgs-trend',  `+${newOrgs}`);
-  set('kpi-orgs-sub',    `+${newOrgs} new this period`);
-  set('kpi-orgs-label',  'New Orgs');
+  set('kpi-orgs-sub',    tf('sadmin.dash.kpi.orgs_sub_period', { count: newOrgs }, `+${newOrgs} new this period`));
+  set('kpi-orgs-label',  t('sadmin.dash.kpi.new_orgs'));
 
   set('kpi-users',       newUsers);
   set('kpi-users-trend', `+${newUsers}`);
-  set('kpi-users-sub',   `+${newUsers} signed up`);
-  set('kpi-users-label', 'New Users');
+  set('kpi-users-sub',   tf('sadmin.dash.kpi.users_sub_signed', { count: newUsers }, `+${newUsers} signed up`));
+  set('kpi-users-label', t('sadmin.dash.kpi.new_users'));
 
   set('kpi-active',      s.active_users);
-  set('kpi-active-sub',  `${activeRate}% of total`);
+  set('kpi-active-sub',  tf('sadmin.dash.kpi.active_sub_pct', { pct: activeRate }, `${activeRate}% of total`));
   const at = document.getElementById('kpi-active-trend');
   at.textContent = activeRate + '%';
   at.className   = 'kpi-trend ' + (activeRate >= 70 ? 'trend-up' : activeRate >= 40 ? 'trend-neu' : 'trend-down');
 
   set('kpi-msgs',        msgs);
   set('kpi-msgs-trend',  `+${msgs}`);
-  set('kpi-msgs-sub',    `messages in ${tag}`);
-  set('kpi-msgs-label',  `Messages (${tag})`);
+  set('kpi-msgs-sub',    tf('sadmin.dash.kpi.msg_sub_period', { days: d }, `messages in ${tag}`));
+  set('kpi-msgs-label',  tf('sadmin.dash.kpi.msg_label_period', { days: d }, `Messages (${tag})`));
 
   set('kpi-docs',        newDocs);
   set('kpi-docs-trend',  `+${newDocs}`);
-  set('kpi-docs-sub',    `+${newDocs} uploaded`);
+  set('kpi-docs-sub',    tf('sadmin.dash.kpi.docs_sub_uploaded', { count: newDocs }, `+${newDocs} uploaded`));
 
   set('kpi-resp-ms',     s.avg_response_ms != null ? s.avg_response_ms : '—');
 
@@ -525,17 +531,17 @@ function renderPeriod(days) {
   set('m-vectors', s.pinecone_vector_count != null ? s.pinecone_vector_count.toLocaleString() : '—');
   set('m-errors',  errors);
   set('m-roles',   s.total_roles ?? 0);
-  set('kb-sub',    `Last ${d} days`);
+  set('kb-sub',    tf('sadmin.dash.kb.last_days', { days: d }, `Last ${d} days`));
 
   // ── Chart data sliced to period
   const msgData = (s.messages_chart || []).slice(-d);
   const suData  = (s.signups_chart  || []).slice(-d);
 
-  set('msg-chart-sub',    `Daily volume — last ${d} days`);
+  set('msg-chart-sub',    tf('sadmin.dash.chart.msg_sub_days', { days: d }, `Daily volume — last ${d} days`));
   set('leg-msg-total',    msgData.reduce((a, x) => a + x.count, 0));
-  set('signup-chart-sub', `Daily signups — last ${d} days`);
+  set('signup-chart-sub', tf('sadmin.dash.chart.signup_sub_days', { days: d }, `Daily signups — last ${d} days`));
   set('leg-su-total',     suData.reduce((a, x) => a + x.count, 0));
-  set('org-chart-sub',    `New in last ${d} days`);
+  set('org-chart-sub',    tf('sadmin.dash.chart.org_sub_days', { days: d }, `New in last ${d} days`));
 
   // ── Update messages chart
   if (msgChart) {
@@ -555,7 +561,10 @@ function renderPeriod(days) {
 
   // ── Update org chart
   if (orgChart) {
-    orgChart.data.labels = [`New (${tag})`, 'Total'];
+    orgChart.data.labels = [
+      tf('sadmin.dash.chart.org_new_label', { days: d }, `New (${tag})`),
+      t('sadmin.dash.chart.org_total_label'),
+    ];
     orgChart.data.datasets[0].data = [newOrgs, s.total_orgs];
     orgChart.update('active');
   }
@@ -601,7 +610,7 @@ function buildCharts(s) {
         tooltip: { ...tip, bodyColor: '#ef4444', borderColor: 'rgba(239,68,68,.3)',
           callbacks: {
             title: items => msgChart.data.datasets[0]._rawData?.[items[0].dataIndex]?.day || '',
-            label: i => `  ${i.raw} messages`,
+            label: i => `  ${tf('sadmin.dash.chart.tip.messages', { count: i.raw }, `${i.raw} messages`)}`,
           },
         },
       },
@@ -616,7 +625,7 @@ function buildCharts(s) {
   donutChart = new Chart(document.getElementById('userDonut'), {
     type: 'doughnut',
     data: {
-      labels: ['Active', 'Inactive'],
+      labels: [t('sadmin.dash.lbl.active'), t('sadmin.dash.lbl.inactive')],
       datasets: [{
         data: [s.active_users || 0, s.inactive_users || 0],
         backgroundColor: ['rgba(52,211,153,.85)', 'rgba(248,113,113,.75)'],
@@ -648,7 +657,7 @@ function buildCharts(s) {
         tooltip: { ...tip, bodyColor: '#818cf8', borderColor: 'rgba(129,140,248,.3)',
           callbacks: {
             title: items => signupChart.data.datasets[0]._rawData?.[items[0].dataIndex]?.day || '',
-            label: i => `  ${i.raw} signups`,
+            label: i => `  ${tf('sadmin.dash.chart.tip.signups', { count: i.raw }, `${i.raw} signups`)}`,
           },
         },
       },
@@ -664,7 +673,10 @@ function buildCharts(s) {
   orgChart = new Chart(document.getElementById('orgChart'), {
     type: 'bar',
     data: {
-      labels: [`New (${days}d)`, 'Total'],
+      labels: [
+        tf('sadmin.dash.chart.org_new_label', { days }, `New (${days}d)`),
+        t('sadmin.dash.chart.org_total_label'),
+      ],
       datasets: [{
         data: [newOrgs, s.total_orgs],
         backgroundColor: ['rgba(96,165,250,.75)', 'rgba(96,165,250,.3)'],
@@ -707,7 +719,7 @@ async function loadDashboard() {
     const sorted = [...orgs].sort((a, b) => b.user_count - a.user_count).slice(0, 5);
     const tbody  = document.getElementById('topOrgsTable');
     tbody.innerHTML = !sorted.length
-      ? '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted);">No organizations yet</td></tr>'
+      ? `<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted);">${t('sadmin.dash.table.no_orgs')}</td></tr>`
       : sorted.map(o => `
           <tr>
             <td class="td-main">${o.name}</td>
@@ -724,7 +736,7 @@ async function loadDashboard() {
   } catch (err) {
     console.error('Dashboard load failed', err);
     document.querySelectorAll('.card-skel').forEach(el => {
-      el.innerHTML = '<div style="color:var(--error);font-size:.8rem;font-weight:600;align-self:center;margin:auto;">Failed to load</div>';
+      el.innerHTML = `<div style="color:var(--error);font-size:.8rem;font-weight:600;align-self:center;margin:auto;">${t('sadmin.dash.load_failed')}</div>`;
     });
   }
 }
