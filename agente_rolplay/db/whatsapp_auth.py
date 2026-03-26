@@ -11,12 +11,18 @@ anthropic_client = Anthropic(api_key=ANTHROPIC_API_KEY)
 
 
 def normalize_whatsapp_number(phone: str) -> str:
-    """Normalize phone number to consistent format."""
+    """Normalize phone number to consistent format.
+
+    Mexican numbers: Twilio WhatsApp uses 521XXXXXXXXXX (13 digits).
+    If stored as 52XXXXXXXXXX (12 digits), insert the mobile prefix '1'.
+    """
     digits = "".join(c for c in phone if c.isdigit())
-    if digits.startswith("521"):
+    if digits.startswith("521") and len(digits) == 13:
+        # Already in WhatsApp/Twilio canonical Mexican format
         return "+" + digits
-    elif digits.startswith("52"):
-        return "+" + digits
+    elif digits.startswith("52") and len(digits) == 12:
+        # Mexican number without mobile prefix — normalize to +521XXXXXXXXXX
+        return "+521" + digits[2:]
     elif digits.startswith("1") and len(digits) == 11:
         return "+" + digits
     elif len(digits) == 10:
@@ -28,11 +34,17 @@ def lookup_whatsapp_user(phone_number: str) -> Optional[Dict[str, Any]]:
     """Look up user by WhatsApp phone number."""
     normalized = normalize_whatsapp_number(phone_number)
 
+    # Build candidate list: for Mexican numbers, also try without the mobile '1'
+    # e.g. +5215559038418 → also try +525559038418 (how admins often save MX numbers)
+    candidates = [normalized]
+    if normalized.startswith("+521") and len(normalized) == 14:
+        candidates.append("+52" + normalized[4:])
+
     db = SessionLocal()
     try:
         profile = (
             db.query(Profile)
-            .filter(Profile.whatsapp_number == normalized, Profile.is_active == True)
+            .filter(Profile.whatsapp_number.in_(candidates), Profile.is_active == True)
             .first()
         )
 

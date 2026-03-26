@@ -289,14 +289,17 @@ def create_user(
 ):
     import secrets
     from agente_rolplay.db.auth import get_password_hash
+    from agente_rolplay.db.whatsapp_auth import normalize_whatsapp_number
 
     org = get_org_for_user(db, current_user.id)
+
+    normalized_number = normalize_whatsapp_number(user_data.whatsapp_number) if user_data.whatsapp_number else user_data.whatsapp_number
 
     existing = (
         db.query(Profile)
         .filter(
             Profile.org_id == org.id,
-            Profile.whatsapp_number == user_data.whatsapp_number,
+            Profile.whatsapp_number == normalized_number,
         )
         .first()
     )
@@ -305,7 +308,7 @@ def create_user(
             status_code=400, detail="WhatsApp number already exists in organization"
         )
 
-    phone_clean = (user_data.whatsapp_number or "").strip().lstrip("+").replace(" ", "")
+    phone_clean = (normalized_number or "").strip().lstrip("+").replace(" ", "")
     placeholder_email = f"wa_{phone_clean}@{org.id}.internal"
 
     new_user = db.query(User).filter(User.email == placeholder_email).first()
@@ -323,7 +326,7 @@ def create_user(
         username=user_data.username,
         full_name=user_data.full_name,
         job_title=user_data.job_title,
-        whatsapp_number=user_data.whatsapp_number,
+        whatsapp_number=normalized_number,
         role_id=user_data.role_id,
         is_active=True,
     )
@@ -406,7 +409,8 @@ def update_user(
     if user_data.job_title is not None:
         profile.job_title = user_data.job_title
     if user_data.whatsapp_number is not None:
-        profile.whatsapp_number = user_data.whatsapp_number
+        from agente_rolplay.db.whatsapp_auth import normalize_whatsapp_number
+        profile.whatsapp_number = normalize_whatsapp_number(user_data.whatsapp_number)
     if user_data.role_id is not None:
         profile.role_id = user_data.role_id
     if user_data.is_active is not None:
