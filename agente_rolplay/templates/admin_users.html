@@ -348,7 +348,9 @@ function initials(name) {
 function maskPhone(num) {
   if (!num) return '—';
   const s = String(num);
-  return '•'.repeat(Math.max(0, s.length - 2)) + s.slice(-2);
+  const stars = '*'.repeat(Math.max(0, s.length - 2));
+  const last2 = s.slice(-2);
+  return `<span style="font-family:monospace;letter-spacing:.05em;">${stars}${last2}</span>`;
 }
 
 async function loadUsers() {

@@ -74,7 +74,34 @@ def download_document_from_twilio(media_url, file_name, file_type):
         return None
 
 
-def send_twilio_message(phone, text, max_retries=3):
+TWILIO_MAX_CHARS = 1580  # Twilio hard limit is 1600; leave a small buffer
+
+
+def _split_message(text: str, limit: int = TWILIO_MAX_CHARS) -> list[str]:
+    """Split text into chunks ≤ limit chars, breaking at paragraph/line boundaries."""
+    if len(text) <= limit:
+        return [text]
+
+    chunks = []
+    current = ""
+    for line in text.splitlines(keepends=True):
+        if len(current) + len(line) > limit:
+            if current:
+                chunks.append(current.rstrip())
+                current = ""
+            # If a single line itself exceeds the limit, hard-split it
+            while len(line) > limit:
+                chunks.append(line[:limit])
+                line = line[limit:]
+        current += line
+
+    if current.strip():
+        chunks.append(current.rstrip())
+
+    return chunks
+
+
+def _send_single(phone, text, max_retries=3):
     for attempt in range(max_retries):
         try:
             print(
@@ -90,10 +117,7 @@ def send_twilio_message(phone, text, max_retries=3):
             )
 
             print(f"Message sent successfully. SID: {message.sid}")
-            return {
-                "success": True,
-                "response": {"sid": message.sid, "status": message.status},
-            }
+            return {"success": True, "response": {"sid": message.sid, "status": message.status}}
 
         except Exception as e:
             print(f"ERROR ON ATTEMPT {attempt + 1}/{max_retries}: {str(e)}")
@@ -105,6 +129,25 @@ def send_twilio_message(phone, text, max_retries=3):
                 return {"success": False, "error": str(e)}
 
     return {"success": False, "error": "Failed after all retries"}
+
+
+def send_twilio_message(phone, text, max_retries=3):
+    chunks = _split_message(text)
+    if len(chunks) > 1:
+        print(f"Message too long ({len(text)} chars), splitting into {len(chunks)} parts.")
+
+    last_result = {"success": False, "error": "No chunks"}
+    for i, chunk in enumerate(chunks):
+        if len(chunks) > 1:
+            print(f"Sending part {i + 1}/{len(chunks)}...")
+        result = _send_single(phone, chunk, max_retries=max_retries)
+        last_result = result
+        if not result["success"]:
+            return result
+        if i < len(chunks) - 1:
+            time.sleep(1)  # brief pause between parts to preserve order
+
+    return last_result
 
 
 def send_twilio_document(phone, document_url, caption=""):

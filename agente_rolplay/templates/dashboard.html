@@ -673,8 +673,8 @@
       const plus = trimmed.startsWith('+') ? '+' : '';
       const digits = trimmed.replace(/\D/g, '');
       if (!digits) return '—';
-      if (digits.length <= 4) return `${plus}${digits}`;
-      return `${plus}${'*'.repeat(Math.max(0, digits.length - 4))}${digits.slice(-4)}`;
+      if (digits.length <= 2) return `${plus}${digits}`;
+      return `${plus}<span style="font-family:monospace;letter-spacing:.05em;">${'*'.repeat(Math.max(0, digits.length - 2))}${digits.slice(-2)}</span>`;
     }
 
     // ── State ──────────────────────────────────────────────────────────────────
