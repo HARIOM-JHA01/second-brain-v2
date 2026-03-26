@@ -31,6 +31,7 @@ from agente_rolplay.messaging.greeting_handler import (
     get_file_upload_message,
     get_reset_confirmation,
     get_menu_message,
+    get_beta_support_message,
     is_menu_selection,
     is_coaching_report_request,
     is_coaching_exit,
@@ -67,7 +68,7 @@ from agente_rolplay.config import (
 
 r = redis.Redis(**redis_connection_kwargs())
 
-COACHING_MENU_TTL = 300       # 5 min — waiting for 1/2/3 reply
+COACHING_MENU_TTL = 300       # 5 min — waiting for 1/2/3/4 reply
 COACHING_SCENARIO_TTL = 300   # 5 min — waiting for scenario number
 COACHING_SESSION_TTL = 7200   # 2 h  — active coaching session
 COACHING_HISTORY_TTL = 7200   # 2 h  — coaching conversation history
@@ -989,6 +990,11 @@ def process_incoming_messages_functional(form_data, redis_client=r):
                     phone=phone_number, from_number=from_number, org_id=_oid2,
                     redis_client=redis_client, dedup_key=dedup_key, lang=current_lang,
                 )
+            elif selection_f == "4":
+                send_twilio_message(from_number, get_beta_support_message(current_lang))
+                redis_client.set(f"coaching:menu_pending:{phone_number}", "1", ex=COACHING_MENU_TTL)
+                redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
+                return "Success"
             elif selection_f != "1":
                 send_twilio_message(from_number, get_menu_message(current_lang))
                 redis_client.set(f"coaching:menu_pending:{phone_number}", "1", ex=COACHING_MENU_TTL)
@@ -1539,6 +1545,11 @@ def process_incoming_messages(form_data, redis_client=r):
                     phone=phone_number, from_number=from_number, org_id=org_id,
                     redis_client=redis_client, dedup_key=dedup_key, lang=current_lang,
                 )
+            elif selection == "4":
+                send_twilio_message(from_number, get_beta_support_message(current_lang))
+                redis_client.set(f"coaching:menu_pending:{phone_number}", "1", ex=COACHING_MENU_TTL)
+                redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
+                return "Success"
             else:
                 # Invalid reply — resend menu
                 send_twilio_message(from_number, get_menu_message(current_lang))

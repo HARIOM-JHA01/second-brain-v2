@@ -349,17 +349,24 @@ MENU_MESSAGES = {
         "¿Qué deseas hacer?\n\n"
         "1️⃣ Chat — Hacer preguntas\n"
         "2️⃣ Subir un documento\n"
-        "3️⃣ Iniciar una sesión de coaching\n\n"
-        "Responde con 1, 2 o 3."
+        "3️⃣ Iniciar una sesión de coaching\n"
+        "4️⃣ Soporte\n\n"
+        "Responde con 1, 2, 3 o 4."
     ),
     "en": (
         "Hi! 👋 I'm your Second Brain.\n\n"
         "What would you like to do?\n\n"
         "1️⃣ Chat — Ask questions\n"
         "2️⃣ Upload a document\n"
-        "3️⃣ Start a coaching session\n\n"
-        "Reply with 1, 2, or 3."
+        "3️⃣ Start a coaching session\n"
+        "4️⃣ Support\n\n"
+        "Reply with 1, 2, 3, or 4."
     ),
+}
+
+BETA_SUPPORT_MESSAGES = {
+    "es": "Esta opción está en beta y se lanzará pronto.",
+    "en": "This option is in beta and will be released soon.",
 }
 
 COACHING_REPORT_PHRASES = {
@@ -379,10 +386,15 @@ def get_menu_message(lang: str = "es") -> str:
     return MENU_MESSAGES.get(lang, MENU_MESSAGES["es"])
 
 
+def get_beta_support_message(lang: str = "es") -> str:
+    """Get beta support message in specified language."""
+    return BETA_SUPPORT_MESSAGES.get(lang, BETA_SUPPORT_MESSAGES["es"])
+
+
 def is_menu_selection(text: str):
     """
     Check if text is a menu option selection.
-    Returns '1', '2', '3', or None.
+    Returns '1', '2', '3', '4', or None.
     """
     if not text:
         return None
@@ -405,6 +417,10 @@ def is_menu_selection(text: str):
         "3️⃣": "3",
         "three": "3",
         "tres": "3",
+        "4": "4",
+        "4️⃣": "4",
+        "four": "4",
+        "cuatro": "4",
     }
     if compact in direct_map:
         return direct_map[compact]
@@ -412,7 +428,7 @@ def is_menu_selection(text: str):
     # Natural "option/select/choose" phrasings, e.g. "option 1", "I choose one".
     option_match = re.search(
         r"\b(?:option|opcion|opción|menu|number|numero|número|choose|pick|select|elijo|escojo|selecciono)\b"
-        r"[\s:,-]*(?:number|numero|número|option|opcion|opción)?[\s:,-]*(1|2|3|one|two|three|uno|dos|tres)\b",
+        r"[\s:,-]*(?:number|numero|número|option|opcion|opción)?[\s:,-]*(1|2|3|4|one|two|three|four|uno|dos|tres|cuatro)\b",
         compact,
     )
     if option_match:
@@ -426,6 +442,8 @@ def is_menu_selection(text: str):
         return "2"
     if re.search(r"\b(coaching|coach|sesi[oó]n)\b", compact):
         return "3"
+    if re.search(r"\b(support|soporte|ayuda)\b", compact):
+        return "4"
 
     return None
 
