@@ -1,8 +1,8 @@
 {% extends "admin_base.html" %}
 
 {% block title %}Scenarios{% endblock %}
-{% block page_title %}Coaching Scenarios{% endblock %}
-{% block page_subtitle %}Manage coaching scenarios across all organizations{% endblock %}
+{% block page_title %}<span data-i18n="sadmin.scenarios.title">Coaching Scenarios</span>{% endblock %}
+{% block page_subtitle %}<span data-i18n="sadmin.scenarios.subtitle">Manage coaching scenarios across all organizations</span>{% endblock %}
 
 {% block extra_style %}
 .filter-bar { display: flex; align-items: center; gap: .75rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
@@ -43,16 +43,16 @@
 {% block content %}
 <div class="section-card">
   <div class="section-card-header">
-    <div class="section-card-title">All Scenarios <span class="count-chip" id="scenarioCount">—</span></div>
-    <button class="btn btn-primary btn-sm" onclick="openCreateModal()">+ New Scenario</button>
+    <div class="section-card-title"><span data-i18n="sadmin.scenarios.all">All Scenarios</span> <span class="count-chip" id="scenarioCount">—</span></div>
+    <button class="btn btn-primary btn-sm" onclick="openCreateModal()" data-i18n="sadmin.scenarios.new_btn">+ New Scenario</button>
   </div>
 
   <div class="filter-bar">
     <div class="search-bar" style="flex:1;min-width:220px;margin-bottom:0;">
-      <input type="text" id="searchInput" placeholder="Search by name or org…" oninput="filterScenarios()" />
+      <input type="text" id="searchInput" data-i18n-ph="sadmin.scenarios.search_ph" placeholder="Search by name or org…" oninput="filterScenarios()" />
     </div>
     <select id="orgFilter" onchange="filterScenarios()" style="padding:.6rem .9rem;background:var(--input-bg);border:1px solid var(--border);border-radius:9px;color:var(--text);font-size:.875rem;font-family:inherit;outline:none;">
-      <option value="">All orgs</option>
+      <option value="" data-i18n="sadmin.scenarios.all_orgs">All orgs</option>
     </select>
   </div>
 
@@ -60,18 +60,18 @@
     <table>
       <thead>
         <tr>
-          <th>Name</th>
-          <th>Organization</th>
-          <th>Description</th>
-          <th>System Prompt</th>
-          <th>Status</th>
-          <th>Sessions</th>
-          <th>Created</th>
-          <th>Actions</th>
+          <th data-i18n="sadmin.scenarios.col.name">Name</th>
+          <th data-i18n="sadmin.scenarios.col.org">Organization</th>
+          <th data-i18n="sadmin.scenarios.col.desc">Description</th>
+          <th data-i18n="sadmin.scenarios.col.prompt">System Prompt</th>
+          <th data-i18n="sadmin.common.status">Status</th>
+          <th data-i18n="sadmin.scenarios.col.sessions">Sessions</th>
+          <th data-i18n="sadmin.common.created">Created</th>
+          <th data-i18n="sadmin.common.actions">Actions</th>
         </tr>
       </thead>
       <tbody id="scenariosTable">
-        <tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-muted);">Loading…</td></tr>
+        <tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-muted);" data-i18n="sadmin.common.loading">Loading…</td></tr>
       </tbody>
     </table>
   </div>
@@ -80,34 +80,34 @@
 <!-- Create Scenario Modal -->
 <div id="createModal" class="modal-overlay">
   <div class="modal-box">
-    <h3>New Scenario</h3>
+    <h3 data-i18n="sadmin.scenarios.modal.create_title">New Scenario</h3>
     <form id="createForm">
       <div class="form-field">
-        <label>Name *</label>
+        <label data-i18n="sadmin.scenarios.modal.name">Name *</label>
         <input type="text" id="c_name" required placeholder="e.g. Sales Pitch Practice" />
       </div>
       <div class="form-field">
-        <label>Organization *</label>
+        <label data-i18n="sadmin.scenarios.modal.org">Organization *</label>
         <select id="c_org" required>
-          <option value="">Select organization…</option>
+          <option value="" data-i18n="sadmin.scenarios.modal.org_ph">Select organization…</option>
         </select>
       </div>
       <div class="form-field">
-        <label>Description <span style="font-weight:400;text-transform:none;">(optional)</span></label>
-        <input type="text" id="c_description" placeholder="Brief description of the scenario" />
+        <label><span data-i18n="sadmin.scenarios.modal.desc">Description</span> <span style="font-weight:400;text-transform:none;" data-i18n="sadmin.scenarios.modal.desc_optional">(optional)</span></label>
+        <input type="text" id="c_description" data-i18n-ph="sadmin.scenarios.modal.desc_ph" placeholder="Brief description of the scenario" />
       </div>
       <div class="form-field">
-        <label>System Prompt *</label>
+        <label data-i18n="sadmin.scenarios.modal.prompt">System Prompt *</label>
         <textarea id="c_system_prompt" required placeholder="You are an expert sales coach. The user will practice a sales pitch with you..."></textarea>
       </div>
       <div class="form-row">
-        <label style="margin:0;font-size:.875rem;">Active</label>
+        <label style="margin:0;font-size:.875rem;" data-i18n="sadmin.scenarios.modal.active">Active</label>
         <input type="checkbox" id="c_is_active" checked style="width:auto;" />
       </div>
       <div class="alert-error" id="createError"></div>
       <div class="modal-actions">
-        <button type="button" class="btn btn-secondary" onclick="closeModal('createModal')">Cancel</button>
-        <button type="submit" class="btn btn-primary">Create Scenario</button>
+        <button type="button" class="btn btn-secondary" onclick="closeModal('createModal')" data-i18n="sadmin.common.cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary" data-i18n="sadmin.scenarios.modal.create_btn">Create Scenario</button>
       </div>
     </form>
   </div>
@@ -116,35 +116,35 @@
 <!-- Edit Scenario Modal -->
 <div id="editModal" class="modal-overlay">
   <div class="modal-box">
-    <h3>Edit Scenario</h3>
+    <h3 data-i18n="sadmin.scenarios.modal.edit_title">Edit Scenario</h3>
     <form id="editForm">
       <input type="hidden" id="e_id" />
       <div class="form-field">
-        <label>Name *</label>
+        <label data-i18n="sadmin.scenarios.modal.name">Name *</label>
         <input type="text" id="e_name" required />
       </div>
       <div class="form-field">
-        <label>Organization *</label>
+        <label data-i18n="sadmin.scenarios.modal.org">Organization *</label>
         <select id="e_org" required>
-          <option value="">Select organization…</option>
+          <option value="" data-i18n="sadmin.scenarios.modal.org_ph">Select organization…</option>
         </select>
       </div>
       <div class="form-field">
-        <label>Description <span style="font-weight:400;text-transform:none;">(optional)</span></label>
+        <label><span data-i18n="sadmin.scenarios.modal.desc">Description</span> <span style="font-weight:400;text-transform:none;" data-i18n="sadmin.scenarios.modal.desc_optional">(optional)</span></label>
         <input type="text" id="e_description" />
       </div>
       <div class="form-field">
-        <label>System Prompt *</label>
+        <label data-i18n="sadmin.scenarios.modal.prompt">System Prompt *</label>
         <textarea id="e_system_prompt" required></textarea>
       </div>
       <div class="form-row">
-        <label style="margin:0;font-size:.875rem;">Active</label>
+        <label style="margin:0;font-size:.875rem;" data-i18n="sadmin.scenarios.modal.active">Active</label>
         <input type="checkbox" id="e_is_active" style="width:auto;" />
       </div>
       <div class="alert-error" id="editError"></div>
       <div class="modal-actions">
-        <button type="button" class="btn btn-secondary" onclick="closeModal('editModal')">Cancel</button>
-        <button type="submit" class="btn btn-primary">Save Changes</button>
+        <button type="button" class="btn btn-secondary" onclick="closeModal('editModal')" data-i18n="sadmin.common.cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary" data-i18n="sadmin.scenarios.modal.save_btn">Save Changes</button>
       </div>
     </form>
   </div>
@@ -160,7 +160,7 @@ async function loadData() {
     fetch('/admin/api/organizations'),
   ]);
   if (!scenariosRes.ok) {
-    document.getElementById('scenariosTable').innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--error);">Failed to load scenarios</td></tr>';
+    document.getElementById('scenariosTable').innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--error);">${t('sadmin.scenarios.load_error')}</td></tr>`;
     return;
   }
   allScenarios = await scenariosRes.json();
@@ -211,7 +211,7 @@ function filterScenarios() {
 function renderTable(data) {
   const tbody = document.getElementById('scenariosTable');
   if (!data.length) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-muted);">No scenarios found</td></tr>';
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-muted);">${t('sadmin.scenarios.empty')}</td></tr>`;
     return;
   }
   tbody.innerHTML = data.map(s => `
@@ -343,5 +343,7 @@ async function deleteScenario(id, name) {
 }
 
 loadData();
+
+document.addEventListener('langchange', () => filterScenarios());
 </script>
 {% endblock %}

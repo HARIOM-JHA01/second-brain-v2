@@ -1,8 +1,8 @@
 {% extends "admin_base.html" %}
 
 {% block title %}Dashboard{% endblock %}
-{% block page_title %}Dashboard{% endblock %}
-{% block page_subtitle %}Real-time platform health &amp; growth metrics{% endblock %}
+{% block page_title %}<span data-i18n="sadmin.dash.title">Dashboard</span>{% endblock %}
+{% block page_subtitle %}<span data-i18n="sadmin.dash.subtitle">Real-time platform health &amp; growth metrics</span>{% endblock %}
 
 {% block extra_style %}
   /* ── Filter bar ────────────────────────────────────── */
@@ -156,12 +156,12 @@
 
 <!-- ── Global period filter bar ───────────────────────────── -->
 <div class="filter-bar">
-  <span class="filter-label">Period</span>
+  <span class="filter-label" data-i18n="sadmin.dash.period">Period</span>
   <div class="period-tabs" role="group">
-    <button class="period-tab active" data-days="7"  onclick="setPeriod(7)">Last 7 days</button>
-    <button class="period-tab"        data-days="30" onclick="setPeriod(30)">Last 30 days</button>
+    <button class="period-tab active" data-days="7"  onclick="setPeriod(7)" data-i18n="sadmin.dash.7d">Last 7 days</button>
+    <button class="period-tab"        data-days="30" onclick="setPeriod(30)" data-i18n="sadmin.dash.30d">Last 30 days</button>
   </div>
-  <span class="filter-period-note" id="periodNote">Showing last 7 days</span>
+  <span class="filter-period-note" id="periodNote" data-i18n="sadmin.dash.period_note_7">Showing last 7 days</span>
 </div>
 
 <!-- ── KPI strip ──────────────────────────────────────────── -->
@@ -175,7 +175,7 @@
     </div>
     <div class="kpi-top"><div class="kpi-icon">🏢</div><span class="kpi-trend trend-up" id="kpi-orgs-trend">—</span></div>
     <div class="kpi-val" id="kpi-orgs">—</div>
-    <div class="kpi-label" id="kpi-orgs-label">Organizations</div>
+    <div class="kpi-label" id="kpi-orgs-label" data-i18n="sadmin.dash.kpi.orgs">Organizations</div>
     <div class="kpi-sub"  id="kpi-orgs-sub">—</div>
   </div>
 
@@ -187,7 +187,7 @@
     </div>
     <div class="kpi-top"><div class="kpi-icon">👥</div><span class="kpi-trend trend-up" id="kpi-users-trend">—</span></div>
     <div class="kpi-val" id="kpi-users">—</div>
-    <div class="kpi-label" id="kpi-users-label">New Users</div>
+    <div class="kpi-label" id="kpi-users-label" data-i18n="sadmin.dash.kpi.new_users">New Users</div>
     <div class="kpi-sub"  id="kpi-users-sub">—</div>
   </div>
 
@@ -199,7 +199,7 @@
     </div>
     <div class="kpi-top"><div class="kpi-icon">✅</div><span class="kpi-trend" id="kpi-active-trend">—</span></div>
     <div class="kpi-val" id="kpi-active">—</div>
-    <div class="kpi-label">Active Users</div>
+    <div class="kpi-label" data-i18n="sadmin.dash.kpi.active">Active Users</div>
     <div class="kpi-sub" id="kpi-active-sub">—</div>
   </div>
 
@@ -211,7 +211,7 @@
     </div>
     <div class="kpi-top"><div class="kpi-icon">💬</div><span class="kpi-trend trend-up" id="kpi-msg-trend">—</span></div>
     <div class="kpi-val" id="kpi-msgs">—</div>
-    <div class="kpi-label" id="kpi-msgs-label">Messages</div>
+    <div class="kpi-label" id="kpi-msgs-label" data-i18n="sadmin.dash.kpi.messages">Messages</div>
     <div class="kpi-sub"  id="kpi-msgs-sub">—</div>
   </div>
 
@@ -223,7 +223,7 @@
     </div>
     <div class="kpi-top"><div class="kpi-icon">🗂️</div><span class="kpi-trend trend-neu" id="kpi-docs-trend">—</span></div>
     <div class="kpi-val" id="kpi-docs">—</div>
-    <div class="kpi-label">Documents</div>
+    <div class="kpi-label" data-i18n="sadmin.dash.kpi.docs">Documents</div>
     <div class="kpi-sub" id="kpi-docs-sub">—</div>
   </div>
 
@@ -235,8 +235,8 @@
     </div>
     <div class="kpi-top"><div class="kpi-icon">⚡</div><span class="kpi-trend trend-neu">ms</span></div>
     <div class="kpi-val" id="kpi-resp-ms">—</div>
-    <div class="kpi-label">Avg Response</div>
-    <div class="kpi-sub">Last 30 days</div>
+    <div class="kpi-label" data-i18n="sadmin.dash.kpi.avg_resp">Avg Response</div>
+    <div class="kpi-sub" data-i18n="sadmin.dash.30d">Last 30 days</div>
   </div>
 
 </div>
@@ -252,13 +252,13 @@
     </div>
     <div class="chart-card-header">
       <div>
-        <div class="chart-card-title">Messages Processed</div>
-        <div class="chart-card-sub" id="msg-chart-sub">Daily volume</div>
+        <div class="chart-card-title" data-i18n="sadmin.dash.chart.messages">Messages Processed</div>
+        <div class="chart-card-sub" id="msg-chart-sub" data-i18n="sadmin.dash.chart.msg_sub">Daily volume</div>
       </div>
       <div class="legend-item">
         <span class="legend-dot" style="background:#ef4444;"></span>
         <span style="font-weight:800;color:#ef4444;" id="leg-msg-total">—</span>
-        <span style="color:var(--text-muted);">total</span>
+        <span style="color:var(--text-muted);" data-i18n="sadmin.dash.lbl.total">total</span>
       </div>
     </div>
     <div class="chart-wrap" style="height:140px;">
@@ -274,16 +274,16 @@
     </div>
     <div class="chart-card-header">
       <div>
-        <div class="chart-card-title">User Status</div>
-        <div class="chart-card-sub">Active vs inactive</div>
+        <div class="chart-card-title" data-i18n="sadmin.dash.chart.user_status">User Status</div>
+        <div class="chart-card-sub" data-i18n="sadmin.dash.chart.active_vs">Active vs inactive</div>
       </div>
     </div>
     <div class="chart-wrap" style="height:160px;">
       <canvas id="userDonut"></canvas>
     </div>
     <div style="display:flex;justify-content:center;gap:1.5rem;margin-top:1rem;">
-      <div class="legend-item"><span class="legend-dot" style="background:#34d399;"></span>Active&nbsp;<strong id="leg-active">—</strong></div>
-      <div class="legend-item"><span class="legend-dot" style="background:#f87171;"></span>Inactive&nbsp;<strong id="leg-inactive">—</strong></div>
+      <div class="legend-item"><span class="legend-dot" style="background:#34d399;"></span><span data-i18n="sadmin.dash.lbl.active">Active</span>&nbsp;<strong id="leg-active">—</strong></div>
+      <div class="legend-item"><span class="legend-dot" style="background:#f87171;"></span><span data-i18n="sadmin.dash.lbl.inactive">Inactive</span>&nbsp;<strong id="leg-inactive">—</strong></div>
     </div>
   </div>
 
@@ -300,8 +300,8 @@
     </div>
     <div class="chart-card-header">
       <div>
-        <div class="chart-card-title">New Signups</div>
-        <div class="chart-card-sub" id="signup-chart-sub">Daily signups</div>
+        <div class="chart-card-title" data-i18n="sadmin.dash.chart.signups">New Signups</div>
+        <div class="chart-card-sub" id="signup-chart-sub" data-i18n="sadmin.dash.chart.signup_sub">Daily signups</div>
       </div>
       <div class="legend-item">
         <span class="legend-dot" style="background:#818cf8;"></span>
@@ -322,8 +322,8 @@
     </div>
     <div class="chart-card-header">
       <div>
-        <div class="chart-card-title">Organization Growth</div>
-        <div class="chart-card-sub" id="org-chart-sub">New orgs &amp; activation</div>
+        <div class="chart-card-title" data-i18n="sadmin.dash.chart.org_growth">Organization Growth</div>
+        <div class="chart-card-sub" id="org-chart-sub" data-i18n="sadmin.dash.chart.org_sub">New orgs &amp; activation</div>
       </div>
     </div>
     <div class="chart-wrap" style="height:110px;">
@@ -331,7 +331,7 @@
     </div>
     <div style="margin-top:1rem;padding-top:.9rem;border-top:1px solid var(--border);">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem;">
-        <span style="font-size:.78rem;color:var(--text-dim);">Activation rate</span>
+        <span style="font-size:.78rem;color:var(--text-dim);" data-i18n="sadmin.dash.chart.activation">Activation rate</span>
         <span style="font-size:.8rem;font-weight:800;color:#34d399;" id="activation-rate">—</span>
       </div>
       <div style="height:5px;background:var(--border);border-radius:10px;overflow:hidden;">
@@ -354,29 +354,29 @@
     </div>
     <div class="chart-card-header">
       <div>
-        <div class="chart-card-title">Knowledge Base</div>
-        <div class="chart-card-sub" id="kb-sub">Usage &amp; indexing stats</div>
+        <div class="chart-card-title" data-i18n="sadmin.dash.chart.kb">Knowledge Base</div>
+        <div class="chart-card-sub" id="kb-sub" data-i18n="sadmin.dash.chart.kb_sub">Usage &amp; indexing stats</div>
       </div>
     </div>
     <div class="metric-list">
       <div class="metric-row">
-        <span class="metric-name">🔍 RAG queries</span>
+        <span class="metric-name" data-i18n="sadmin.dash.metric.rag">🔍 RAG queries</span>
         <span class="metric-val" style="color:#60a5fa;" id="m-rag">—</span>
       </div>
       <div class="metric-row">
-        <span class="metric-name">🎙️ Voice notes</span>
+        <span class="metric-name" data-i18n="sadmin.dash.metric.voice">🎙️ Voice notes</span>
         <span class="metric-val" style="color:#a78bfa;" id="m-voice">—</span>
       </div>
       <div class="metric-row">
-        <span class="metric-name">📌 Pinecone vectors</span>
+        <span class="metric-name" data-i18n="sadmin.dash.metric.vectors">📌 Pinecone vectors</span>
         <span class="metric-val" style="color:#fb923c;" id="m-vectors">—</span>
       </div>
       <div class="metric-row">
-        <span class="metric-name">⚠️ Errors</span>
+        <span class="metric-name" data-i18n="sadmin.dash.metric.errors">⚠️ Errors</span>
         <span class="metric-val" style="color:#f87171;" id="m-errors">—</span>
       </div>
       <div class="metric-row">
-        <span class="metric-name">🔑 Total roles</span>
+        <span class="metric-name" data-i18n="sadmin.dash.metric.roles">🔑 Total roles</span>
         <span class="metric-val" style="color:#34d399;" id="m-roles">—</span>
       </div>
     </div>
@@ -398,17 +398,17 @@
   </div>
   <div class="chart-card-header" style="margin-bottom:.75rem;">
     <div>
-      <div class="chart-card-title">Top Organizations</div>
-      <div class="chart-card-sub">Ranked by user count</div>
+      <div class="chart-card-title" data-i18n="sadmin.dash.chart.top_orgs">Top Organizations</div>
+      <div class="chart-card-sub" data-i18n="sadmin.dash.chart.top_orgs_sub">Ranked by user count</div>
     </div>
-    <a href="/admin/organizations" class="btn btn-secondary btn-sm">View all →</a>
+    <a href="/admin/organizations" class="btn btn-secondary btn-sm" data-i18n="sadmin.common.view_all">View all →</a>
   </div>
   <div class="table-wrap">
     <table>
       <thead>
         <tr>
-          <th>Organization</th><th>Owner</th><th>Users</th>
-          <th>Active</th><th>Docs</th><th>Joined</th>
+          <th data-i18n="sadmin.dash.col.org">Organization</th><th data-i18n="sadmin.dash.col.owner">Owner</th><th data-i18n="sadmin.dash.col.users">Users</th>
+          <th data-i18n="sadmin.dash.col.active">Active</th><th data-i18n="sadmin.dash.col.docs">Docs</th><th data-i18n="sadmin.dash.col.joined">Joined</th>
         </tr>
       </thead>
       <tbody id="topOrgsTable">
@@ -472,7 +472,8 @@ function renderPeriod(days) {
   const d   = days;
   const tag = `${d}d`;
 
-  document.getElementById('periodNote').textContent = `Showing last ${d} days`;
+  document.getElementById('periodNote').textContent = t(d === 7 ? 'sadmin.dash.period_note_7' : 'sadmin.dash.period_note_30');
+  document.getElementById('periodNote').removeAttribute('data-i18n');
 
   // ── KPI values
   const msgs     = d === 7 ? (s.messages_7d    ?? 0) : (s.messages_30d    ?? 0);
@@ -729,5 +730,11 @@ async function loadDashboard() {
 }
 
 loadDashboard();
+
+// Re-apply dynamic period note on language change
+document.addEventListener('langchange', () => {
+  const note = document.getElementById('periodNote');
+  if (note) note.textContent = t(currentPeriod === 7 ? 'sadmin.dash.period_note_7' : 'sadmin.dash.period_note_30');
+});
 </script>
 {% endblock %}

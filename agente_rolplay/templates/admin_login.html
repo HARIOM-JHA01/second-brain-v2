@@ -6,6 +6,7 @@
   <title>Super Admin — Rolplay</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <script src="/static/theme.js"></script>
+  <script src="/static/i18n.js"></script>
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
     :root, [data-theme="dark"] {
@@ -216,9 +217,28 @@
       color: var(--text-muted); font-size: .7rem; letter-spacing: .3px;
     }
     .security-stamp svg { width: 12px; height: 12px; opacity: .5; }
+
+    .lang-radio {
+      position: fixed; top: 1.1rem; left: 1.5rem; z-index: 10;
+      display: flex; align-items: center; gap: 1px;
+      background: var(--toggle-bg); border: 1px solid var(--border);
+      border-radius: 8px; padding: 2px;
+    }
+    .lang-opt {
+      height: 26px; padding: 0 .55rem; border-radius: 6px; border: none;
+      background: transparent; color: var(--text-muted);
+      font-size: .72rem; font-weight: 700; font-family: inherit;
+      cursor: pointer; transition: all .15s; letter-spacing: .3px;
+    }
+    .lang-opt.active { background: #ef4444; color: #fff; }
+    .lang-opt:not(.active):hover { color: var(--text-dim); }
   </style>
 </head>
 <body>
+  <div class="lang-radio">
+    <button class="lang-opt active" id="langES" onclick="setLang('es')">ES</button>
+    <button class="lang-opt" id="langEN" onclick="setLang('en')">EN</button>
+  </div>
   <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()">🌙</button>
 
   <div class="login-card">
@@ -229,7 +249,7 @@
       <span class="brand-divider"></span>
       <div class="brand-text">
         <img src="/static/rolplay-logo.png" alt="Rolplay" />
-        <span class="brand-console">Super Admin Console</span>
+        <span class="brand-console" data-i18n="sadmin.login.console">Super Admin Console</span>
       </div>
     </div>
 
@@ -244,8 +264,8 @@
 
     <!-- Heading -->
     <div class="heading">
-      <h2>Super<span>Admin</span> Access</h2>
-      <p class="subtitle">Rolplay internal use only</p>
+      <h2>Super<span>Admin</span> <span data-i18n="sadmin.login.heading">Access</span></h2>
+      <p class="subtitle" data-i18n="sadmin.login.subtitle">Rolplay internal use only</p>
     </div>
 
     <!-- Tier badge -->
@@ -255,7 +275,7 @@
         <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24">
           <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
         </svg>
-        Highest Privilege Level
+        <span data-i18n="sadmin.login.tier">Highest Privilege Level</span>
       </span>
       <span class="tier-line"></span>
     </div>
@@ -265,19 +285,19 @@
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
       </svg>
-      <p>This portal grants unrestricted access to all organisations, users, and platform data. Unauthorised access is prohibited.</p>
+      <p data-i18n="sadmin.login.warning">This portal grants unrestricted access to all organisations, users, and platform data. Unauthorised access is prohibited.</p>
     </div>
 
     <!-- Form -->
     <form id="adminLoginForm">
       <div class="form-group">
-        <label>Admin Email</label>
+        <label data-i18n="sadmin.login.email">Admin Email</label>
         <div class="input-wrap">
           <input type="email" id="adm_email" required placeholder="admin@rolplay.ai" autocomplete="email" />
         </div>
       </div>
       <div class="form-group">
-        <label>Password</label>
+        <label data-i18n="sadmin.login.password">Password</label>
         <div class="input-wrap">
           <input type="password" id="adm_password" required placeholder="••••••••" autocomplete="current-password" class="has-toggle" />
           <button type="button" class="pwd-toggle" onclick="togglePwd('adm_password', this)" aria-label="Toggle password visibility">
@@ -288,18 +308,18 @@
           </button>
         </div>
       </div>
-      <button type="submit" class="btn-submit" id="loginBtn">Sign In to Super Admin</button>
+      <button type="submit" class="btn-submit" id="loginBtn" data-i18n="sadmin.login.btn">Sign In to Super Admin</button>
     </form>
     <div class="error-msg" id="loginError"></div>
 
-    <a href="/" class="back-link">← Back to platform</a>
+    <a href="/" class="back-link" data-i18n="sadmin.login.back">← Back to platform</a>
 
     <!-- Security stamp -->
     <div class="security-stamp">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
       </svg>
-      All sessions are logged and monitored
+      <span data-i18n="sadmin.login.security">All sessions are logged and monitored</span>
     </div>
 
   </div>
@@ -319,7 +339,7 @@
       e.preventDefault();
       const btn = document.getElementById('loginBtn');
       const err = document.getElementById('loginError');
-      btn.disabled = true; btn.textContent = 'Authenticating…'; err.style.display = 'none';
+      btn.disabled = true; btn.textContent = t('sadmin.login.btn.loading'); err.style.display = 'none';
       try {
         const res = await fetch('/admin/api/login', {
           method: 'POST',
@@ -333,14 +353,14 @@
           window.location.href = '/admin';
         } else {
           const d = await res.json().catch(() => ({}));
-          err.textContent = d.detail || 'Invalid credentials';
+          err.textContent = d.detail || t('sadmin.login.error.invalid');
           err.style.display = 'block';
-          btn.disabled = false; btn.textContent = 'Sign In to Super Admin';
+          btn.disabled = false; btn.textContent = t('sadmin.login.btn');
         }
       } catch (_) {
-        err.textContent = 'Connection error. Please try again.';
+        err.textContent = t('sadmin.login.error.conn');
         err.style.display = 'block';
-        btn.disabled = false; btn.textContent = 'Sign In to Super Admin';
+        btn.disabled = false; btn.textContent = t('sadmin.login.btn');
       }
     });
   </script>

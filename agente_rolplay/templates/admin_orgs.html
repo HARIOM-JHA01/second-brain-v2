@@ -1,8 +1,8 @@
 {% extends "admin_base.html" %}
 
 {% block title %}Organizations{% endblock %}
-{% block page_title %}Organizations{% endblock %}
-{% block page_subtitle %}All organizations registered on the platform{% endblock %}
+{% block page_title %}<span data-i18n="sadmin.orgs.title">Organizations</span>{% endblock %}
+{% block page_subtitle %}<span data-i18n="sadmin.orgs.subtitle">All organizations registered on the platform</span>{% endblock %}
 
 {% block extra_style %}
 .filter-bar { display: flex; align-items: center; gap: .75rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
@@ -19,7 +19,7 @@
 <div id="confirmModal" class="modal">
   <div class="modal-content" style="max-width:400px;">
     <div class="modal-header">
-      <h2 style="color:var(--error);">⚠️ Delete Organization</h2>
+      <h2 style="color:var(--error);" data-i18n="sadmin.orgs.modal.delete_title">⚠️ Delete Organization</h2>
       <button class="modal-close" onclick="closeConfirm()">&times;</button>
     </div>
     <p style="font-size:.88rem;color:var(--text-dim);line-height:1.6;margin-bottom:1rem;">
@@ -27,8 +27,8 @@
       This will remove all its users, roles, and documents. <strong style="color:var(--error);">This cannot be undone.</strong>
     </p>
     <div style="display:flex;gap:.65rem;">
-      <button class="btn btn-secondary" style="flex:1;justify-content:center;" onclick="closeConfirm()">Cancel</button>
-      <button class="btn btn-danger" style="flex:1;justify-content:center;" id="confirmDeleteBtn" onclick="confirmDelete()">Delete</button>
+      <button class="btn btn-secondary" style="flex:1;justify-content:center;" onclick="closeConfirm()" data-i18n="sadmin.common.cancel">Cancel</button>
+      <button class="btn btn-danger" style="flex:1;justify-content:center;" id="confirmDeleteBtn" onclick="confirmDelete()" data-i18n="sadmin.common.delete">Delete</button>
     </div>
     <div id="confirmError" style="color:var(--error);font-size:.82rem;margin-top:.65rem;display:none;"></div>
   </div>
@@ -36,19 +36,19 @@
 
 <div class="section-card">
   <div class="section-card-header">
-    <div class="section-card-title">All Organizations <span class="count-chip" id="orgCount">—</span></div>
+    <div class="section-card-title"><span data-i18n="sadmin.orgs.all">All Organizations</span> <span class="count-chip" id="orgCount">—</span></div>
   </div>
 
   <div class="filter-bar">
     <div class="search-bar" style="flex:1;min-width:220px;margin-bottom:0;">
-      <input type="text" id="searchInput" placeholder="Search by name or owner…" oninput="filterOrgs()" />
+      <input type="text" id="searchInput" data-i18n-ph="sadmin.orgs.search_ph" placeholder="Search by name or owner…" oninput="filterOrgs()" />
     </div>
     <select id="sortSelect" onchange="filterOrgs()" style="padding:.6rem .9rem;background:var(--input-bg);border:1px solid var(--border);border-radius:9px;color:var(--text);font-size:.875rem;font-family:inherit;outline:none;">
-      <option value="users_desc">Most users ↓</option>
-      <option value="users_asc">Fewest users ↑</option>
-      <option value="date_desc">Newest first</option>
-      <option value="date_asc">Oldest first</option>
-      <option value="name_asc">Name A→Z</option>
+      <option value="users_desc" data-i18n="sadmin.orgs.sort.users_desc">Most users ↓</option>
+      <option value="users_asc" data-i18n="sadmin.orgs.sort.users_asc">Fewest users ↑</option>
+      <option value="date_desc" data-i18n="sadmin.orgs.sort.date_desc">Newest first</option>
+      <option value="date_asc" data-i18n="sadmin.orgs.sort.date_asc">Oldest first</option>
+      <option value="name_asc" data-i18n="sadmin.orgs.sort.name_asc">Name A→Z</option>
     </select>
   </div>
 
@@ -56,18 +56,18 @@
     <table>
       <thead>
         <tr>
-          <th>Organization</th>
-          <th>Owner Email</th>
-          <th>Total Users</th>
-          <th>Active</th>
-          <th>Inactive</th>
-          <th>Documents</th>
-          <th>Created</th>
-          <th>Actions</th>
+          <th data-i18n="sadmin.orgs.col.org">Organization</th>
+          <th data-i18n="sadmin.orgs.col.owner">Owner Email</th>
+          <th data-i18n="sadmin.orgs.col.total">Total Users</th>
+          <th data-i18n="sadmin.orgs.col.active">Active</th>
+          <th data-i18n="sadmin.orgs.col.inactive">Inactive</th>
+          <th data-i18n="sadmin.orgs.col.docs">Documents</th>
+          <th data-i18n="sadmin.common.created">Created</th>
+          <th data-i18n="sadmin.common.actions">Actions</th>
         </tr>
       </thead>
       <tbody id="orgsTable">
-        <tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-muted);">Loading…</td></tr>
+        <tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-muted);" data-i18n="sadmin.common.loading">Loading…</td></tr>
       </tbody>
     </table>
   </div>
@@ -111,7 +111,7 @@ function filterOrgs() {
 function renderOrgs(list) {
   const tbody = document.getElementById('orgsTable');
   if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-muted);">No organizations found</td></tr>';
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-muted);">${t('sadmin.orgs.empty')}</td></tr>`;
     return;
   }
   tbody.innerHTML = list.map(o => {
@@ -127,9 +127,9 @@ function renderOrgs(list) {
         <td style="color:var(--text-muted);">${new Date(o.created_at).toLocaleDateString()}</td>
         <td>
           <div style="display:flex;gap:.4rem;">
-            <a href="/admin/users?org=${encodeURIComponent(o.name)}" class="btn btn-secondary btn-sm">View Users</a>
+            <a href="/admin/users?org=${encodeURIComponent(o.name)}" class="btn btn-secondary btn-sm">${t('sadmin.orgs.view_users')}</a>
             <button class="btn btn-danger btn-sm" onclick="openConfirm('${o.id}','${o.name.replace(/'/g,"\\'")}')">
-              🗑 Delete
+              🗑 ${t('sadmin.common.delete')}
             </button>
           </div>
         </td>
@@ -145,7 +145,7 @@ function openConfirm(orgId, orgName) {
   document.getElementById('confirmOrgName').textContent = orgName;
   document.getElementById('confirmError').style.display = 'none';
   document.getElementById('confirmDeleteBtn').disabled = false;
-  document.getElementById('confirmDeleteBtn').textContent = 'Delete';
+  document.getElementById('confirmDeleteBtn').textContent = t('sadmin.common.delete');
   document.getElementById('confirmModal').classList.add('show');
 }
 
@@ -159,7 +159,7 @@ async function confirmDelete() {
   const btn = document.getElementById('confirmDeleteBtn');
   const err = document.getElementById('confirmError');
   btn.disabled = true;
-  btn.textContent = 'Deleting…';
+  btn.textContent = t('sadmin.common.deleting');
   err.style.display = 'none';
 
   const res = await fetch(`/admin/api/organizations/${_pendingDeleteId}`, { method: 'DELETE' });
@@ -168,13 +168,15 @@ async function confirmDelete() {
     loadOrgs();
   } else {
     const d = await res.json().catch(() => ({}));
-    err.textContent = d.detail || 'Delete failed';
+    err.textContent = d.detail || t('sadmin.common.delete_failed');
     err.style.display = 'block';
     btn.disabled = false;
-    btn.textContent = 'Delete';
+    btn.textContent = t('sadmin.common.delete');
   }
 }
 
 loadOrgs();
+
+document.addEventListener('langchange', () => filterOrgs());
 </script>
 {% endblock %}

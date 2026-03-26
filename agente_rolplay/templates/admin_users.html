@@ -1,8 +1,8 @@
 {% extends "admin_base.html" %}
 
 {% block title %}Users{% endblock %}
-{% block page_title %}All Users{% endblock %}
-{% block page_subtitle %}Every user across all organizations — manage access, passwords &amp; more{% endblock %}
+{% block page_title %}<span data-i18n="sadmin.users.title">All Users</span>{% endblock %}
+{% block page_subtitle %}<span data-i18n="sadmin.users.subtitle">Every user across all organizations — manage access, passwords &amp; more</span>{% endblock %}
 
 {% block extra_style %}
   /* ── Summary strip ─────────────────────────────── */
@@ -158,12 +158,12 @@
             <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
           </svg>
         </div>
-        <h2 style="font-size:1rem;">Delete User</h2>
+        <h2 style="font-size:1rem;" data-i18n="sadmin.users.modal.delete_title">Delete User</h2>
       </div>
       <button class="modal-close" onclick="closeDeleteModal()">&times;</button>
     </div>
     <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:.85rem;line-height:1.6;">
-      This will permanently remove the user and all their data. This cannot be undone.
+      <span data-i18n="sadmin.users.modal.delete_warning">This will permanently remove the user and all their data. This cannot be undone.</span>
     </p>
     <div class="modal-user-card">
       <div class="user-avatar" id="delAvatar" style="background:#6366f1;width:38px;height:38px;font-size:.85rem;">—</div>
@@ -173,12 +173,12 @@
       </div>
     </div>
     <div style="display:flex;gap:.65rem;">
-      <button class="btn btn-secondary" style="flex:1;justify-content:center;" onclick="closeDeleteModal()">Cancel</button>
+      <button class="btn btn-secondary" style="flex:1;justify-content:center;" onclick="closeDeleteModal()" data-i18n="sadmin.common.cancel">Cancel</button>
       <button class="btn btn-danger" style="flex:1;justify-content:center;" id="delConfirmBtn" onclick="confirmDeleteUser()">
         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:.3rem;">
           <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
         </svg>
-        Delete user
+        <span data-i18n="sadmin.users.modal.delete_btn">Delete user</span>
       </button>
     </div>
     <div id="delError" style="color:var(--error);font-size:.82rem;margin-top:.65rem;display:none;padding:.5rem .75rem;background:rgba(248,113,113,.08);border-radius:7px;border:1px solid rgba(248,113,113,.2);"></div>
@@ -195,7 +195,7 @@
             <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
           </svg>
         </div>
-        <h2 style="font-size:1rem;">Change Password</h2>
+        <h2 style="font-size:1rem;" data-i18n="sadmin.users.modal.pw_title">Change Password</h2>
       </div>
       <button class="modal-close" onclick="closePwModal()">&times;</button>
     </div>
@@ -209,9 +209,9 @@
     <form id="pwForm">
       <input type="hidden" id="pwUserId" />
       <div class="form-group">
-        <label>New Password</label>
+        <label data-i18n="sadmin.users.modal.pw_new">New Password</label>
         <div class="pw-field-wrap">
-          <input type="password" id="pwNewPassword" required placeholder="Min 6 characters" minlength="6" autocomplete="new-password" />
+          <input type="password" id="pwNewPassword" required data-i18n-ph="sadmin.users.modal.pw_ph" placeholder="Min 6 characters" minlength="6" autocomplete="new-password" />
           <button type="button" class="pw-eye" onclick="togglePwVis('pwNewPassword',this)">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
@@ -221,9 +221,9 @@
         </div>
       </div>
       <div class="form-group">
-        <label>Confirm Password</label>
+        <label data-i18n="sadmin.users.modal.pw_confirm">Confirm Password</label>
         <div class="pw-field-wrap">
-          <input type="password" id="pwConfirm" required placeholder="Repeat password" autocomplete="new-password" />
+          <input type="password" id="pwConfirm" required data-i18n-ph="sadmin.users.modal.pw_confirm_ph" placeholder="Repeat password" autocomplete="new-password" />
           <button type="button" class="pw-eye" onclick="togglePwVis('pwConfirm',this)">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
@@ -232,13 +232,13 @@
           </button>
         </div>
       </div>
-      <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:.5rem;">
+      <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:.5rem;" data-i18n="sadmin.users.modal.pw_btn">
         Set new password
       </button>
     </form>
     <div id="pwError"   style="color:var(--error);font-size:.82rem;margin-top:.6rem;display:none;padding:.5rem .75rem;background:rgba(248,113,113,.08);border-radius:7px;border:1px solid rgba(248,113,113,.2);"></div>
     <div id="pwSuccess" style="color:var(--success);font-size:.82rem;margin-top:.6rem;display:none;padding:.5rem .75rem;background:rgba(52,211,153,.08);border-radius:7px;border:1px solid rgba(52,211,153,.2);">
-      ✓ Password updated successfully.
+      <span data-i18n="sadmin.users.modal.pw_success">✓ Password updated successfully.</span>
     </div>
   </div>
 </div>
@@ -249,28 +249,28 @@
     <div class="summary-icon" style="background:rgba(96,165,250,.12);">👥</div>
     <div>
       <div class="summary-val" style="color:var(--stat-blue);" id="sum-total">—</div>
-      <div class="summary-label">Total Users</div>
+      <div class="summary-label" data-i18n="sadmin.users.sum.total">Total Users</div>
     </div>
   </div>
   <div class="summary-card">
     <div class="summary-icon" style="background:rgba(52,211,153,.12);">✅</div>
     <div>
       <div class="summary-val" style="color:var(--stat-green);" id="sum-active">—</div>
-      <div class="summary-label">Active</div>
+      <div class="summary-label" data-i18n="sadmin.users.sum.active">Active</div>
     </div>
   </div>
   <div class="summary-card">
     <div class="summary-icon" style="background:rgba(248,113,113,.1);">🚫</div>
     <div>
       <div class="summary-val" style="color:var(--stat-red);" id="sum-inactive">—</div>
-      <div class="summary-label">Inactive</div>
+      <div class="summary-label" data-i18n="sadmin.users.sum.inactive">Inactive</div>
     </div>
   </div>
   <div class="summary-card">
     <div class="summary-icon" style="background:rgba(129,140,248,.12);">🏢</div>
     <div>
       <div class="summary-val" style="color:#818cf8;" id="sum-orgs">—</div>
-      <div class="summary-label">Organizations</div>
+      <div class="summary-label" data-i18n="sadmin.users.sum.orgs">Organizations</div>
     </div>
   </div>
 </div>
@@ -279,7 +279,7 @@
 <div class="section-card">
   <div class="section-card-header">
     <div style="display:flex;align-items:center;gap:.75rem;">
-      <div class="section-card-title">Users</div>
+      <div class="section-card-title" data-i18n="sadmin.users.section">Users</div>
       <span class="count-pill" id="userCount">—</span>
     </div>
   </div>
@@ -290,15 +290,15 @@
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/>
       </svg>
-      <input type="text" id="searchInput" placeholder="Search name, email, org, WhatsApp…" oninput="filterUsers()" />
+      <input type="text" id="searchInput" data-i18n-ph="sadmin.users.search_ph" placeholder="Search name, email, org, WhatsApp…" oninput="filterUsers()" />
     </div>
     <select id="orgFilter" class="filter-select" onchange="filterUsers()">
-      <option value="">All Organizations</option>
+      <option value="" data-i18n="sadmin.users.filter.all_orgs">All Organizations</option>
     </select>
     <select id="statusFilter" class="filter-select" onchange="filterUsers()" style="min-width:130px;">
-      <option value="">All statuses</option>
-      <option value="active">Active</option>
-      <option value="inactive">Inactive</option>
+      <option value="" data-i18n="sadmin.users.filter.all_statuses">All statuses</option>
+      <option value="active" data-i18n="sadmin.common.active">Active</option>
+      <option value="inactive" data-i18n="sadmin.common.inactive">Inactive</option>
     </select>
   </div>
 
@@ -307,14 +307,14 @@
     <table>
       <thead>
         <tr>
-          <th>User</th>
-          <th>WhatsApp</th>
-          <th>Job Title</th>
-          <th>Organization</th>
-          <th>Role</th>
-          <th>Status</th>
-          <th>Joined</th>
-          <th style="text-align:right;">Actions</th>
+          <th data-i18n="sadmin.users.col.user">User</th>
+          <th data-i18n="sadmin.users.col.whatsapp">WhatsApp</th>
+          <th data-i18n="sadmin.users.col.jobtitle">Job Title</th>
+          <th data-i18n="sadmin.users.col.org">Organization</th>
+          <th data-i18n="sadmin.users.col.role">Role</th>
+          <th data-i18n="sadmin.common.status">Status</th>
+          <th data-i18n="sadmin.users.col.joined">Joined</th>
+          <th style="text-align:right;" data-i18n="sadmin.common.actions">Actions</th>
         </tr>
       </thead>
       <tbody id="usersTable">
@@ -408,7 +408,7 @@ function renderUsers(list) {
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/>
           </svg>
-          <p>No users found</p>
+          <p>${t('sadmin.users.empty')}</p>
         </div>
       </td></tr>`;
     return;
@@ -554,18 +554,20 @@ async function confirmDeleteUser() {
   if (!_pendingDelUserId) return;
   const btn = document.getElementById('delConfirmBtn');
   const err = document.getElementById('delError');
-  btn.disabled = true; btn.textContent = 'Deleting…'; err.style.display = 'none';
+  btn.disabled = true; btn.textContent = t('sadmin.common.deleting'); err.style.display = 'none';
 
   const res = await fetch(`/admin/api/users/${_pendingDelUserId}`, { method: 'DELETE' });
   if (res.ok) { closeDeleteModal(); loadUsers(); }
   else {
     const d = await res.json().catch(() => ({}));
-    err.textContent = d.detail || 'Delete failed'; err.style.display = 'block';
+    err.textContent = d.detail || t('sadmin.common.delete_failed'); err.style.display = 'block';
     btn.disabled = false;
-    btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:.3rem;"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg> Delete user`;
+    btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:.3rem;"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg> ${t('sadmin.users.modal.delete_btn')}`;
   }
 }
 
 loadUsers();
+
+document.addEventListener('langchange', () => filterUsers());
 </script>
 {% endblock %}
