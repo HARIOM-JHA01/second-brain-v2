@@ -92,11 +92,11 @@ def _summarize(plain_text: str, emp_name: str) -> str:
             messages=[{
                 "role": "user",
                 "content": (
-                    f"Summarize this coaching session evaluation for {emp_name} "
-                    "into a short WhatsApp message (plain text, no HTML, no markdown "
-                    "except *bold* for section titles). Cover: overall result, key "
-                    "learnings, main improvement areas, and top recommendation. "
-                    "Be concise — 150 words max.\n\n"
+                    f"Resume esta evaluación de sesión de coaching para {emp_name} "
+                    "en un mensaje corto para WhatsApp (texto plano, sin HTML, sin markdown "
+                    "excepto *negrita* para títulos de sección). Cubre: resultado general, "
+                    "aprendizajes clave, principales áreas de mejora y recomendación principal. "
+                    "Sé conciso — máximo 150 palabras. Responde siempre en español.\n\n"
                     f"{plain_text}"
                 ),
             }],
