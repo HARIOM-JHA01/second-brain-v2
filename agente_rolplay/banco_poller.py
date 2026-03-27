@@ -18,14 +18,19 @@ from html import unescape
 
 import redis
 import requests
+from anthropic import Anthropic
 
 from agente_rolplay.config import (
+    ANTHROPIC_API_KEY,
     BANCO_API_URL,
     BANCO_POLL_INTERVAL,
     BANCO_POLL_PHONE,
+    HAIKU_MODEL_NAME,
     redis_connection_kwargs,
 )
 from agente_rolplay.messaging.twilio_client import send_twilio_message
+
+_anthropic = Anthropic(api_key=ANTHROPIC_API_KEY)
 
 logger = logging.getLogger(__name__)
 
@@ -38,16 +43,30 @@ BANCO_SESSION_CONTEXT_TTL = 86400  # 24 hours
 # ---------------------------------------------------------------------------
 
 def _html_to_text(html: str) -> str:
-    # Drop <style>...</style> blocks entirely
-    html = re.sub(r"<style[^>]*>.*?</style>", "", html, flags=re.DOTALL | re.IGNORECASE)
-    # Add newlines around block-level tags so sections don't run together
-    html = re.sub(r"<(br|p|h[1-6]|div|li|tr)[^>]*>", "\n", html, flags=re.IGNORECASE)
-    # Strip remaining tags
+    """Strip all HTML and return full plain-text content."""
+    # Remove <style> and <script> blocks entirely ([\s\S] matches \r and \n)
+    html = re.sub(
+        r"<(style|script)[^>]*>[\s\S]*?</(style|script)>",
+        "",
+        html,
+        flags=re.IGNORECASE,
+    )
+    # Closing block tags → newline so sections are separated
+    html = re.sub(
+        r"</(p|h[1-6]|div|li|td|th|tr|thead|tbody|section|article)>",
+        "\n",
+        html,
+        flags=re.IGNORECASE,
+    )
+    # <br> → newline
+    html = re.sub(r"<br\s*/?>", "\n", html, flags=re.IGNORECASE)
+    # Strip all remaining tags
     text = re.sub(r"<[^>]+>", "", html)
-    # Decode HTML entities (e.g. &amp; &eacute;)
+    # Decode HTML entities (&amp; &eacute; &#x27; etc.)
     text = unescape(text)
-    # Collapse spaces, normalise line breaks
+    # Collapse horizontal whitespace, normalise blank lines
     text = re.sub(r"[ \t]+", " ", text)
+    text = re.sub(r" *\n *", "\n", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip()
 
@@ -64,6 +83,30 @@ def _get_latest_salinas_session(sessions: list) -> dict | None:
     return max(salinas, key=lambda s: s["id"])
 
 
+def _summarize(plain_text: str, emp_name: str) -> str:
+    """Use Claude Haiku to produce a concise WhatsApp-friendly summary."""
+    try:
+        resp = _anthropic.messages.create(
+            model=HAIKU_MODEL_NAME,
+            max_tokens=600,
+            messages=[{
+                "role": "user",
+                "content": (
+                    f"Summarize this coaching session evaluation for {emp_name} "
+                    "into a short WhatsApp message (plain text, no HTML, no markdown "
+                    "except *bold* for section titles). Cover: overall result, key "
+                    "learnings, main improvement areas, and top recommendation. "
+                    "Be concise — 150 words max.\n\n"
+                    f"{plain_text}"
+                ),
+            }],
+        )
+        return resp.content[0].text.strip()
+    except Exception:
+        logger.exception("Summarization failed, using full plain text")
+        return plain_text
+
+
 def _format_whatsapp_message(record: dict) -> str:
     emp_name = record.get("banco_emp_name", "Unknown")
     emp_id = record.get("banco_emp_id", "N/A")
@@ -71,6 +114,7 @@ def _format_whatsapp_message(record: dict) -> str:
     session_id = record.get("id")
 
     plain = _html_to_text(record.get("closingretro", ""))
+    summary = _summarize(plain, emp_name)
 
     header = (
         f"*Session Report #{session_id}*\n"
@@ -78,7 +122,7 @@ def _format_whatsapp_message(record: dict) -> str:
         f"Date: {date_str}\n"
         f"{'─' * 28}\n\n"
     )
-    return header + plain
+    return header + summary
 
 
 # ---------------------------------------------------------------------------
