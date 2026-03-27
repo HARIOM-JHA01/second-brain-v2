@@ -1392,8 +1392,12 @@ def process_incoming_messages(form_data, redis_client=r):
     # --- Banco Q&A: handle messages from the configured banco poll phone ---
     from agente_rolplay.config import BANCO_POLL_PHONE
     _banco_bare = BANCO_POLL_PHONE.lstrip("+")
-    print(f"[BANCO] incoming phone={phone_number!r} | banco_bare={_banco_bare!r} | match={phone_number == _banco_bare}")
-    if phone_number == _banco_bare and body and body.strip():
+    _banco_match = phone_number == _banco_bare or (
+        len(phone_number) >= 10 and len(_banco_bare) >= 10
+        and phone_number[-10:] == _banco_bare[-10:]
+    )
+    print(f"[BANCO] incoming phone={phone_number!r} | banco_bare={_banco_bare!r} | match={_banco_match}")
+    if _banco_match and body and body.strip():
         _ctx_raw = redis_client.get(f"banco:session_context:{_banco_bare}")
         print(f"[BANCO] context key=banco:session_context:{_banco_bare} | found={_ctx_raw is not None}")
         if _ctx_raw:
