@@ -1389,6 +1389,38 @@ def process_incoming_messages(form_data, redis_client=r):
         print("Could not extract phone number")
         return "NoCommand"
 
+    # --- Banco Q&A: handle messages from the configured banco poll phone ---
+    from agente_rolplay.config import BANCO_POLL_PHONE
+    _banco_bare = BANCO_POLL_PHONE.lstrip("+")
+    if phone_number == _banco_bare and body and body.strip():
+        _ctx_raw = redis_client.get(f"banco:session_context:{_banco_bare}")
+        if _ctx_raw:
+            _ctx = json.loads(_ctx_raw)
+            _banco_system_prompt = (
+                "You are a helpful AI assistant. The user received a coaching session evaluation report "
+                "and is asking questions about it. Answer clearly and concisely based only on the "
+                "report content below. If the answer is not in the report, say so.\n\n"
+                f"Employee: {_ctx.get('emp_name')} (ID: {_ctx.get('emp_id')})\n"
+                f"Date: {_ctx.get('date')}\n\n"
+                f"Report:\n{_ctx.get('plain_text', '')}"
+            )
+            _banco_data = {"body": body, "type": "text", "from": from_number}
+            _dedup_key = f"msg:twilio:{message_sid}"
+            if redis_client.exists(_dedup_key):
+                return "NoCommand"
+            _banco_answer = responder_usuario(
+                messages=[],
+                data=_banco_data,
+                telefono=phone_number,
+                id_conversacion=f"banco:{phone_number}",
+                id_phone_number=f"fp-idPhone:{phone_number}",
+                coaching_system_prompt=_banco_system_prompt,
+            )
+            send_twilio_message(from_number, str(_banco_answer["answer"]))
+            redis_client.set(_dedup_key, "exists", ex=DEDUP_KEY_TTL)
+            return "BancoQA"
+    # --- end Banco Q&A ---
+
     try:
         from agente_rolplay.db.whatsapp_auth import (
             lookup_whatsapp_user,

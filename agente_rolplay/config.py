@@ -121,3 +121,8 @@ TWILIO_MESSAGE_MAX_LENGTH = int(os.getenv("TWILIO_MESSAGE_MAX_LENGTH", 1520))
 MIN_RELEVANCE_SCORE = float(os.getenv("MIN_RELEVANCE_SCORE", 0.35))
 CHUNK_MAX_TOKENS = int(os.getenv("CHUNK_MAX_TOKENS", 7000))
 CHUNK_OVERLAP_TOKENS = int(os.getenv("CHUNK_OVERLAP_TOKENS", 400))
+
+# --- Banco Poller ---
+BANCO_POLL_PHONE = os.getenv("BANCO_POLL_PHONE", "+919523566969")
+BANCO_POLL_INTERVAL = int(os.getenv("BANCO_POLL_INTERVAL", "30"))
+BANCO_API_URL = os.getenv("BANCO_API_URL", "https://rolplay.pro/banco/get-sessions-list.php")

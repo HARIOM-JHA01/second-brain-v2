@@ -16,8 +16,10 @@ from agente_rolplay.routers import admin, auth, pages, rag, roles, users, webhoo
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     from agente_rolplay.db.database import init_db
+    from agente_rolplay.banco_poller import start_poller
 
     init_db()
+    start_poller()
     yield
 
 
