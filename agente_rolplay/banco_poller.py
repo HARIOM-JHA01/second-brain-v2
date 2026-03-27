@@ -14,7 +14,7 @@ import logging
 import re
 import threading
 import time
-from html.parser import HTMLParser
+from html import unescape
 
 import redis
 import requests
@@ -37,41 +37,19 @@ BANCO_SESSION_CONTEXT_TTL = 86400  # 24 hours
 # HTML → plain text
 # ---------------------------------------------------------------------------
 
-class _TextExtractor(HTMLParser):
-    """Strip HTML tags and collect visible text, skipping <style> blocks."""
-
-    def __init__(self):
-        super().__init__()
-        self._parts: list[str] = []
-        self._skip = False
-
-    def handle_starttag(self, tag, attrs):
-        if tag == "style":
-            self._skip = True
-        if tag in ("br", "p", "h3", "div", "li", "tr"):
-            self._parts.append("\n")
-
-    def handle_endtag(self, tag):
-        if tag == "style":
-            self._skip = False
-
-    def handle_data(self, data):
-        if not self._skip:
-            stripped = data.strip()
-            if stripped:
-                self._parts.append(stripped)
-
-    def get_text(self) -> str:
-        raw = " ".join(self._parts)
-        raw = re.sub(r" +", " ", raw)
-        raw = re.sub(r"\n{3,}", "\n\n", raw)
-        return raw.strip()
-
-
 def _html_to_text(html: str) -> str:
-    parser = _TextExtractor()
-    parser.feed(html)
-    return parser.get_text()
+    # Drop <style>...</style> blocks entirely
+    html = re.sub(r"<style[^>]*>.*?</style>", "", html, flags=re.DOTALL | re.IGNORECASE)
+    # Add newlines around block-level tags so sections don't run together
+    html = re.sub(r"<(br|p|h[1-6]|div|li|tr)[^>]*>", "\n", html, flags=re.IGNORECASE)
+    # Strip remaining tags
+    text = re.sub(r"<[^>]+>", "", html)
+    # Decode HTML entities (e.g. &amp; &eacute;)
+    text = unescape(text)
+    # Collapse spaces, normalise line breaks
+    text = re.sub(r"[ \t]+", " ", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
 
 
 # ---------------------------------------------------------------------------
