@@ -116,13 +116,7 @@ def _format_whatsapp_message(record: dict) -> str:
     plain = _html_to_text(record.get("closingretro", ""))
     summary = _summarize(plain, emp_name)
 
-    header = (
-        f"*Session Report #{session_id}*\n"
-        f"Employee: {emp_name} (ID: {emp_id})\n"
-        f"Date: {date_str}\n"
-        f"{'─' * 28}\n\n"
-    )
-    return header + summary
+    return summary
 
 
 # ---------------------------------------------------------------------------
