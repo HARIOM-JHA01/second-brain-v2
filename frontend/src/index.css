@@ -1,0 +1,147 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root, [data-theme="dark"] {
+  --bg: #07070f;
+  --bg-alt: rgba(255,255,255,.012);
+  --surface: rgba(255,255,255,.04);
+  --surface-hover: rgba(255,255,255,.07);
+  --border: rgba(255,255,255,.07);
+  --border-hover: rgba(220,38,38,.3);
+  --text: #ffffff;
+  --text-dim: rgba(255,255,255,.65);
+  --text-muted: rgba(255,255,255,.4);
+  --indigo: #dc2626;
+  --violet: #991b1b;
+  --navbar-bg: rgba(7,7,15,.8);
+  --sidebar-bg: rgba(255,255,255,.02);
+  --sidebar-active: rgba(220,38,38,.15);
+  --sidebar-active-border: #dc2626;
+  --input-bg: rgba(255,255,255,.05);
+  --input-color: #fff;
+  --placeholder: rgba(255,255,255,.28);
+  --card-bg: rgba(255,255,255,.03);
+  --table-header: rgba(255,255,255,.04);
+  --table-row-hover: rgba(255,255,255,.03);
+  --table-border: rgba(255,255,255,.05);
+  --modal-bg: #12121e;
+  --modal-overlay: rgba(0,0,0,.7);
+  --badge-active-bg: rgba(74,222,128,.1);
+  --badge-active-color: #4ade80;
+  --badge-inactive-bg: rgba(248,113,113,.1);
+  --badge-inactive-color: #f87171;
+  --toggle-bg: rgba(255,255,255,.08);
+  --error: #f87171;
+  --success: #4ade80;
+  --shadow: 0 4px 24px rgba(0,0,0,.4);
+}
+
+[data-theme="light"] {
+  --bg: #f5f5fb;
+  --bg-alt: rgba(0,0,0,.02);
+  --surface: rgba(255,255,255,.85);
+  --surface-hover: rgba(255,255,255,1);
+  --border: rgba(0,0,0,.08);
+  --border-hover: rgba(220,38,38,.35);
+  --text: #0d0d18;
+  --text-dim: rgba(0,0,0,.65);
+  --text-muted: rgba(0,0,0,.42);
+  --indigo: #dc2626;
+  --violet: #991b1b;
+  --navbar-bg: rgba(245,245,251,.88);
+  --sidebar-bg: rgba(255,255,255,.6);
+  --sidebar-active: rgba(220,38,38,.1);
+  --sidebar-active-border: #dc2626;
+  --input-bg: rgba(0,0,0,.03);
+  --input-color: #0d0d18;
+  --placeholder: rgba(0,0,0,.28);
+  --card-bg: rgba(255,255,255,.8);
+  --table-header: rgba(0,0,0,.03);
+  --table-row-hover: rgba(220,38,38,.03);
+  --table-border: rgba(0,0,0,.06);
+  --modal-bg: #ffffff;
+  --modal-overlay: rgba(0,0,0,.4);
+  --badge-active-bg: rgba(22,163,74,.1);
+  --badge-active-color: #16a34a;
+  --badge-inactive-bg: rgba(220,38,38,.1);
+  --badge-inactive-color: #dc2626;
+  --toggle-bg: rgba(0,0,0,.07);
+  --error: #dc2626;
+  --success: #16a34a;
+  --shadow: 0 4px 24px rgba(0,0,0,.1);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  transition: background 0.3s, color 0.3s;
+}
+
+.bg-background { background-color: var(--bg); }
+.bg-background-alt { background-color: var(--bg-alt); }
+.bg-surface { background-color: var(--surface); }
+.bg-surface-hover { background-color: var(--surface-hover); }
+.bg-card-bg { background-color: var(--card-bg); }
+.bg-input-bg { background-color: var(--input-bg); }
+.bg-modal-bg { background-color: var(--modal-bg); }
+.bg-modal-overlay { background-color: var(--modal-overlay); }
+.bg-toggle-bg { background-color: var(--toggle-bg); }
+.bg-badge-active-bg { background-color: var(--badge-active-bg); }
+.bg-badge-inactive-bg { background-color: var(--badge-inactive-bg); }
+.bg-sidebar-active { background-color: var(--sidebar-active); }
+.bg-navbar-bg { background-color: var(--navbar-bg); }
+.bg-sidebar-bg { background-color: var(--sidebar-bg); }
+.bg-primary { background-color: var(--primary); }
+.bg-secondary { background-color: var(--secondary); }
+
+.text-text { color: var(--text); }
+.text-text-dim { color: var(--text-dim); }
+.text-text-muted { color: var(--text-muted); }
+.text-primary { color: var(--indigo); }
+.text-error { color: var(--error); }
+.text-success { color: var(--success); }
+.text-placeholder { color: var(--placeholder); }
+.text-badge-active-color { color: var(--badge-active-color); }
+.text-badge-inactive-color { color: var(--badge-inactive-color); }
+
+.border-border { border-color: var(--border); }
+.border-border-hover { border-color: var(--border-hover); }
+.border-sidebar-active-border { border-color: var(--sidebar-active-border); }
+.border-primary { border-color: var(--indigo); }
+.border-error { border-color: var(--error); }
+
+.shadow-shadow { box-shadow: var(--shadow); }
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -400px 0;
+  }
+  100% {
+    background-position: 400px 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, var(--surface) 25%, var(--border) 50%, var(--surface) 75%);
+  background-size: 400px 100%;
+  animation: shimmer 1.4s infinite linear;
+}

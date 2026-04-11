@@ -1,0 +1,249 @@
+{
+  "brand": {
+    "by": "por"
+  },
+  "common": {
+    "loading": "Cargando…",
+    "error": "Ocurrió un error. Por favor intenta de nuevo.",
+    "active": "Activo",
+    "inactive": "Inactivo",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "add": "Agregar",
+    "search": "Buscar",
+    "noResults": "Sin resultados",
+    "confirm": "Confirmar",
+    "success": "Operación exitosa",
+    "required": "Obligatorio"
+  },
+  "auth": {
+    "back": "← Volver al inicio",
+    "swap": {
+      "title": "Alternar entre Registro e Inicio de sesión"
+    },
+    "signup": {
+      "page_title": "Registro — Second Brain",
+      "heading": "Crea tu cuenta",
+      "subtitle": "Todos los campos son obligatorios",
+      "section_details": "Tus datos",
+      "fullname": "Nombre completo",
+      "fullname_ph": "María García",
+      "jobtitle": "Cargo",
+      "jobtitle_ph": "CEO",
+      "email": "Correo electrónico",
+      "email_ph": "tu@empresa.com",
+      "whatsapp": "WhatsApp",
+      "whatsapp_ph": "+1234567890",
+      "section_org": "Organización",
+      "org": "Nombre de la organización",
+      "org_ph": "Acme S.A.",
+      "section_security": "Seguridad",
+      "password": "Contraseña",
+      "password_ph": "Mín. 6 caracteres",
+      "btn": "Crear cuenta",
+      "btn_loading": "Creando cuenta…",
+      "switch": "¿Ya tienes una cuenta?",
+      "switch_link": "Inicia sesión →"
+    },
+    "login": {
+      "page_title": "Iniciar sesión — Second Brain",
+      "heading": "Bienvenido de vuelta",
+      "subtitle": "Inicia sesión en tu espacio de trabajo",
+      "email": "Correo electrónico",
+      "email_ph": "tu@empresa.com",
+      "password": "Contraseña",
+      "password_ph": "••••••••",
+      "btn": "Iniciar sesión",
+      "btn_loading": "Iniciando sesión…",
+      "switch": "¿No tienes una cuenta?",
+      "switch_link": "Crear una →",
+      "error_invalid": "Credenciales incorrectas",
+      "error_conn": "Error de conexión. Por favor intenta de nuevo."
+    },
+    "quote": {
+      "signup": "\"El conocimiento de tu empresa,<br/><em>siempre al alcance.</em>\"",
+      "login": "\"Las decisiones son tan buenas<br/><em>como el conocimiento detrás de ellas.</em>\""
+    }
+  },
+  "nav": {
+    "by": "por",
+    "logout": "Cerrar sesión",
+    "login": "Iniciar sesión",
+    "signup": "Registrarse"
+  },
+  "sidebar": {
+    "main": "Principal",
+    "dashboard": "Panel",
+    "manage": "Gestionar",
+    "users": "Usuarios",
+    "documents": "Documentos",
+    "scenarios": "Escenarios",
+    "config": "Config",
+    "settings": "Configuración",
+    "admin": "Administración"
+  },
+  "dashboard": {
+    "title": "Panel",
+    "loading": "Cargando tu espacio de trabajo…",
+    "add_user": "+ Agregar usuario",
+    "pill": {
+      "users": "Usuarios",
+      "active": "Activos",
+      "messages": "Mensajes (7d)",
+      "docs": "Docs en KB",
+      "avg_resp": "Resp. promedio"
+    },
+    "chart": {
+      "msg_activity": "Actividad de mensajes",
+      "msg_per_day": "Mensajes por día en tu organización",
+      "team_status": "Estado del equipo",
+      "active_vs": "Activos vs Inactivos",
+      "team_growth": "Crecimiento del equipo",
+      "new_members": "Nuevos miembros por día",
+      "msg_breakdown": "Desglose de mensajes",
+      "by_type": "Por tipo"
+    },
+    "lbl": {
+      "active": "Activos",
+      "inactive": "Inactivos",
+      "new_week": "nuevos esta semana",
+      "text": "Texto",
+      "audio": "Audio",
+      "images": "Imágenes",
+      "docs": "Docs"
+    },
+    "team_members": "Miembros del equipo",
+    "view_all": "Ver todos →",
+    "col": {
+      "name": "Nombre",
+      "whatsapp": "WhatsApp",
+      "jobtitle": "Cargo",
+      "role": "Rol",
+      "status": "Estado",
+      "joined": "Se unió"
+    },
+    "empty": "Aún no hay miembros en tu equipo",
+    "modal": {
+      "add_title": "Agregar miembro",
+      "fullname": "Nombre completo",
+      "fullname_ph": "María García",
+      "jobtitle": "Cargo",
+      "jobtitle_ph": "Ingeniero",
+      "whatsapp": "Número de WhatsApp",
+      "role": "Rol",
+      "role_ph": "Selecciona un rol…",
+      "btn": "Agregar usuario",
+      "btn_loading": "Agregando…"
+    },
+    "error": {
+      "add_user": "Error al agregar usuario"
+    }
+  },
+  "users": {
+    "title": "Usuarios",
+    "subtitle": "Gestiona los miembros de tu organización",
+    "add_user": "+ Agregar usuario",
+    "search": "Buscar usuarios…",
+    "col": {
+      "name": "Nombre",
+      "email": "Email",
+      "whatsapp": "WhatsApp",
+      "jobtitle": "Cargo",
+      "role": "Rol",
+      "status": "Estado",
+      "joined": "Fecha de ingreso",
+      "actions": "Acciones"
+    },
+    "empty": "No hay usuarios",
+    "modal": {
+      "edit_title": "Editar usuario",
+      "delete_title": "Eliminar usuario",
+      "delete_confirm": "¿Estás seguro de que deseas eliminar este usuario?",
+      "delete_warning": "Esta acción no se puede deshacer."
+    }
+  },
+  "documents": {
+    "title": "Documentos",
+    "subtitle": "Gestiona la base de conocimiento",
+    "upload": "Subir documento",
+    "search": "Buscar documentos…",
+    "col": {
+      "name": "Nombre",
+      "type": "Tipo",
+      "size": "Tamaño",
+      "uploaded": "Subido",
+      "actions": "Acciones"
+    },
+    "empty": "No hay documentos",
+    "upload_modal": {
+      "title": "Subir documento",
+      "select_file": "Seleccionar archivo",
+      "drag_drop": "Arrastra un archivo aquí o haz clic para seleccionar",
+      "btn": "Subir"
+    },
+    "delete_confirm": "¿Eliminar este documento?"
+  },
+  "scenarios": {
+    "title": "Escenarios",
+    "subtitle": "Escenarios de coaching para tu equipo"
+  },
+  "settings": {
+    "title": "Configuración",
+    "subtitle": "Preferencias de tu cuenta",
+    "sections": {
+      "profile": "Perfil",
+      "notifications": "Notificaciones",
+      "security": "Seguridad"
+    }
+  },
+  "admin": {
+    "dashboard": {
+      "title": "Panel de Administración",
+      "subtitle": "Resumen de la plataforma",
+      "stats": {
+        "organizations": "Organizaciones",
+        "users": "Usuarios totales",
+        "active_users": "Usuarios activos",
+        "scenarios": "Escenarios"
+      }
+    },
+    "organizations": {
+      "title": "Organizaciones",
+      "subtitle": "Gestiona todas las organizaciones",
+      "add": "+ Nueva organización",
+      "col": {
+        "name": "Nombre",
+        "users": "Usuarios",
+        "created": "Creada",
+        "actions": "Acciones"
+      }
+    },
+    "users": {
+      "title": "Usuarios",
+      "subtitle": "Todos los usuarios de la plataforma",
+      "col": {
+        "name": "Nombre",
+        "email": "Email",
+        "organization": "Organización",
+        "status": "Estado",
+        "joined": "Fecha de ingreso",
+        "actions": "Acciones"
+      },
+      "set_password": "Establecer contraseña",
+      "toggle_active": "Cambiar estado"
+    },
+    "scenarios": {
+      "title": "Escenarios",
+      "subtitle": "Gestiona los escenarios de coaching",
+      "add": "+ Nuevo escenario",
+      "col": {
+        "name": "Nombre",
+        "description": "Descripción",
+        "created": "Creado",
+        "actions": "Acciones"
+      }
+    }
+  }
+}

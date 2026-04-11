@@ -29,6 +29,7 @@
   white-space: nowrap;
   vertical-align: middle;
 }
+.file-list { display: flex; flex-wrap: wrap; gap: .35rem; }
 .modal-overlay {
   display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5);
   z-index: 1000; align-items: center; justify-content: center;
@@ -78,7 +79,7 @@
           <th data-i18n="sadmin.scenarios.col.org">Organization</th>
           <th data-i18n="sadmin.scenarios.col.desc">Description</th>
           <th data-i18n="sadmin.scenarios.col.prompt">System Prompt</th>
-          <th data-i18n="sadmin.scenarios.col.file">Reference File</th>
+          <th data-i18n="sadmin.scenarios.col.file">Reference Files</th>
           <th data-i18n="sadmin.common.status">Status</th>
           <th data-i18n="sadmin.scenarios.col.sessions">Sessions</th>
           <th data-i18n="sadmin.common.created">Created</th>
@@ -92,7 +93,6 @@
   </div>
 </div>
 
-<!-- Create Scenario Modal -->
 <div id="createModal" class="modal-overlay">
   <div class="modal-box">
     <h3 data-i18n="sadmin.scenarios.modal.create_title">New Scenario</h3>
@@ -116,8 +116,9 @@
         <textarea id="c_system_prompt" required data-i18n-ph="sadmin.scenarios.modal.prompt_ph" placeholder="You are an expert sales coach. The user will practice a sales pitch with you..."></textarea>
       </div>
       <div class="form-field">
-        <label data-i18n="sadmin.scenarios.modal.file">Reference File (optional)</label>
-        <input type="file" id="c_reference_file" accept=".pdf,.docx,.pptx,.txt" />
+        <label data-i18n="sadmin.scenarios.modal.file">Reference Files (optional)</label>
+        <input type="file" id="c_reference_files" accept=".pdf,.docx,.pptx,.txt" multiple />
+        <div style="font-size:.75rem;color:var(--text-muted);margin-top:.25rem;">Select multiple files (PDF, DOCX, PPTX, TXT)</div>
       </div>
       <div class="form-row">
         <label style="margin:0;font-size:.875rem;" data-i18n="sadmin.scenarios.modal.active">Active</label>
@@ -132,7 +133,6 @@
   </div>
 </div>
 
-<!-- Edit Scenario Modal -->
 <div id="editModal" class="modal-overlay">
   <div class="modal-box">
     <h3 data-i18n="sadmin.scenarios.modal.edit_title">Edit Scenario</h3>
@@ -157,12 +157,12 @@
         <textarea id="e_system_prompt" required></textarea>
       </div>
       <div class="form-field">
-        <label data-i18n="sadmin.scenarios.modal.file">Reference File (optional)</label>
-        <input type="file" id="e_reference_file" accept=".pdf,.docx,.pptx,.txt" />
-        <div id="e_reference_file_name" style="font-size:.8rem;color:var(--text-muted);"></div>
+        <label data-i18n="sadmin.scenarios.modal.file">Add Reference Files (optional)</label>
+        <input type="file" id="e_reference_files" accept=".pdf,.docx,.pptx,.txt" multiple />
+        <div id="e_current_files" style="font-size:.8rem;color:var(--text-muted);margin-top:.5rem;"></div>
       </div>
       <div class="form-row">
-        <label style="margin:0;font-size:.875rem;" data-i18n="sadmin.scenarios.modal.remove_file">Remove current reference file</label>
+        <label style="margin:0;font-size:.875rem;" data-i18n="sadmin.scenarios.modal.clear_files">Clear all reference files</label>
         <input type="checkbox" id="e_clear_reference_file" style="width:auto;" />
       </div>
       <div class="form-row">
@@ -202,14 +202,12 @@ function populateOrgDropdowns() {
   const orgFilter = document.getElementById('orgFilter');
   const sorted = [...allOrgs].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
-  // Filter bar
   sorted.forEach(o => {
     const opt = document.createElement('option');
     opt.value = o.id; opt.textContent = o.name || o.id;
     orgFilter.appendChild(opt);
   });
 
-  // Create + Edit modal selects
   ['c_org', 'e_org'].forEach(id => {
     const sel = document.getElementById(id);
     sorted.forEach(o => {
@@ -242,13 +240,17 @@ function renderTable(data) {
     tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--text-muted);">${t('sadmin.scenarios.empty')}</td></tr>`;
     return;
   }
-  tbody.innerHTML = data.map(s => `
+  tbody.innerHTML = data.map(s => {
+    const filesHtml = s.reference_files && s.reference_files.length > 0
+      ? `<div class="file-list">${s.reference_files.map(f => `<span class="file-badge" title="${escHtml(f.file_name)}">${escHtml(f.file_name)}</span>`).join('')}</div>`
+      : '—';
+    return `
     <tr>
       <td style="font-weight:600;">${escHtml(s.name)}</td>
       <td>${escHtml(s.org_name || '—')}</td>
       <td style="color:var(--text-dim);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(s.description || '—')}</td>
       <td class="prompt-preview" title="${escHtml(s.system_prompt)}">${escHtml(s.system_prompt)}</td>
-      <td>${s.reference_file_name ? `<span class="file-badge" title="${escHtml(s.reference_file_name)}">${escHtml(s.reference_file_name)}</span>` : '—'}</td>
+      <td>${filesHtml}</td>
       <td><span class="badge ${s.is_active ? 'badge-active' : 'badge-inactive'}">${s.is_active ? 'Active' : 'Inactive'}</span></td>
       <td>${s.session_count}</td>
       <td style="color:var(--text-muted);font-size:.8rem;">${fmtDate(s.created_at)}</td>
@@ -257,7 +259,7 @@ function renderTable(data) {
         <button class="btn btn-danger btn-sm" onclick="deleteScenario('${s.id}', '${escHtml(s.name)}')">Delete</button>
       </td>
     </tr>
-  `).join('');
+  `}).join('');
 }
 
 function escHtml(s) {
@@ -283,10 +285,15 @@ function openEditModal(id) {
   document.getElementById('e_org').value = s.org_id;
   document.getElementById('e_description').value = s.description || '';
   document.getElementById('e_system_prompt').value = s.system_prompt;
-  document.getElementById('e_reference_file').value = '';
-  document.getElementById('e_reference_file_name').textContent = s.reference_file_name
-    ? `Current file: ${s.reference_file_name}`
-    : 'No reference file attached';
+  document.getElementById('e_reference_files').value = '';
+  
+  const filesDiv = document.getElementById('e_current_files');
+  if (s.reference_files && s.reference_files.length > 0) {
+    filesDiv.innerHTML = `<strong>Current files (${s.reference_files.length}):</strong><div class="file-list" style="margin-top:.35rem;">${s.reference_files.map(f => `<span class="file-badge">${escHtml(f.file_name)}</span>`).join('')}</div>`;
+  } else {
+    filesDiv.textContent = 'No reference files attached';
+  }
+  
   document.getElementById('e_clear_reference_file').checked = false;
   document.getElementById('e_is_active').checked = s.is_active;
   document.getElementById('editError').style.display = 'none';
@@ -297,7 +304,6 @@ function closeModal(id) {
   document.getElementById(id).classList.remove('show');
 }
 
-// Close on backdrop click
 ['createModal', 'editModal'].forEach(id => {
   document.getElementById(id).addEventListener('click', (e) => {
     if (e.target === e.currentTarget) closeModal(id);
@@ -314,8 +320,12 @@ document.getElementById('createForm').addEventListener('submit', async (e) => {
   body.append('description', document.getElementById('c_description').value.trim() || '');
   body.append('system_prompt', document.getElementById('c_system_prompt').value.trim());
   body.append('is_active', String(document.getElementById('c_is_active').checked));
-  const createFile = document.getElementById('c_reference_file').files[0];
-  if (createFile) body.append('reference_file', createFile);
+  
+  const createFiles = document.getElementById('c_reference_files').files;
+  for (let i = 0; i < createFiles.length; i++) {
+    body.append('reference_files', createFiles[i]);
+  }
+  
   const r = await fetch('/admin/api/scenarios', {
     method: 'POST',
     body,
@@ -344,8 +354,12 @@ document.getElementById('editForm').addEventListener('submit', async (e) => {
   body.append('system_prompt', document.getElementById('e_system_prompt').value.trim());
   body.append('is_active', String(document.getElementById('e_is_active').checked));
   body.append('clear_reference_file', String(document.getElementById('e_clear_reference_file').checked));
-  const editFile = document.getElementById('e_reference_file').files[0];
-  if (editFile) body.append('reference_file', editFile);
+  
+  const editFiles = document.getElementById('e_reference_files').files;
+  for (let i = 0; i < editFiles.length; i++) {
+    body.append('reference_files', editFiles[i]);
+  }
+  
   const r = await fetch(`/admin/api/scenarios/${id}`, {
     method: 'PATCH',
     body,
@@ -354,7 +368,6 @@ document.getElementById('editForm').addEventListener('submit', async (e) => {
     const updated = await r.json();
     const idx = allScenarios.findIndex(s => s.id === id);
     if (idx !== -1) {
-      // Merge updated fields, preserve session_count
       allScenarios[idx] = { ...allScenarios[idx], ...updated };
     }
     closeModal('editModal');

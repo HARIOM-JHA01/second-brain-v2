@@ -213,3 +213,7 @@ logs/
 /storage/
 temp_uploads/
 metadata/
+
+frontend/dist/
+frontend/node_modules/
+frontend/.env

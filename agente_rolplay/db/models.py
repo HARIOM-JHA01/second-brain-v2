@@ -1,6 +1,15 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Integer, JSON, Text
+from sqlalchemy import (
+    Column,
+    String,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    JSON,
+    Text,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from agente_rolplay.db.database import Base
@@ -123,6 +132,11 @@ class CoachingScenario(Base):
     sessions = relationship(
         "CoachingSession", back_populates="scenario", passive_deletes=True
     )
+    reference_files = relationship(
+        "CoachingScenarioReferenceFile",
+        back_populates="scenario",
+        cascade="all, delete-orphan",
+    )
 
 
 class CoachingSession(Base):
@@ -143,6 +157,22 @@ class CoachingSession(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     scenario = relationship("CoachingScenario", back_populates="sessions")
+
+
+class CoachingScenarioReferenceFile(Base):
+    __tablename__ = "coaching_scenario_reference_files"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    scenario_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("coaching_scenarios.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    file_name = Column(String(255), nullable=False)
+    file_text = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    scenario = relationship("CoachingScenario", back_populates="reference_files")
 
 
 class MessageLog(Base):
