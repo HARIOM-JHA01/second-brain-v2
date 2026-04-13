@@ -1657,7 +1657,33 @@ def process_incoming_messages(form_data, redis_client=r):
             if is_greet:
                 org_id = whatsapp_user.get("org_id") if whatsapp_user else None
                 if org_id and _org_has_active_scenarios(org_id):
-                    response_text = get_menu_message(current_lang, _get_enabled_menu_options(redis_client))
+                    _enabled_opts = _get_enabled_menu_options(redis_client)
+
+                    # Single option enabled — go straight to it, no menu needed
+                    if len(_enabled_opts) == 1:
+                        _only = next(iter(_enabled_opts))
+                        redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
+                        if _only == "2":
+                            redis_client.set(f"file_upload_pending:{phone_number}", "pending", ex=DEDUP_KEY_TTL)
+                            send_twilio_message(from_number, get_file_upload_message(current_lang))
+                            return "Success"
+                        elif _only == "3":
+                            _clear_coaching_state(phone_number, redis_client)
+                            return _start_coaching_scenario_selection(
+                                phone=phone_number,
+                                from_number=from_number,
+                                org_id=org_id,
+                                redis_client=redis_client,
+                                dedup_key=dedup_key,
+                                lang=current_lang,
+                            )
+                        elif _only == "4":
+                            send_twilio_message(from_number, get_beta_support_message(current_lang))
+                            return "Success"
+                        # _only == "1": fall through to normal agent below
+
+                    # Multiple options — show the menu
+                    response_text = get_menu_message(current_lang, _enabled_opts)
                     msg_type = "greeting"
                     send_result = send_twilio_message(from_number, response_text)
                     if send_result.get("success", False):
