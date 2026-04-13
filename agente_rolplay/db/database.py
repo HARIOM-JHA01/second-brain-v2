@@ -33,6 +33,7 @@ _MIGRATIONS = [
             created_at TIMESTAMP DEFAULT now()
         )
     """,
+    "ALTER TABLE coaching_scenarios ADD COLUMN IF NOT EXISTS usecase_api_id INTEGER",
 ]
 
 

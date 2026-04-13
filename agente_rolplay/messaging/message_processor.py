@@ -102,16 +102,33 @@ ACRONYM_CLARIFICATION_MSG = {
 }
 
 
-def _compose_coaching_prompt(
-    system_prompt: str,
-    scenario_id: str,
-    db,
-) -> str:
+def _compose_coaching_prompt(scenario, db) -> str:
     from agente_rolplay.db.models import CoachingScenarioReferenceFile
+    from agente_rolplay.usecase_api import fetch_latest_session_context
 
+    system_prompt = scenario.system_prompt
+
+    # API-driven scenario: fetch latest live session data
+    if scenario.usecase_api_id:
+        context = fetch_latest_session_context(scenario.usecase_api_id)
+        if context:
+            return (
+                f"{system_prompt}\n\n"
+                "LATEST PRACTICE SESSION DATA (fetched live):\n"
+                "Use the following data from the user's most recent coaching session "
+                "as the basis for this conversation.\n"
+                "<session_data>\n"
+                f"{context}\n"
+                "</session_data>"
+            )
+        else:
+            print(f"usecase_api: no context for id={scenario.usecase_api_id}, using base prompt")
+            return system_prompt
+
+    # Standard scenario: reference files uploaded by admin
     ref_files = (
         db.query(CoachingScenarioReferenceFile)
-        .filter(CoachingScenarioReferenceFile.scenario_id == scenario_id)
+        .filter(CoachingScenarioReferenceFile.scenario_id == scenario.id)
         .all()
     )
 
@@ -664,11 +681,7 @@ def _handle_scenario_selection(
             )
             if scenario:
                 scenario_id = str(scenario.id)
-                scenario_prompt = _compose_coaching_prompt(
-                    system_prompt=scenario.system_prompt,
-                    scenario_id=scenario_id,
-                    db=db,
-                )
+                scenario_prompt = _compose_coaching_prompt(scenario, db)
         finally:
             db.close()
     except Exception as e:

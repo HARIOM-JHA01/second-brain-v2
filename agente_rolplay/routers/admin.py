@@ -67,6 +67,7 @@ async def _parse_scenario_request(request: Request) -> tuple[dict[str, Any], lis
                 "description": form.get("description"),
                 "is_active": form.get("is_active"),
                 "clear_reference_file": form.get("clear_reference_file"),
+                "usecase_api_id": form.get("usecase_api_id"),
             },
             reference_files,
         )
@@ -530,6 +531,7 @@ def list_all_scenarios(request: Request, db: Session = Depends(get_db)):
                 "reference_files": saved_files,
                 "reference_files_count": len(saved_files),
                 "is_active": s.is_active,
+                "usecase_api_id": s.usecase_api_id,
                 "created_at": s.created_at.isoformat() if s.created_at else None,
                 "org_id": str(s.org_id),
                 "org_name": org.name if org else None,
@@ -557,12 +559,16 @@ async def admin_create_scenario(request: Request, db: Session = Depends(get_db))
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found")
 
+    raw_api_id = body.get("usecase_api_id")
+    usecase_api_id = int(raw_api_id) if raw_api_id else None
+
     scenario = CoachingScenario(
         org_id=org.id,
         name=name,
         description=(body.get("description") or "").strip() or None,
         system_prompt=system_prompt,
         is_active=_to_bool(body.get("is_active"), default=True),
+        usecase_api_id=usecase_api_id,
     )
     db.add(scenario)
     db.flush()
@@ -589,6 +595,7 @@ async def admin_create_scenario(request: Request, db: Session = Depends(get_db))
         "reference_files": saved_files,
         "reference_files_count": len(saved_files),
         "is_active": scenario.is_active,
+        "usecase_api_id": scenario.usecase_api_id,
         "created_at": scenario.created_at.isoformat() if scenario.created_at else None,
         "org_id": str(scenario.org_id),
         "org_name": org.name,
@@ -629,6 +636,9 @@ async def admin_update_scenario(
             db.add(ref)
     if "is_active" in body:
         scenario.is_active = _to_bool(body["is_active"], default=scenario.is_active)
+    if "usecase_api_id" in body:
+        val = body["usecase_api_id"]
+        scenario.usecase_api_id = int(val) if val else None
     if "org_id" in body and body["org_id"]:
         org = db.query(Organization).filter(Organization.id == body["org_id"]).first()
         if not org:
@@ -652,6 +662,7 @@ async def admin_update_scenario(
         "reference_files": saved_files,
         "reference_files_count": len(saved_files),
         "is_active": scenario.is_active,
+        "usecase_api_id": scenario.usecase_api_id,
         "org_id": str(scenario.org_id),
         "org_name": org.name if org else None,
     }

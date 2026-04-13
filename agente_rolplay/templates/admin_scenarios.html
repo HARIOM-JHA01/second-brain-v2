@@ -121,6 +121,11 @@
         <div style="font-size:.75rem;color:var(--text-muted);margin-top:.25rem;">Select multiple files (PDF, DOCX, PPTX, TXT) — you can pick files in multiple batches</div>
         <div id="c_files_list" style="display:flex;flex-direction:column;gap:.3rem;margin-top:.4rem;"></div>
       </div>
+      <div class="form-field">
+        <label>Use Case API ID <span style="font-weight:400;text-transform:none;">(optional — for live session coaching)</span></label>
+        <input type="number" id="c_usecase_api_id" placeholder="e.g. 385" min="1" />
+        <div style="font-size:.75rem;color:var(--text-muted);margin-top:.25rem;">If set, the coach will fetch the latest session from the Rolplay API instead of using uploaded files.</div>
+      </div>
       <div class="form-row">
         <label style="margin:0;font-size:.875rem;" data-i18n="sadmin.scenarios.modal.active">Active</label>
         <input type="checkbox" id="c_is_active" checked style="width:auto;" />
@@ -167,6 +172,11 @@
         <label style="margin:0;font-size:.875rem;" data-i18n="sadmin.scenarios.modal.clear_files">Clear all reference files</label>
         <input type="checkbox" id="e_clear_reference_file" style="width:auto;" />
       </div>
+      <div class="form-field">
+        <label>Use Case API ID <span style="font-weight:400;text-transform:none;">(optional — for live session coaching)</span></label>
+        <input type="number" id="e_usecase_api_id" placeholder="e.g. 385" min="1" />
+        <div style="font-size:.75rem;color:var(--text-muted);margin-top:.25rem;">If set, the coach will fetch the latest session from the Rolplay API instead of using uploaded files.</div>
+      </div>
       <div class="form-row">
         <label style="margin:0;font-size:.875rem;" data-i18n="sadmin.scenarios.modal.active">Active</label>
         <input type="checkbox" id="e_is_active" style="width:auto;" />
@@ -185,6 +195,12 @@ let allScenarios = [];
 let allOrgs = [];
 let createFilesAccum = [];   // accumulated files for create modal
 let editFilesAccum   = [];   // accumulated files for edit modal
+let scenariosLoading = true;
+
+function renderLoadingState() {
+  document.getElementById('scenarioCount').textContent = '—';
+  document.getElementById('scenariosTable').innerHTML = `<tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--text-muted);" data-i18n="sadmin.common.loading">${t('sadmin.common.loading')}</td></tr>`;
+}
 
 function renderFileChips(files, containerId) {
   const el = document.getElementById(containerId);
@@ -214,16 +230,20 @@ document.addEventListener('click', (e) => {
 });
 
 async function loadData() {
+  scenariosLoading = true;
+  renderLoadingState();
   const [scenariosRes, orgsRes] = await Promise.all([
     fetch('/admin/api/scenarios'),
     fetch('/admin/api/organizations'),
   ]);
   if (!scenariosRes.ok) {
+    scenariosLoading = false;
     document.getElementById('scenariosTable').innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--error);">${t('sadmin.scenarios.load_error')}</td></tr>`;
     return;
   }
   allScenarios = await scenariosRes.json();
   allOrgs = orgsRes.ok ? await orgsRes.json() : [];
+  scenariosLoading = false;
 
   populateOrgDropdowns();
   filterScenarios();
@@ -250,6 +270,10 @@ function populateOrgDropdowns() {
 }
 
 function filterScenarios() {
+  if (scenariosLoading) {
+    renderLoadingState();
+    return;
+  }
   const q = document.getElementById('searchInput').value.toLowerCase();
   const orgId = document.getElementById('orgFilter').value;
 
@@ -272,9 +296,11 @@ function renderTable(data) {
     return;
   }
   tbody.innerHTML = data.map(s => {
-    const filesHtml = s.reference_files && s.reference_files.length > 0
-      ? `<div class="file-list">${s.reference_files.map(f => `<span class="file-badge" title="${escHtml(f.file_name)}">${escHtml(f.file_name)}</span>`).join('')}</div>`
-      : '—';
+    const filesHtml = s.usecase_api_id
+      ? `<span class="badge badge-active" title="Use Case ID: ${s.usecase_api_id}">API-driven (ID: ${s.usecase_api_id})</span>`
+      : s.reference_files && s.reference_files.length > 0
+        ? `<div class="file-list">${s.reference_files.map(f => `<span class="file-badge" title="${escHtml(f.file_name)}">${escHtml(f.file_name)}</span>`).join('')}</div>`
+        : '—';
     return `
     <tr>
       <td style="font-weight:600;">${escHtml(s.name)}</td>
@@ -304,6 +330,7 @@ function fmtDate(iso) {
 function openCreateModal() {
   document.getElementById('createForm').reset();
   document.getElementById('c_is_active').checked = true;
+  document.getElementById('c_usecase_api_id').value = '';
   document.getElementById('createError').style.display = 'none';
   createFilesAccum = [];
   renderFileChips(createFilesAccum, 'c_files_list');
@@ -331,6 +358,7 @@ function openEditModal(id) {
   
   document.getElementById('e_clear_reference_file').checked = false;
   document.getElementById('e_is_active').checked = s.is_active;
+  document.getElementById('e_usecase_api_id').value = s.usecase_api_id || '';
   document.getElementById('editError').style.display = 'none';
   document.getElementById('editModal').classList.add('show');
 }
@@ -370,7 +398,8 @@ document.getElementById('createForm').addEventListener('submit', async (e) => {
   body.append('description', document.getElementById('c_description').value.trim() || '');
   body.append('system_prompt', document.getElementById('c_system_prompt').value.trim());
   body.append('is_active', String(document.getElementById('c_is_active').checked));
-  
+  body.append('usecase_api_id', document.getElementById('c_usecase_api_id').value || '');
+
   for (const f of createFilesAccum) {
     body.append('reference_files', f);
   }
@@ -403,7 +432,8 @@ document.getElementById('editForm').addEventListener('submit', async (e) => {
   body.append('system_prompt', document.getElementById('e_system_prompt').value.trim());
   body.append('is_active', String(document.getElementById('e_is_active').checked));
   body.append('clear_reference_file', String(document.getElementById('e_clear_reference_file').checked));
-  
+  body.append('usecase_api_id', document.getElementById('e_usecase_api_id').value || '');
+
   for (const f of editFilesAccum) {
     body.append('reference_files', f);
   }

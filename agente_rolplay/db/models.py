@@ -126,6 +126,7 @@ class CoachingScenario(Base):
     reference_file_name = Column(String(255), nullable=True)
     reference_file_text = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True)
+    usecase_api_id = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     organization = relationship("Organization", back_populates="coaching_scenarios")
