@@ -59,3 +59,4 @@ def init_db():
         for stmt in _MIGRATIONS:
             conn.execute(text(stmt))
         conn.commit()
+    print("[init_db] Migrations applied successfully.")

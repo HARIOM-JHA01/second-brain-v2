@@ -1038,6 +1038,10 @@ def process_incoming_messages_functional(form_data, redis_client=r):
 
     print(f"Processing new message: {dedup_key}")
 
+    # Log every incoming user message to the DB immediately after dedup check
+    if body and body.strip():
+        log_whatsapp_message_to_db(phone_number, "user", body.strip())
+
     file_upload_pending_key = f"file_upload_pending:{phone_number}"
     lang_key = f"user:lang:{phone_number}"
     current_lang = redis_client.get(lang_key) or "es"
@@ -1542,7 +1546,6 @@ def process_incoming_messages_functional(form_data, redis_client=r):
     print(f"Message marked as processed: {dedup_key}")
 
     add_to_chat_history(chat_history_id, body, "user", phone_number)
-    log_whatsapp_message_to_db(phone_number, "user", body, msg_type)
     add_to_chat_history(
         chat_history_id, answer_data["answer"], "assistant", phone_number
     )
@@ -1655,6 +1658,10 @@ def process_incoming_messages(form_data, redis_client=r):
         return "NoCommand"
 
     print(f"Processing new message: {dedup_key}")
+
+    # Log every incoming user message to the DB immediately after dedup check
+    if body and body.strip():
+        log_whatsapp_message_to_db(phone_number, "user", body.strip())
 
     lang_key = f"user:lang:{phone_number}"
     current_lang = redis_client.get(lang_key) or "es"
@@ -2361,7 +2368,6 @@ def process_incoming_messages(form_data, redis_client=r):
     print(f"Message marked as processed: {dedup_key}")
 
     add_to_chat_history(chat_history_id, body, "user", phone_number)
-    log_whatsapp_message_to_db(phone_number, "user", body)
     add_to_chat_history(
         chat_history_id, answer_data["answer"], "assistant", phone_number
     )
