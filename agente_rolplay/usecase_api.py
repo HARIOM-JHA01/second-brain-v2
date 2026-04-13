@@ -1,5 +1,3 @@
-import re
-
 import requests
 from loguru import logger
 
@@ -7,19 +5,10 @@ API_BASE = "https://rolplay.pro/banco/get-sessions-list.php"
 TIMEOUT = 10  # seconds
 
 
-def _strip_html(html: str) -> str:
-    """Remove HTML tags and collapse whitespace."""
-    text = re.sub(r"<[^>]+>", " ", html)
-    text = re.sub(r"&nbsp;", " ", text)
-    text = re.sub(r"&#?\w+;", "", text)  # remaining HTML entities
-    text = re.sub(r"\s+", " ", text)
-    return text.strip()
-
-
 def fetch_latest_session_context(usecase_id: int) -> str | None:
     """
-    Fetches all sessions for a use case and returns a plain-text
-    summary of the most recent one, or None on failure.
+    Fetches all sessions for a use case and returns the raw content
+    of the most recent one, or None on failure.
     """
     try:
         resp = requests.get(API_BASE, params={"id": usecase_id}, timeout=TIMEOUT)
@@ -38,10 +27,9 @@ def fetch_latest_session_context(usecase_id: int) -> str | None:
             f"Date: {latest.get('date_created')}",
         ]
         if latest.get("elevator_pitch"):
-            parts.append(f"Elevator Pitch: {_strip_html(latest['elevator_pitch'])}")
+            parts.append(f"Elevator Pitch:\n{latest['elevator_pitch']}")
         if latest.get("closingretro"):
-            stripped = _strip_html(latest["closingretro"])
-            parts.append(f"Evaluation Report:\n{stripped}")
+            parts.append(f"Evaluation Report:\n{latest['closingretro']}")
 
         return "\n\n".join(parts)
     except Exception as e:
