@@ -505,10 +505,10 @@
     <div class="section-card" id="insightsCard" style="margin-bottom:1.5rem;">
       <div class="section-card-header">
         <div>
-          <div class="section-card-title">💬 Conversation Insights</div>
-          <div style="font-size:.74rem;color:var(--text-muted);margin-top:.15rem;" id="insightsMeta">Last 7 days · AI generated</div>
+          <div class="section-card-title" data-i18n="dash.insights.title">💬 Conversation Insights</div>
+          <div style="font-size:.74rem;color:var(--text-muted);margin-top:.15rem;" id="insightsMeta" data-i18n="dash.insights.meta_default">Last 7 days · AI generated</div>
         </div>
-        <button class="btn btn-secondary btn-sm" id="insightsRefreshBtn" onclick="loadInsights(true)" title="Refresh insights">
+        <button class="btn btn-secondary btn-sm" id="insightsRefreshBtn" onclick="loadInsights(true)" title="Refresh insights" data-i18n="dash.insights.refresh">
           ↻ Refresh
         </button>
       </div>
@@ -528,13 +528,13 @@
       <!-- Empty state -->
       <div id="insightsEmpty" style="display:none;" class="empty-state">
         <span class="empty-icon">💬</span>
-        No messages yet this week. Insights will appear once users start chatting on WhatsApp.
+        <span data-i18n="dash.insights.empty">No messages yet this week. Insights will appear once users start chatting on WhatsApp.</span>
       </div>
 
       <!-- Content -->
       <div id="insightsContent" style="display:none;">
         <p id="insightsSummary" style="font-size:.88rem;color:var(--text-dim);line-height:1.6;margin:0 0 1.1rem;"></p>
-        <div style="font-size:.74rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);margin-bottom:.6rem;">Top 5 Messages</div>
+        <div style="font-size:.74rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);margin-bottom:.6rem;" data-i18n="dash.insights.top5">Top 5 Messages</div>
         <ol id="insightsTopMessages" style="margin:0;padding-left:1.25rem;display:flex;flex-direction:column;gap:.45rem;"></ol>
       </div>
     </div>
@@ -987,11 +987,11 @@
 
         loading.style.display = 'none';
         btn.disabled = false;
-        btn.textContent = '↻ Refresh';
+        btn.textContent = t('dash.insights.refresh');
 
         if (!data.summary && (!data.top_messages || !data.top_messages.length)) {
           empty.style.display = 'block';
-          meta.textContent = 'Last 7 days · AI generated';
+          meta.textContent = t('dash.insights.meta_default');
           return;
         }
 
@@ -999,7 +999,7 @@
 
         const ol = document.getElementById('insightsTopMessages');
         ol.innerHTML = '';
-        (data.top_messages || []).forEach(msg => {
+        (data.top_messages || []).filter(msg => msg && msg.trim()).forEach(msg => {
           const li = document.createElement('li');
           li.style.cssText = 'font-size:.86rem;color:var(--text-dim);line-height:1.5;';
           li.textContent = msg;
@@ -1008,16 +1008,19 @@
 
         if (data.generated_at) {
           const ago = Math.round((Date.now() - new Date(data.generated_at + 'Z').getTime()) / 60000);
-          meta.textContent = `Last 7 days · AI generated · Updated ${ago < 1 ? 'just now' : ago + 'm ago'} · ${data.message_count} messages analyzed`;
+          const agoStr = ago < 1 ? t('dash.insights.just_now') : ago + t('dash.insights.min_ago');
+          meta.textContent = t('dash.insights.meta_updated')
+            .replace('{ago}', agoStr)
+            .replace('{count}', data.message_count);
         }
 
         content.style.display = 'block';
       } catch (e) {
         loading.style.display = 'none';
         btn.disabled = false;
-        btn.textContent = '↻ Refresh';
+        btn.textContent = t('dash.insights.refresh');
         empty.style.display = 'block';
-        meta.textContent = 'Could not load insights';
+        meta.textContent = t('dash.insights.error');
       }
     }
 

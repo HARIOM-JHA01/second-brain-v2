@@ -251,8 +251,13 @@ def get_conversation_insights(
             messages=[{"role": "user", "content": prompt}],
             max_tokens=600,
         )
-        parsed = json.loads(raw)
-    except Exception:
+        # Strip markdown code fences if model adds them despite instructions
+        clean = raw.strip()
+        if clean.startswith("```"):
+            clean = clean.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+        parsed = json.loads(clean)
+    except Exception as e:
+        print(f"[conversation-insights] AI call failed: {e!r}")
         parsed = {"summary": "Could not generate insights at this time.", "top_messages": []}
 
     result = {
