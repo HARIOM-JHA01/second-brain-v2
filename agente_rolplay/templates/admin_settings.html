@@ -59,6 +59,37 @@ input:checked + .slider:before { transform: translateX(20px); }
   </div>
 </div>
 
+<!-- ── AI Provider Configuration ───────────────────────────────────────────── -->
+<div class="section-card settings-section" style="margin-top:1.5rem;">
+  <div class="section-card-header">
+    <div class="section-card-title">AI Provider</div>
+  </div>
+  <p style="padding:.75rem 1rem 0;font-size:.82rem;color:var(--text-muted);">
+    Provider and model used for coaching responses.
+    The RAG / knowledge-base path always uses Anthropic.
+  </p>
+  <div style="padding:1rem;">
+    <div class="form-group">
+      <label for="aiProvider" style="font-size:.82rem;font-weight:600;display:block;margin-bottom:.35rem;">Provider</label>
+      <select id="aiProvider" onchange="onProviderChange()"
+              style="width:100%;padding:.45rem .6rem;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:.875rem;">
+      </select>
+    </div>
+    <div class="form-group" style="margin-top:.75rem;">
+      <label for="aiModelSelect" style="font-size:.82rem;font-weight:600;display:block;margin-bottom:.35rem;">Model</label>
+      <select id="aiModelSelect" onchange="syncModelInput()"
+              style="width:100%;padding:.45rem .6rem;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:.875rem;">
+      </select>
+      <input type="text" id="aiModel" placeholder="or type a custom model name" oninput="markAiDirty()"
+             style="margin-top:.5rem;width:100%;padding:.45rem .6rem;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:.875rem;box-sizing:border-box;" />
+    </div>
+    <div class="save-bar" id="aiSaveBar" style="margin-top:.75rem;">
+      <button class="btn btn-primary btn-sm" onclick="saveAiConfig()">Save changes</button>
+      <span class="saved-msg" id="aiSavedMsg">Saved ✓</span>
+    </div>
+  </div>
+</div>
+
 <script>
 const OPTIONS = [
   { key: "1", label: "Chat — Ask questions",      desc: "Free-text Q&A against the knowledge base" },
@@ -116,5 +147,85 @@ async function saveOptions() {
 }
 
 loadOptions();
+
+// ── AI Provider ───────────────────────────────────────────────────────────────
+const AI_PROVIDERS = [
+  { value: "anthropic", label: "Anthropic (Claude)" },
+  { value: "openai",    label: "OpenAI (GPT)" },
+  { value: "google",    label: "Google (Gemini)" },
+];
+const AI_MODELS = {
+  anthropic: ["claude-sonnet-4-6", "claude-opus-4-5", "claude-haiku-4-5-20251001", "claude-3-5-sonnet-20241022"],
+  openai:    ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"],
+  google:    ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"],
+};
+
+(function initProviderDropdown() {
+  const sel = document.getElementById('aiProvider');
+  AI_PROVIDERS.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.value;
+    opt.textContent = p.label;
+    sel.appendChild(opt);
+  });
+})();
+
+function populateModelDropdown(provider, currentModel) {
+  const sel = document.getElementById('aiModelSelect');
+  const models = AI_MODELS[provider] || [];
+  const isPreset = models.includes(currentModel);
+  sel.innerHTML = models.map(m =>
+    `<option value="${m}" ${m === currentModel ? 'selected' : ''}>${m}</option>`
+  ).join('') + `<option value="__custom__" ${!isPreset ? 'selected' : ''}>Custom…</option>`;
+  document.getElementById('aiModel').value = currentModel;
+}
+
+function onProviderChange() {
+  const provider = document.getElementById('aiProvider').value;
+  const firstModel = (AI_MODELS[provider] || [''])[0];
+  populateModelDropdown(provider, firstModel);
+  document.getElementById('aiModel').value = firstModel;
+  markAiDirty();
+}
+
+function syncModelInput() {
+  const sel = document.getElementById('aiModelSelect');
+  if (sel.value !== '__custom__') {
+    document.getElementById('aiModel').value = sel.value;
+  }
+  markAiDirty();
+}
+
+function markAiDirty() {
+  document.getElementById('aiSaveBar').classList.add('visible');
+  document.getElementById('aiSavedMsg').style.display = 'none';
+}
+
+async function loadAiConfig() {
+  const res = await fetch('/admin/api/ai-config');
+  const cfg = await res.json();
+  document.getElementById('aiProvider').value = cfg.provider;
+  populateModelDropdown(cfg.provider, cfg.model);
+}
+
+async function saveAiConfig() {
+  const provider = document.getElementById('aiProvider').value;
+  const model = document.getElementById('aiModel').value.trim();
+  if (!model) { alert('Model cannot be empty'); return; }
+  const res = await fetch('/admin/api/ai-config', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ provider, model }),
+  });
+  if (res.ok) {
+    document.getElementById('aiSavedMsg').style.display = 'inline';
+    setTimeout(() => document.getElementById('aiSaveBar').classList.remove('visible'), 1500);
+  } else {
+    const err = await res.json().catch(() => ({}));
+    alert('Failed to save: ' + (err.detail || res.statusText));
+  }
+}
+
+loadAiConfig();
 </script>
 {% endblock %}

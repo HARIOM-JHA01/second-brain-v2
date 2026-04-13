@@ -104,6 +104,24 @@ ACRONYM_CLARIFICATION_MSG = {
 }
 
 
+_AI_CONFIG_KEY = "admin:ai_config"
+_DEFAULT_AI_CONFIG = {"provider": "anthropic", "model": "claude-sonnet-4-6"}
+
+
+def _get_ai_config(redis_client) -> dict:
+    """Return {'provider': str, 'model': str} from Redis. Falls back to Anthropic defaults."""
+    import json as _json
+    try:
+        raw = redis_client.get(_AI_CONFIG_KEY)
+        if raw:
+            cfg = _json.loads(raw)
+            if isinstance(cfg, dict) and "provider" in cfg and "model" in cfg:
+                return cfg
+    except Exception:
+        pass
+    return _DEFAULT_AI_CONFIG.copy()
+
+
 def _get_enabled_menu_options(redis_client) -> set:
     """Return the set of enabled menu option keys e.g. {'1','2','3','4'}.
     Defaults to all enabled when the key is absent."""
@@ -781,6 +799,7 @@ def _handle_scenario_selection(
         "from": f"whatsapp:+{phone}",
     }
 
+    _ai_cfg = _get_ai_config(redis_client)
     kickoff_reply = ""
     kickoff_ms = None
     try:
@@ -793,6 +812,8 @@ def _handle_scenario_selection(
             id_phone_number=id_phone_number,
             response_language=lang,
             coaching_system_prompt=session_data["system_prompt"],
+            ai_provider=_ai_cfg["provider"],
+            ai_model=_ai_cfg["model"],
         )
         kickoff_ms = int((time.time() - _t0) * 1000)
         kickoff_reply = str(kickoff_answer.get("answer", "")).strip()
@@ -841,6 +862,7 @@ def _handle_coaching_turn(
     id_conversacion = f"fp-idPhone:{phone}_{datetime.now().strftime('%Y-%m-%d_%H:%M')}"
 
     data = {"body": body, "type": "text", "from": f"whatsapp:+{phone}"}
+    _ai_cfg = _get_ai_config(redis_client)
     _t0 = time.time()
     answer_data = responder_usuario(
         messages=history,
@@ -850,6 +872,8 @@ def _handle_coaching_turn(
         id_phone_number=id_phone_number,
         response_language=lang,
         coaching_system_prompt=session["system_prompt"],
+        ai_provider=_ai_cfg["provider"],
+        ai_model=_ai_cfg["model"],
     )
     _response_ms = int((time.time() - _t0) * 1000)
 
@@ -892,10 +916,13 @@ def _end_coaching_session(
         try:
             from agente_rolplay.agent.roleplay_agent import generate_coaching_report
 
+            _ai_cfg = _get_ai_config(redis_client)
             report = generate_coaching_report(
                 history=history,
                 scenario_name=session.get("scenario_name", ""),
                 lang=lang,
+                ai_provider=_ai_cfg["provider"],
+                ai_model=_ai_cfg["model"],
             )
         except Exception as e:
             print(f"Error generating coaching report: {e}")

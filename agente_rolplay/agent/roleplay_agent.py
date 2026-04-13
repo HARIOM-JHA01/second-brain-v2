@@ -72,6 +72,8 @@ def generate_coaching_report(
     lang: str = "es",
     anthropic_client=client,
     model_name=MODEL_NAME,
+    ai_provider: str = "anthropic",
+    ai_model: str = None,
 ) -> str:
     """Generate a structured coaching report from the session history."""
     if lang == "en":
@@ -111,12 +113,15 @@ def generate_coaching_report(
             )
         report_prompt += f"\n{role_label}: {content}"
 
-    response = anthropic_client.messages.create(
-        model=model_name,
-        max_tokens=2048,
+    from agente_rolplay.agent.provider_adapter import create_message
+    effective_model = ai_model or model_name
+    return create_message(
+        provider=ai_provider,
+        model=effective_model,
+        system="You are a professional coaching evaluator.",
         messages=[{"role": "user", "content": report_prompt}],
+        max_tokens=2048,
     )
-    return response.content[0].text.strip()
 
 
 def responder_usuario(
@@ -132,6 +137,8 @@ def responder_usuario(
     user_id=user_id,
     anthropic_client=client,
     system_prompt_rag=system_prompt_rag,
+    ai_provider: str = "anthropic",
+    ai_model: str = None,
 ):
     start_time = time.time()
 
@@ -156,6 +163,26 @@ def responder_usuario(
             response_language=response_language,
             session_facts=session_facts,
         )
+
+    # For non-Anthropic providers in the coaching path, bypass the tool-call loop
+    if coaching_system_prompt and ai_provider != "anthropic":
+        from agente_rolplay.agent.provider_adapter import create_message
+        effective_model = ai_model or model_name
+        answer_text = create_message(
+            provider=ai_provider,
+            model=effective_model,
+            system=system_prompt,
+            messages=new_messages,
+            max_tokens=AGENT_MAX_TOKENS,
+        )
+        return {
+            "answer": answer_text,
+            "output": None,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "model_name": effective_model,
+            "fase_actual": "coaching",
+        }
 
     response = anthropic_client.messages.create(
         system=system_prompt,

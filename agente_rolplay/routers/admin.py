@@ -544,6 +544,50 @@ async def set_menu_options(request: Request):
     return state
 
 
+# ── AI Provider Config ────────────────────────────────────────────────────────
+
+_AI_CONFIG_KEY = "admin:ai_config"
+_VALID_PROVIDERS = {"anthropic", "openai", "google"}
+_DEFAULT_AI_CONFIG = {"provider": "anthropic", "model": "claude-sonnet-4-6"}
+
+
+@router.get("/ai-config")
+def get_ai_config(request: Request):
+    require_admin(request)
+    config = _DEFAULT_AI_CONFIG.copy()
+    try:
+        rc = _get_redis()
+        raw = rc.get(_AI_CONFIG_KEY)
+        if raw:
+            loaded = _json.loads(raw)
+            if isinstance(loaded, dict) and "provider" in loaded and "model" in loaded:
+                config = loaded
+    except Exception as e:
+        print(f"get_ai_config redis fallback: {e}")
+    return config
+
+
+@router.post("/ai-config")
+async def set_ai_config(request: Request):
+    require_admin(request)
+    body = await request.json()
+    provider = str(body.get("provider", "anthropic")).strip().lower()
+    model = str(body.get("model", "")).strip()
+    if provider not in _VALID_PROVIDERS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid provider. Choose from: {', '.join(sorted(_VALID_PROVIDERS))}",
+        )
+    if not model:
+        raise HTTPException(status_code=400, detail="model cannot be empty")
+    config = {"provider": provider, "model": model}
+    try:
+        _get_redis().set(_AI_CONFIG_KEY, _json.dumps(config))
+    except Exception as e:
+        print(f"set_ai_config redis skipped: {e}")
+    return config
+
+
 # ── Scenarios (superadmin view) ───────────────────────────────────────────────
 
 

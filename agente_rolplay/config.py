@@ -12,6 +12,9 @@ ANTHROPIC_MODEL_NAME = os.getenv("ANTHROPIC_MODEL_NAME")
 # --- OpenAI ---
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_EMBEDDINGS_MODEL = os.getenv("OPENAI_EMBEDDINGS_MODEL", "text-embedding-3-small")
+
+# --- Google AI ---
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 VECTOR_DIMENSION = int(os.getenv("VECTOR_DIMENSION", 1024))
 N_SIMILARITY = int(os.getenv("N_SIMILARITY", 3))
 
