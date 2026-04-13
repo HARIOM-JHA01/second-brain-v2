@@ -1,5 +1,7 @@
+import json
 from datetime import datetime, timedelta
 
+import redis as redis_lib
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, distinct
 from sqlalchemy.orm import Session
@@ -7,7 +9,7 @@ from uuid import UUID
 from typing import List
 
 from agente_rolplay.db.database import get_db
-from agente_rolplay.db.models import CoachingScenario, Document, MessageLog, User, Profile, Organization, Role
+from agente_rolplay.db.models import CoachingScenario, Document, MessageLog, User, Profile, Organization, Role, WhatsAppMessage
 from agente_rolplay.db.schemas import (
     ProfileResponse,
     ProfileCreate,
@@ -17,6 +19,8 @@ from agente_rolplay.db.schemas import (
     UserResponse,
 )
 from agente_rolplay.db.auth import get_current_user
+from agente_rolplay.agent.provider_adapter import create_message
+from agente_rolplay.config import redis_connection_kwargs, HAIKU_MODEL_NAME
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 
@@ -181,6 +185,85 @@ def get_dashboard_stats(
         "signups_chart": signups_chart,
         "message_types_breakdown": message_types_breakdown,
     }
+
+
+@router.get("/conversation-insights", tags=["dashboard"])
+def get_conversation_insights(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    refresh: int = 0,
+):
+    """
+    Returns AI-generated summary of what org WhatsApp users are discussing,
+    plus the top 5 representative messages. Cached in Redis for 1 hour.
+    Pass ?refresh=1 to invalidate the cache and regenerate.
+    """
+    profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    org_id = profile.org_id
+
+    # Cache check
+    r = redis_lib.Redis(**redis_connection_kwargs())
+    cache_key = f"insights:{org_id}"
+    if refresh:
+        r.delete(cache_key)
+    else:
+        cached = r.get(cache_key)
+        if cached:
+            return json.loads(cached)
+
+    # Fetch last 7 days of user messages for this org
+    week_ago = datetime.utcnow() - timedelta(days=7)
+    messages = (
+        db.query(WhatsAppMessage)
+        .filter(
+            WhatsAppMessage.org_id == org_id,
+            WhatsAppMessage.role == "user",
+            WhatsAppMessage.created_at >= week_ago,
+        )
+        .order_by(WhatsAppMessage.created_at.desc())
+        .limit(200)
+        .all()
+    )
+
+    if not messages:
+        return {"summary": None, "top_messages": [], "generated_at": None, "message_count": 0}
+
+    # Build prompt for Haiku
+    messages_text = "\n".join(f"- {m.content}" for m in messages)
+    prompt = (
+        "You are analyzing WhatsApp messages sent by employees to an AI assistant.\n\n"
+        f"Messages (most recent first, last 7 days):\n{messages_text}\n\n"
+        "Respond in JSON with exactly this structure:\n"
+        '{"summary": "<2-3 sentence summary of main topics>", '
+        '"top_messages": ["<msg1>", "<msg2>", "<msg3>", "<msg4>", "<msg5>"]}\n'
+        "The top_messages should be the 5 most representative or frequently appearing "
+        "questions/requests. Keep each top message under 100 characters. "
+        "Respond only with valid JSON, no markdown."
+    )
+
+    try:
+        raw = create_message(
+            provider="anthropic",
+            model=HAIKU_MODEL_NAME,
+            system="You are a data analyst. Return only valid JSON, no markdown code blocks.",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=600,
+        )
+        parsed = json.loads(raw)
+    except Exception:
+        parsed = {"summary": "Could not generate insights at this time.", "top_messages": []}
+
+    result = {
+        "summary": parsed.get("summary"),
+        "top_messages": parsed.get("top_messages", [])[:5],
+        "generated_at": datetime.utcnow().isoformat(),
+        "message_count": len(messages),
+    }
+
+    r.set(cache_key, json.dumps(result), ex=3600)
+    return result
 
 
 @router.get("/documents", tags=["documents"])

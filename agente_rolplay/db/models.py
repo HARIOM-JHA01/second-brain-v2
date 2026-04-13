@@ -188,3 +188,15 @@ class MessageLog(Base):
     response_time_ms = Column(Integer, nullable=True)
     is_error = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class WhatsAppMessage(Base):
+    __tablename__ = "whatsapp_messages"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id = Column(UUID(as_uuid=True), nullable=True)  # null if phone not registered
+    phone_number = Column(String(50), nullable=False, index=True)
+    role = Column(String(10), nullable=False)  # "user" or "assistant"
+    content = Column(Text, nullable=False)
+    message_type = Column(String(20), default="text")  # text, audio, image, document
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)

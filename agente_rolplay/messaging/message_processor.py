@@ -41,6 +41,7 @@ from agente_rolplay.messaging.greeting_handler import (
 from agente_rolplay.storage.analytics_logger import (
     log_chat_interaction,
     log_message_to_db,
+    log_whatsapp_message_to_db,
 )
 from agente_rolplay.storage.cloudinary_storage import upload_file_to_cloudinary
 from agente_rolplay.messaging.twilio_client import extract_phone_from_twilio
@@ -1385,12 +1386,14 @@ def process_incoming_messages_functional(form_data, redis_client=r):
             add_to_chat_history(
                 chat_history_id, f"[Sent image: {filename}]", "user", phone_number
             )
+            log_whatsapp_message_to_db(phone_number, "user", f"[Sent image: {filename}]", "image")
             bot_history_msg = f"Image '{filename}' uploaded to Knowledge Base."
             if vectorized and vision_result and vision_result.get("text"):
                 bot_history_msg += f" Description: {vision_result['text'][:400]}"
             add_to_chat_history(
                 chat_history_id, bot_history_msg, "assistant", phone_number
             )
+            log_whatsapp_message_to_db(phone_number, "assistant", bot_history_msg, "image")
         else:
             error_message = result.get("error", "Unknown") if result else "Unknown"
             send_twilio_message(from_number, f"Error uploading image: {error_message}")
@@ -1539,9 +1542,11 @@ def process_incoming_messages_functional(form_data, redis_client=r):
     print(f"Message marked as processed: {dedup_key}")
 
     add_to_chat_history(chat_history_id, body, "user", phone_number)
+    log_whatsapp_message_to_db(phone_number, "user", body, msg_type)
     add_to_chat_history(
         chat_history_id, answer_data["answer"], "assistant", phone_number
     )
+    log_whatsapp_message_to_db(phone_number, "assistant", answer_data["answer"])
 
     print("Processing completed successfully.")
     return "Success"
@@ -2169,12 +2174,14 @@ def process_incoming_messages(form_data, redis_client=r):
             add_to_chat_history(
                 chat_history_id, f"[Sent image: {filename}]", "user", phone_number
             )
+            log_whatsapp_message_to_db(phone_number, "user", f"[Sent image: {filename}]", "image")
             bot_history_msg = f"Image '{filename}' uploaded to Knowledge Base."
             if vectorized and vision_result and vision_result.get("text"):
                 bot_history_msg += f" Description: {vision_result['text'][:400]}"
             add_to_chat_history(
                 chat_history_id, bot_history_msg, "assistant", phone_number
             )
+            log_whatsapp_message_to_db(phone_number, "assistant", bot_history_msg, "image")
         else:
             error_message = result.get("error", "Unknown") if result else "Unknown"
             send_twilio_message(from_number, f"Error uploading image: {error_message}")
@@ -2354,9 +2361,11 @@ def process_incoming_messages(form_data, redis_client=r):
     print(f"Message marked as processed: {dedup_key}")
 
     add_to_chat_history(chat_history_id, body, "user", phone_number)
+    log_whatsapp_message_to_db(phone_number, "user", body)
     add_to_chat_history(
         chat_history_id, answer_data["answer"], "assistant", phone_number
     )
+    log_whatsapp_message_to_db(phone_number, "assistant", answer_data["answer"])
 
     print("Processing completed successfully.")
     return "Success"

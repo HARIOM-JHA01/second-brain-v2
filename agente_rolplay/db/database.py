@@ -34,6 +34,19 @@ _MIGRATIONS = [
         )
     """,
     "ALTER TABLE coaching_scenarios ADD COLUMN IF NOT EXISTS usecase_api_id INTEGER",
+    """
+        CREATE TABLE IF NOT EXISTS whatsapp_messages (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            org_id UUID,
+            phone_number VARCHAR(50) NOT NULL,
+            role VARCHAR(10) NOT NULL,
+            content TEXT NOT NULL,
+            message_type VARCHAR(20) DEFAULT 'text',
+            created_at TIMESTAMP DEFAULT now()
+        )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_phone ON whatsapp_messages(phone_number)",
+    "CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_created ON whatsapp_messages(created_at)",
 ]
 
 

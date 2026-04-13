@@ -242,6 +242,50 @@ def log_message_to_db(
     threading.Thread(target=_write, daemon=True).start()
 
 
+def log_whatsapp_message_to_db(
+    phone_number: str,
+    role: str,
+    content: str,
+    message_type: str = "text",
+):
+    """
+    Persist a WhatsApp message (content) to PostgreSQL in a background thread.
+    Looks up org_id from Profile.whatsapp_number. Never blocks main flow.
+    """
+
+    def _write():
+        try:
+            from agente_rolplay.db.database import get_db
+            from agente_rolplay.db.models import WhatsAppMessage, Profile
+            from agente_rolplay.db.whatsapp_auth import normalize_whatsapp_number
+
+            normalized = normalize_whatsapp_number(phone_number)
+            db = next(get_db())
+            try:
+                profile = (
+                    db.query(Profile)
+                    .filter(Profile.whatsapp_number == normalized)
+                    .first()
+                )
+                org_id = profile.org_id if profile else None
+                db.add(
+                    WhatsAppMessage(
+                        org_id=org_id,
+                        phone_number=normalized,
+                        role=role,
+                        content=content,
+                        message_type=message_type,
+                    )
+                )
+                db.commit()
+            finally:
+                db.close()
+        except Exception as e:
+            print(f"Warning: could not write WhatsAppMessage: {e}")
+
+    threading.Thread(target=_write, daemon=True).start()
+
+
 if __name__ == "__main__":
     import sys
 

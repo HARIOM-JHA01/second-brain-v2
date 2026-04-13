@@ -501,6 +501,44 @@
       </div>
     </div>
 
+    <!-- ── Conversation Insights ─────────────────────── -->
+    <div class="section-card" id="insightsCard" style="margin-bottom:1.5rem;">
+      <div class="section-card-header">
+        <div>
+          <div class="section-card-title">💬 Conversation Insights</div>
+          <div style="font-size:.74rem;color:var(--text-muted);margin-top:.15rem;" id="insightsMeta">Last 7 days · AI generated</div>
+        </div>
+        <button class="btn btn-secondary btn-sm" id="insightsRefreshBtn" onclick="loadInsights(true)" title="Refresh insights">
+          ↻ Refresh
+        </button>
+      </div>
+
+      <!-- Loading state -->
+      <div id="insightsLoading" style="padding:.5rem 0;">
+        <div class="skel-line" style="width:90%;margin-bottom:.6rem;"></div>
+        <div class="skel-line" style="width:70%;margin-bottom:.6rem;"></div>
+        <div class="skel-line" style="width:80%;margin-bottom:1.2rem;"></div>
+        <div class="skel-line" style="width:50%;height:9px;margin-bottom:.5rem;"></div>
+        <div class="skel-line" style="width:65%;height:9px;margin-bottom:.5rem;"></div>
+        <div class="skel-line" style="width:55%;height:9px;margin-bottom:.5rem;"></div>
+        <div class="skel-line" style="width:60%;height:9px;margin-bottom:.5rem;"></div>
+        <div class="skel-line" style="width:48%;height:9px;"></div>
+      </div>
+
+      <!-- Empty state -->
+      <div id="insightsEmpty" style="display:none;" class="empty-state">
+        <span class="empty-icon">💬</span>
+        No messages yet this week. Insights will appear once users start chatting on WhatsApp.
+      </div>
+
+      <!-- Content -->
+      <div id="insightsContent" style="display:none;">
+        <p id="insightsSummary" style="font-size:.88rem;color:var(--text-dim);line-height:1.6;margin:0 0 1.1rem;"></p>
+        <div style="font-size:.74rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);margin-bottom:.6rem;">Top 5 Messages</div>
+        <ol id="insightsTopMessages" style="margin:0;padding-left:1.25rem;display:flex;flex-direction:column;gap:.45rem;"></ol>
+      </div>
+    </div>
+
     <!-- ── Recent team members table ───────────────── -->
     <div class="section-card" style="margin-bottom:1.5rem;">
       <div class="section-card-header">
@@ -925,8 +963,67 @@
       }
     });
 
+    // ── Conversation Insights ──────────────────────────────────────────────────
+    async function loadInsights(forceRefresh = false) {
+      const loading = document.getElementById('insightsLoading');
+      const empty   = document.getElementById('insightsEmpty');
+      const content = document.getElementById('insightsContent');
+      const meta    = document.getElementById('insightsMeta');
+      const btn     = document.getElementById('insightsRefreshBtn');
+
+      loading.style.display = 'block';
+      empty.style.display   = 'none';
+      content.style.display = 'none';
+      btn.disabled = true;
+      btn.textContent = '…';
+
+      try {
+        const url = forceRefresh
+          ? '/api/users/conversation-insights?refresh=1'
+          : '/api/users/conversation-insights';
+        const res = await authFetch(url);
+        if (!res.ok) throw new Error('fetch failed');
+        const data = await res.json();
+
+        loading.style.display = 'none';
+        btn.disabled = false;
+        btn.textContent = '↻ Refresh';
+
+        if (!data.summary && (!data.top_messages || !data.top_messages.length)) {
+          empty.style.display = 'block';
+          meta.textContent = 'Last 7 days · AI generated';
+          return;
+        }
+
+        document.getElementById('insightsSummary').textContent = data.summary || '';
+
+        const ol = document.getElementById('insightsTopMessages');
+        ol.innerHTML = '';
+        (data.top_messages || []).forEach(msg => {
+          const li = document.createElement('li');
+          li.style.cssText = 'font-size:.86rem;color:var(--text-dim);line-height:1.5;';
+          li.textContent = msg;
+          ol.appendChild(li);
+        });
+
+        if (data.generated_at) {
+          const ago = Math.round((Date.now() - new Date(data.generated_at + 'Z').getTime()) / 60000);
+          meta.textContent = `Last 7 days · AI generated · Updated ${ago < 1 ? 'just now' : ago + 'm ago'} · ${data.message_count} messages analyzed`;
+        }
+
+        content.style.display = 'block';
+      } catch (e) {
+        loading.style.display = 'none';
+        btn.disabled = false;
+        btn.textContent = '↻ Refresh';
+        empty.style.display = 'block';
+        meta.textContent = 'Could not load insights';
+      }
+    }
+
     document.addEventListener('langchange', () => loadDashboard());
     loadDashboard();
+    loadInsights();
     </script>
 
     {% endblock %}
