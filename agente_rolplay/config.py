@@ -19,6 +19,7 @@ N_SIMILARITY = int(os.getenv("N_SIMILARITY", 3))
 _REDIS_URL = os.getenv("REDIS_URL")
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
+REDIS_USERNAME = (os.getenv("REDIS_USERNAME") or "").strip() or None
 REDIS_PASSWORD = (os.getenv("REDIS_PASSWORD") or "").strip() or None
 REDIS_SSL = os.getenv("REDIS_SSL", "false").lower() == "true"
 
@@ -28,12 +29,17 @@ if _REDIS_URL:
     _parsed = _urlparse(_REDIS_URL)
     REDIS_HOST = _parsed.hostname
     REDIS_PORT = _parsed.port or 6379
+    REDIS_USERNAME = _parsed.username or REDIS_USERNAME
     REDIS_PASSWORD = _parsed.password or None
     REDIS_SSL = _parsed.scheme == "rediss"
 
 
 def build_redis_url(db: int) -> str:
-    auth = f":{quote(REDIS_PASSWORD)}@" if REDIS_PASSWORD else ""
+    if REDIS_PASSWORD:
+        user = quote(REDIS_USERNAME) if REDIS_USERNAME else ""
+        auth = f"{user}:{quote(REDIS_PASSWORD)}@"
+    else:
+        auth = ""
     scheme = "rediss" if REDIS_SSL else "redis"
     return f"{scheme}://{auth}{REDIS_HOST}:{REDIS_PORT}/{db}"
 
@@ -46,8 +52,9 @@ def redis_connection_kwargs() -> dict:
         "decode_responses": True,
         "ssl": REDIS_SSL,
     }
+    if REDIS_USERNAME:
+        kwargs["username"] = REDIS_USERNAME
     if REDIS_PASSWORD:
-        kwargs["username"] = "default"
         kwargs["password"] = REDIS_PASSWORD
     return kwargs
 

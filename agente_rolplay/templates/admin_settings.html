@@ -1,0 +1,120 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Settings{% endblock %}
+{% block page_title %}Settings{% endblock %}
+{% block page_subtitle %}Platform configuration — changes take effect immediately{% endblock %}
+
+{% block extra_style %}
+.settings-section { margin-bottom: 2rem; }
+.toggle-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: .9rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+.toggle-row:last-child { border-bottom: none; }
+.toggle-label { display: flex; flex-direction: column; gap: .2rem; }
+.toggle-label span { font-size: .875rem; font-weight: 600; }
+.toggle-label small { font-size: .78rem; color: var(--text-muted); }
+/* Toggle switch */
+.switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider {
+  position: absolute; cursor: pointer; inset: 0;
+  background: rgba(255,255,255,.12); border-radius: 24px;
+  transition: .2s;
+}
+.slider:before {
+  content: ""; position: absolute;
+  height: 18px; width: 18px; left: 3px; bottom: 3px;
+  background: #fff; border-radius: 50%; transition: .2s;
+}
+input:checked + .slider { background: var(--accent, #ef4444); }
+input:checked + .slider:before { transform: translateX(20px); }
+.save-bar {
+  display: none; align-items: center; gap: 1rem;
+  padding: .75rem 1rem; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 10px; margin-top: 1rem;
+}
+.save-bar.visible { display: flex; }
+.saved-msg { font-size: .82rem; color: var(--success); display: none; }
+{% endblock %}
+
+{% block content %}
+<div class="section-card settings-section">
+  <div class="section-card-header">
+    <div class="section-card-title">WhatsApp Menu Options</div>
+  </div>
+  <p style="padding:.75rem 1rem 0;font-size:.82rem;color:var(--text-muted);">
+    Control which options are shown when a user sends "Hi" or "Hola" on WhatsApp.
+    Disabled options are hidden from the menu and rejected if sent directly.
+  </p>
+
+  <div id="toggleList" style="margin-top:.75rem;">
+    <div style="padding:1.5rem;text-align:center;color:var(--text-muted);font-size:.85rem);">Loading…</div>
+  </div>
+
+  <div class="save-bar" id="saveBar">
+    <button class="btn btn-primary btn-sm" onclick="saveOptions()">Save changes</button>
+    <span class="saved-msg" id="savedMsg">Saved ✓</span>
+  </div>
+</div>
+
+<script>
+const OPTIONS = [
+  { key: "1", label: "Chat — Ask questions",      desc: "Free-text Q&A against the knowledge base" },
+  { key: "2", label: "Upload a document",          desc: "Let users send files to the Knowledge Base" },
+  { key: "3", label: "Start a coaching session",   desc: "Launch the coaching scenario selector" },
+  { key: "4", label: "Support",                    desc: "Beta support option" },
+];
+
+let current = {};
+
+async function loadOptions() {
+  const res = await fetch('/admin/api/menu-options');
+  current = await res.json();
+  renderToggles();
+}
+
+function renderToggles() {
+  document.getElementById('toggleList').innerHTML = OPTIONS.map(o => `
+    <div class="toggle-row">
+      <div class="toggle-label">
+        <span>${o.key}️⃣ ${o.label}</span>
+        <small>${o.desc}</small>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="opt_${o.key}" ${current[o.key] ? 'checked' : ''}
+               onchange="markDirty()" />
+        <span class="slider"></span>
+      </label>
+    </div>
+  `).join('');
+}
+
+function markDirty() {
+  document.getElementById('saveBar').classList.add('visible');
+  document.getElementById('savedMsg').style.display = 'none';
+}
+
+async function saveOptions() {
+  const body = {};
+  OPTIONS.forEach(o => { body[o.key] = document.getElementById('opt_' + o.key).checked; });
+  const res = await fetch('/admin/api/menu-options', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (res.ok) {
+    current = await res.json();
+    document.getElementById('savedMsg').style.display = 'inline';
+    setTimeout(() => {
+      document.getElementById('saveBar').classList.remove('visible');
+    }, 1500);
+  } else {
+    alert('Failed to save settings');
+  }
+}
+
+loadOptions();
+</script>
+{% endblock %}

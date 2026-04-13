@@ -343,25 +343,11 @@ def get_reset_confirmation(lang: str = "es") -> str:
     return RESET_CONFIRMATION.get(lang, RESET_CONFIRMATION["es"])
 
 
-MENU_MESSAGES = {
-    "es": (
-        "¡Hola! 👋 Soy tu Second Brain.\n\n"
-        "¿Qué deseas hacer?\n\n"
-        "1️⃣ Chat — Hacer preguntas\n"
-        "2️⃣ Subir un documento\n"
-        "3️⃣ Iniciar una sesión de coaching\n"
-        "4️⃣ Soporte\n\n"
-        "Responde con 1, 2, 3 o 4."
-    ),
-    "en": (
-        "Hi! 👋 I'm your Second Brain.\n\n"
-        "What would you like to do?\n\n"
-        "1️⃣ Chat — Ask questions\n"
-        "2️⃣ Upload a document\n"
-        "3️⃣ Start a coaching session\n"
-        "4️⃣ Support\n\n"
-        "Reply with 1, 2, 3, or 4."
-    ),
+MENU_OPTIONS = {
+    "1": {"es": "1️⃣ Chat — Hacer preguntas",      "en": "1️⃣ Chat — Ask questions"},
+    "2": {"es": "2️⃣ Subir un documento",            "en": "2️⃣ Upload a document"},
+    "3": {"es": "3️⃣ Iniciar una sesión de coaching","en": "3️⃣ Start a coaching session"},
+    "4": {"es": "4️⃣ Soporte",                       "en": "4️⃣ Support"},
 }
 
 BETA_SUPPORT_MESSAGES = {
@@ -381,9 +367,34 @@ COACHING_EXIT_PHRASES = {
 }
 
 
-def get_menu_message(lang: str = "es") -> str:
-    """Get coaching menu message in specified language."""
-    return MENU_MESSAGES.get(lang, MENU_MESSAGES["es"])
+def get_menu_message(lang: str = "es", enabled: set = None) -> str:
+    """
+    Build the menu message for the given language.
+    enabled: set of option keys to include e.g. {"1","2","3","4"}.
+             If None, all options are shown.
+    """
+    active = enabled if enabled is not None else set(MENU_OPTIONS.keys())
+    lines = [opt[lang] if lang in opt else opt["es"]
+             for key, opt in MENU_OPTIONS.items() if key in active]
+    keys = [k for k in MENU_OPTIONS if k in active]
+
+    if not lines:
+        # Fallback if everything is disabled
+        return "¡Hola! 👋 Soy tu Second Brain. ¿En qué puedo ayudarte?" if lang == "es" \
+            else "Hi! 👋 I'm your Second Brain. How can I help you?"
+
+    reply_hint = (
+        f"Responde con {', '.join(keys[:-1])} o {keys[-1]}."
+        if lang == "es"
+        else f"Reply with {', '.join(keys[:-1])} or {keys[-1]}."
+    ) if len(keys) > 1 else (
+        f"Responde con {keys[0]}." if lang == "es" else f"Reply with {keys[0]}."
+    )
+
+    header = "¡Hola! 👋 Soy tu Second Brain.\n\n¿Qué deseas hacer?\n\n" \
+        if lang == "es" else "Hi! 👋 I'm your Second Brain.\n\nWhat would you like to do?\n\n"
+
+    return header + "\n".join(lines) + "\n\n" + reply_hint
 
 
 def get_beta_support_message(lang: str = "es") -> str:

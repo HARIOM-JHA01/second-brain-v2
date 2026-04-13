@@ -189,3 +189,11 @@ def admin_scenarios_page(request: Request):
     if redirect:
         return redirect
     return templates.TemplateResponse("admin_scenarios.html", {"request": request})
+
+
+@router.get("/admin/settings", tags=["admin"])
+def admin_settings_page(request: Request):
+    redirect = _require_admin(request)
+    if redirect:
+        return redirect
+    return templates.TemplateResponse("admin_settings.html", {"request": request})

@@ -35,8 +35,22 @@ from agente_rolplay.storage.file_processor import (
     extract_text_from_file,
 )
 
+import json as _json
+import redis as _redis_lib
+from agente_rolplay.config import redis_connection_kwargs
+
 router = APIRouter(prefix="/admin/api", tags=["admin"])
 MAX_SCENARIO_REFERENCE_CHARS = 50000
+
+MENU_OPTIONS_KEY = "admin:menu_options"
+_ALL_MENU_OPTIONS = {"1", "2", "3", "4"}
+
+def _get_redis():
+    return _redis_lib.Redis(**redis_connection_kwargs())
+
+
+def _default_menu_options() -> dict[str, bool]:
+    return {k: True for k in _ALL_MENU_OPTIONS}
 
 
 def _to_bool(value: Any, default: bool = False) -> bool:
@@ -495,6 +509,39 @@ def delete_organization(org_id: str, request: Request, db: Session = Depends(get
 
     db.commit()
     return {"ok": True}
+
+
+# ── Menu options toggle ───────────────────────────────────────────────────────
+
+
+@router.get("/menu-options")
+def get_menu_options(request: Request):
+    require_admin(request)
+    state = _default_menu_options()
+    try:
+        rc = _get_redis()
+        raw = rc.get(MENU_OPTIONS_KEY)
+        if raw:
+            loaded = _json.loads(raw)
+            if isinstance(loaded, dict):
+                state = {k: bool(loaded.get(k, True)) for k in _ALL_MENU_OPTIONS}
+    except (_redis_lib.exceptions.RedisError, _json.JSONDecodeError, TypeError, ValueError) as e:
+        print(f"get_menu_options redis fallback: {e}")
+    return state
+
+
+@router.post("/menu-options")
+async def set_menu_options(request: Request):
+    require_admin(request)
+    body = await request.json()
+    # Expect {"1": true/false, "2": true/false, ...}
+    state = {k: bool(body.get(k, True)) for k in _ALL_MENU_OPTIONS}
+    try:
+        rc = _get_redis()
+        rc.set(MENU_OPTIONS_KEY, _json.dumps(state))
+    except _redis_lib.exceptions.RedisError as e:
+        print(f"set_menu_options redis write skipped: {e}")
+    return state
 
 
 # ── Scenarios (superadmin view) ───────────────────────────────────────────────

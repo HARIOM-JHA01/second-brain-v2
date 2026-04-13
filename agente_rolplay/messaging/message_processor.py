@@ -71,6 +71,8 @@ from agente_rolplay.config import (
 
 r = redis.Redis(**redis_connection_kwargs())
 
+MENU_OPTIONS_KEY = "admin:menu_options"  # Redis key: JSON {"1":true,"2":true,...}
+
 COACHING_MENU_TTL = 300  # 5 min — waiting for 1/2/3/4 reply
 COACHING_SCENARIO_TTL = 300  # 5 min — waiting for scenario number
 COACHING_SESSION_TTL = 7200  # 2 h  — active coaching session
@@ -100,6 +102,20 @@ ACRONYM_CLARIFICATION_MSG = {
         "Or just tell me what it stands for and I'll answer right away."
     ),
 }
+
+
+def _get_enabled_menu_options(redis_client) -> set:
+    """Return the set of enabled menu option keys e.g. {'1','2','3','4'}.
+    Defaults to all enabled when the key is absent."""
+    import json as _json
+    raw = redis_client.get(MENU_OPTIONS_KEY)
+    if not raw:
+        return {"1", "2", "3", "4"}
+    try:
+        state = _json.loads(raw)
+        return {k for k, v in state.items() if v}
+    except Exception:
+        return {"1", "2", "3", "4"}
 
 
 def _compose_coaching_prompt(scenario, db) -> str:
@@ -1122,7 +1138,7 @@ def process_incoming_messages_functional(form_data, redis_client=r):
                 redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
                 return "Success"
             elif selection_f != "1":
-                send_twilio_message(from_number, get_menu_message(current_lang))
+                send_twilio_message(from_number, get_menu_message(current_lang, _get_enabled_menu_options(redis_client)))
                 redis_client.set(
                     f"coaching:menu_pending:{phone_number}", "1", ex=COACHING_MENU_TTL
                 )
@@ -1641,7 +1657,7 @@ def process_incoming_messages(form_data, redis_client=r):
             if is_greet:
                 org_id = whatsapp_user.get("org_id") if whatsapp_user else None
                 if org_id and _org_has_active_scenarios(org_id):
-                    response_text = get_menu_message(current_lang)
+                    response_text = get_menu_message(current_lang, _get_enabled_menu_options(redis_client))
                     msg_type = "greeting"
                     send_result = send_twilio_message(from_number, response_text)
                     if send_result.get("success", False):
@@ -1753,6 +1769,9 @@ def process_incoming_messages(form_data, redis_client=r):
         # 3. User is picking from 1/2/3 menu
         if _menu_pending:
             selection = is_menu_selection(body)
+            _enabled_opts = _get_enabled_menu_options(redis_client)
+            if selection and selection not in _enabled_opts:
+                selection = None  # treat disabled option as invalid
             redis_client.delete(_menu_pending_key)
             if selection == "1":
                 pass  # fall through to normal agent
@@ -1783,7 +1802,7 @@ def process_incoming_messages(form_data, redis_client=r):
                 return "Success"
             else:
                 # Invalid reply — resend menu
-                send_twilio_message(from_number, get_menu_message(current_lang))
+                send_twilio_message(from_number, get_menu_message(current_lang, _get_enabled_menu_options(redis_client)))
                 redis_client.set(
                     f"coaching:menu_pending:{phone_number}", "1", ex=COACHING_MENU_TTL
                 )
