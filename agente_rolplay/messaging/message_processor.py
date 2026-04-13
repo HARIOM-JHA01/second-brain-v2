@@ -522,10 +522,17 @@ def handle_file_upload(
         )
         log_message_to_db(phone_number, message_type="document")
 
-        message = (
-            f"File '{filename}' received \u2705 \u2014 saved to your organization's Data Store. "
-            "Your admin can move it to the Knowledge Base."
-        )
+        _lang = redis_client.get(f"user:lang:{phone_number}") or "es"
+        if _lang == "en":
+            message = (
+                f"File '{filename}' received \u2705 \u2014 saved to your organization's Data Store. "
+                "Your admin can move it to the Knowledge Base."
+            )
+        else:
+            message = (
+                f"Archivo '{filename}' recibido \u2705 \u2014 guardado en el Almac\u00e9n de Datos. "
+                "Tu administrador puede moverlo a la Base de Conocimiento."
+            )
         send_twilio_message(from_number, message)
     else:
         error_msg = (
@@ -1370,11 +1377,18 @@ def process_incoming_messages_functional(form_data, redis_client=r):
 
             log_message_to_db(phone_number, message_type="image")
 
-            message = (
-                f"Image '{base_name}.{extension}' received \u2705 \u2014 "
-                "saved to your organization's Data Store. "
-                "Your admin can move it to the Knowledge Base."
-            )
+            if current_lang == "en":
+                message = (
+                    f"Image '{base_name}.{extension}' received \u2705 \u2014 "
+                    "saved to your organization's Data Store. "
+                    "Your admin can move it to the Knowledge Base."
+                )
+            else:
+                message = (
+                    f"Imagen '{base_name}.{extension}' recibida \u2705 \u2014 "
+                    "guardada en el Almac\u00e9n de Datos. "
+                    "Tu administrador puede moverla a la Base de Conocimiento."
+                )
             send_twilio_message(from_number, message)
 
             # Record upload in chat history so Claude has context for follow-up questions
@@ -2148,10 +2162,16 @@ def process_incoming_messages(form_data, redis_client=r):
 
             log_message_to_db(phone_number, message_type="image")
 
-            message = (
-                "Image received \u2705 \u2014 saved to your organization's Data Store. "
-                "Your admin can move it to the Knowledge Base."
-            )
+            if current_lang == "en":
+                message = (
+                    "Image received \u2705 \u2014 saved to your organization's Data Store. "
+                    "Your admin can move it to the Knowledge Base."
+                )
+            else:
+                message = (
+                    "Imagen recibida \u2705 \u2014 guardada en el Almac\u00e9n de Datos. "
+                    "Tu administrador puede moverla a la Base de Conocimiento."
+                )
             send_twilio_message(from_number, message)
 
             # Record upload in chat history so Claude has context for follow-up questions
