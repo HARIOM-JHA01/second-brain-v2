@@ -276,7 +276,7 @@ def list_org_documents(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """List documents belonging to the current user's org, enriched with Cloudinary metadata."""
+    """List all documents for the current user's org (both Data Store and Knowledge Base)."""
     profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
@@ -288,36 +288,22 @@ def list_org_documents(
         .all()
     )
 
-    cloudinary_meta: dict = {}
-    if docs:
-        try:
-            import cloudinary.api
-            for resource_type in ("image", "raw"):
-                result = cloudinary.api.resources(
-                    type="upload",
-                    resource_type=resource_type,
-                    prefix="knowledgebase/",
-                    max_results=500,
-                )
-                for r in result.get("resources", []):
-                    cloudinary_meta[r["public_id"]] = r
-        except Exception:
-            pass
-
-    result = []
-    for doc in docs:
-        cloud = cloudinary_meta.get(doc.drive_file_id or "", {})
-        result.append({
+    return [
+        {
             "id": str(doc.id),
             "name": doc.name,
             "public_id": doc.drive_file_id,
-            "secure_url": cloud.get("secure_url"),
-            "resource_type": cloud.get("resource_type"),
-            "format": cloud.get("format"),
-            "bytes": cloud.get("bytes"),
+            "secure_url": doc.cloudinary_url,
+            "resource_type": doc.resource_type,
+            "format": doc.file_type,
+            "bytes": doc.file_size,
+            "location": doc.location,
+            "uploaded_by": doc.uploaded_by,
+            "upload_source": doc.upload_source,
             "created_at": doc.created_at.isoformat() if doc.created_at else None,
-        })
-    return result
+        }
+        for doc in docs
+    ]
 
 
 # ── CRUD (parameterized routes) ───────────────────────────────────────────────

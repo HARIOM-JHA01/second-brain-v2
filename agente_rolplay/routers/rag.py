@@ -1,11 +1,13 @@
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
+from sqlalchemy.orm import Session
 
 from agente_rolplay.agent.cli_tools import anthropic_completion, get_text_by_relevance
 from agente_rolplay.config import GPT_ACTIONS_API_KEY
 from agente_rolplay.agent.system_prompt import system_prompt_rag
 from agente_rolplay.db.auth import get_current_user
-from agente_rolplay.db.models import User
+from agente_rolplay.db.database import get_db
+from agente_rolplay.db.models import Document, Profile, User
 
 router = APIRouter()
 
@@ -38,34 +40,34 @@ async def rag_query(request: Request, authorization: str = Header(None)):
 
 
 @router.get("/api/rag/files")
-def list_kb_files(current_user: User = Depends(get_current_user)):
-    try:
-        import cloudinary.api
+def list_kb_files(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """List Knowledge Base files for the current user's org (org-scoped via DB)."""
+    profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
 
-        def _fetch(resource_type: str):
-            return cloudinary.api.resources(
-                type="upload",
-                resource_type=resource_type,
-                prefix="knowledgebase/",
-                max_results=100,
-            ).get("resources", [])
+    docs = (
+        db.query(Document)
+        .filter(Document.org_id == profile.org_id, Document.location == "knowledgebase")
+        .order_by(Document.created_at.desc())
+        .all()
+    )
 
-        resources = _fetch("image") + _fetch("raw")
-        files = [
-            {
-                "filename": r.get("public_id", "").split("/")[-1],
-                "public_id": r.get("public_id"),
-                "resource_type": r.get("resource_type"),
-                "format": r.get("format"),
-                "bytes": r.get("bytes"),
-                "secure_url": r.get("secure_url"),
-                "created_at": r.get("created_at"),
-            }
-            for r in resources
-        ]
-        return files
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    return [
+        {
+            "filename": doc.name,
+            "public_id": doc.drive_file_id,
+            "resource_type": doc.resource_type,
+            "format": doc.file_type,
+            "bytes": doc.file_size,
+            "secure_url": doc.cloudinary_url,
+            "created_at": doc.created_at.isoformat() if doc.created_at else None,
+        }
+        for doc in docs
+    ]
 
 
 @router.get("/api/rag/search")

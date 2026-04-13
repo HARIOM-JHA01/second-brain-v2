@@ -279,7 +279,11 @@ def get_knowledge_base_file_count(org_id: str) -> int:
 
         db = SessionLocal()
         try:
-            return db.query(Document).filter(Document.org_id == org_id).count()
+            return (
+                db.query(Document)
+                .filter(Document.org_id == org_id, Document.location == "knowledgebase")
+                .count()
+            )
         finally:
             db.close()
     except Exception:
@@ -456,42 +460,8 @@ def handle_file_upload(
         if detected_ext:
             extension = detected_ext.lstrip(".").lower()
 
-    upload_result = upload_file_to_cloudinary(temp_path, folder="knowledgebase")
-
-    vector_id = None
-    vectorized = False
-
-    if upload_result and upload_result.get("success"):
-        if is_vectorizable(media_content_type):
-            print(f"Vectorizing file: {filename}")
-            extract_result = extract_text_from_file(temp_path, media_content_type)
-
-            if extract_result.get("password_protected"):
-                try:
-                    os.remove(temp_path)
-                except Exception:
-                    pass
-                send_twilio_message(from_number, PASSWORD_PROTECTED_MSG)
-                redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
-                return "PasswordProtected"
-
-            if extract_result.get("success") and extract_result.get("can_vectorize"):
-                pinecone_result = upload_to_pinecone(
-                    text=extract_result["text"],
-                    filename=filename,
-                    file_type=extract_result["file_type"],
-                    metadata={
-                        "uploaded_by": phone_number,
-                        "cloudinary_url": upload_result.get("secure_url"),
-                    },
-                )
-
-                if pinecone_result.get("success"):
-                    vector_id = pinecone_result.get("vector_id")
-                    vectorized = True
-                    print(f"File vectorized successfully: {vector_id}")
-        else:
-            print(f"File type {media_content_type} is not vectorizable")
+    # Files now go to Data Store first — admin promotes to KB to index
+    upload_result = upload_file_to_cloudinary(temp_path, folder="datastore")
 
     try:
         os.remove(temp_path)
@@ -500,7 +470,7 @@ def handle_file_upload(
         pass
 
     if upload_result and upload_result.get("success"):
-        # Persist Document record so the dashboard can show org-scoped files
+        # Persist Document record in Data Store
         try:
             from agente_rolplay.db.database import get_db
             from agente_rolplay.db.models import Document, Profile
@@ -520,6 +490,13 @@ def handle_file_upload(
                             org_id=profile.org_id,
                             name=filename,
                             drive_file_id=upload_result.get("public_id"),
+                            location="datastore",
+                            cloudinary_url=upload_result.get("secure_url"),
+                            file_type=extension,
+                            file_size=upload_result.get("bytes"),
+                            resource_type=upload_result.get("resource_type"),
+                            uploaded_by=phone_number,
+                            upload_source="whatsapp",
                         )
                     )
                     db.commit()
@@ -535,8 +512,8 @@ def handle_file_upload(
             "uploaded_at": datetime.utcnow().isoformat() + "Z",
             "uploaded_by": phone_number,
             "file_category": file_category,
-            "vector_id": vector_id,
-            "vectorized": vectorized,
+            "vector_id": None,
+            "vectorized": False,
         }
 
         store_file_metadata(filename, metadata, redis_client)
@@ -545,12 +522,10 @@ def handle_file_upload(
         )
         log_message_to_db(phone_number, message_type="document")
 
-        message = f"File '{filename}' uploaded successfully!\n\n"
-        if vectorized:
-            message += "✅ Content indexed and available for queries"
-        else:
-            message += "📎 File stored (not searchable as text)"
-
+        message = (
+            f"File '{filename}' received \u2705 \u2014 saved to your organization's Data Store. "
+            "Your admin can move it to the Knowledge Base."
+        )
         send_twilio_message(from_number, message)
     else:
         error_msg = (
@@ -1334,32 +1309,10 @@ def process_incoming_messages_functional(form_data, redis_client=r):
             redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
             return "ImageError"
 
-        result = upload_file_to_cloudinary(temp_path, folder="knowledgebase")
+        # Images go to Data Store first — admin promotes to KB to index
+        result = upload_file_to_cloudinary(temp_path, folder="datastore")
 
-        vector_id = None
-        vectorized = False
-        vision_result = None
         filename = f"{base_name}.{extension}"
-
-        if result and result.get("success"):
-            vision_result = extract_image_description(temp_path, media_content_type)
-            if vision_result.get("success") and vision_result.get("can_vectorize"):
-                print(f"Vectorizing image: {filename}")
-                pinecone_result = upload_to_pinecone(
-                    text=vision_result["text"],
-                    filename=filename,
-                    file_type="image",
-                    metadata={
-                        "uploaded_by": phone_number,
-                        "cloudinary_url": result.get("secure_url"),
-                    },
-                )
-                if pinecone_result.get("success"):
-                    vector_id = pinecone_result.get("vector_id")
-                    vectorized = True
-                    print(f"Image vectorized: {filename} id={vector_id}")
-            else:
-                print(f"Image vision extraction failed: {vision_result.get('error')}")
 
         try:
             os.remove(temp_path)
@@ -1373,16 +1326,55 @@ def process_incoming_messages_functional(form_data, redis_client=r):
                 filename=filename,
                 cloudinary_url=result.get("secure_url"),
                 redis_client=redis_client,
-                vector_id=vector_id,
-                vectorized=vectorized,
+                vector_id=None,
+                vectorized=False,
             )
             redis_client.set(
                 f"last_uploaded_file:{phone_number}", filename, ex=86400 * 7
             )
-            log_message_to_db(phone_number, message_type="image")
-            message = f"Image '{base_name}.{extension}' uploaded to Knowledge Base!\n"
-            message += f"Link: {result['secure_url']}"
 
+            # Persist Document record in Data Store
+            try:
+                from agente_rolplay.db.database import get_db
+                from agente_rolplay.db.models import Document, Profile
+                from agente_rolplay.db.whatsapp_auth import normalize_whatsapp_number
+
+                _norm = normalize_whatsapp_number(phone_number)
+                _db = next(get_db())
+                try:
+                    _profile = (
+                        _db.query(Profile)
+                        .filter(Profile.whatsapp_number == _norm)
+                        .first()
+                    )
+                    if _profile:
+                        _db.add(
+                            Document(
+                                org_id=_profile.org_id,
+                                name=filename,
+                                drive_file_id=result.get("public_id"),
+                                location="datastore",
+                                cloudinary_url=result.get("secure_url"),
+                                file_type=extension,
+                                file_size=result.get("bytes"),
+                                resource_type=result.get("resource_type"),
+                                uploaded_by=phone_number,
+                                upload_source="whatsapp",
+                            )
+                        )
+                        _db.commit()
+                finally:
+                    _db.close()
+            except Exception as _doc_err:
+                print(f"Warning: could not write Document record for image: {_doc_err}")
+
+            log_message_to_db(phone_number, message_type="image")
+
+            message = (
+                f"Image '{base_name}.{extension}' received \u2705 \u2014 "
+                "saved to your organization's Data Store. "
+                "Your admin can move it to the Knowledge Base."
+            )
             send_twilio_message(from_number, message)
 
             # Record upload in chat history so Claude has context for follow-up questions
@@ -1391,9 +1383,7 @@ def process_incoming_messages_functional(form_data, redis_client=r):
                 chat_history_id, f"[Sent image: {filename}]", "user", phone_number
             )
             log_whatsapp_message_to_db(phone_number, "user", f"[Sent image: {filename}]", "image")
-            bot_history_msg = f"Image '{filename}' uploaded to Knowledge Base."
-            if vectorized and vision_result and vision_result.get("text"):
-                bot_history_msg += f" Description: {vision_result['text'][:400]}"
+            bot_history_msg = f"Image '{filename}' saved to Data Store."
             add_to_chat_history(
                 chat_history_id, bot_history_msg, "assistant", phone_number
             )
@@ -2097,32 +2087,10 @@ def process_incoming_messages(form_data, redis_client=r):
             redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
             return "ImageError"
 
-        result = upload_file_to_cloudinary(temp_path, folder="knowledgebase")
+        # Images go to Data Store first — admin promotes to KB to index
+        result = upload_file_to_cloudinary(temp_path, folder="datastore")
 
-        vector_id = None
-        vectorized = False
-        vision_result = None
         filename = f"{base_name}.{extension}"
-
-        if result and result.get("success"):
-            vision_result = extract_image_description(temp_path, media_content_type)
-            if vision_result.get("success") and vision_result.get("can_vectorize"):
-                print(f"Vectorizing image: {filename}")
-                pinecone_result = upload_to_pinecone(
-                    text=vision_result["text"],
-                    filename=filename,
-                    file_type="image",
-                    metadata={
-                        "uploaded_by": phone_number,
-                        "cloudinary_url": result.get("secure_url"),
-                    },
-                )
-                if pinecone_result.get("success"):
-                    vector_id = pinecone_result.get("vector_id")
-                    vectorized = True
-                    print(f"Image vectorized: {filename} id={vector_id}")
-            else:
-                print(f"Image vision extraction failed: {vision_result.get('error')}")
 
         try:
             os.remove(temp_path)
@@ -2136,17 +2104,14 @@ def process_incoming_messages(form_data, redis_client=r):
                 filename=filename,
                 cloudinary_url=result.get("secure_url"),
                 redis_client=redis_client,
-                vector_id=vector_id,
-                vectorized=vectorized,
+                vector_id=None,
+                vectorized=False,
             )
             redis_client.set(
                 f"last_uploaded_file:{phone_number}", filename, ex=86400 * 7
             )
-            message = "Image uploaded to Knowledge Base! ✅"
 
-            send_twilio_message(from_number, message)
-
-            # Save Document record so dashboard Knowledge Base page shows the image
+            # Save Document record in Data Store
             try:
                 from agente_rolplay.db.database import get_db
                 from agente_rolplay.db.models import Document, Profile
@@ -2166,6 +2131,13 @@ def process_incoming_messages(form_data, redis_client=r):
                                 org_id=_profile.org_id,
                                 name=filename,
                                 drive_file_id=result.get("public_id"),
+                                location="datastore",
+                                cloudinary_url=result.get("secure_url"),
+                                file_type=extension,
+                                file_size=result.get("bytes"),
+                                resource_type=result.get("resource_type"),
+                                uploaded_by=phone_number,
+                                upload_source="whatsapp",
                             )
                         )
                         _db.commit()
@@ -2176,15 +2148,19 @@ def process_incoming_messages(form_data, redis_client=r):
 
             log_message_to_db(phone_number, message_type="image")
 
+            message = (
+                "Image received \u2705 \u2014 saved to your organization's Data Store. "
+                "Your admin can move it to the Knowledge Base."
+            )
+            send_twilio_message(from_number, message)
+
             # Record upload in chat history so Claude has context for follow-up questions
             chat_history_id = f"fp-chatHistory:{from_number}"
             add_to_chat_history(
                 chat_history_id, f"[Sent image: {filename}]", "user", phone_number
             )
             log_whatsapp_message_to_db(phone_number, "user", f"[Sent image: {filename}]", "image")
-            bot_history_msg = f"Image '{filename}' uploaded to Knowledge Base."
-            if vectorized and vision_result and vision_result.get("text"):
-                bot_history_msg += f" Description: {vision_result['text'][:400]}"
+            bot_history_msg = f"Image '{filename}' saved to Data Store."
             add_to_chat_history(
                 chat_history_id, bot_history_msg, "assistant", phone_number
             )

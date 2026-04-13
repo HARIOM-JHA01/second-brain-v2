@@ -76,6 +76,7 @@
       "sidebar.manage": "Gestionar",
       "sidebar.users": "Usuarios",
       "sidebar.documents": "Documentos",
+      "sidebar.kb_chat": "KB Chat",
       "sidebar.scenarios": "Escenarios",
       "sidebar.config": "Config",
       "sidebar.settings": "Configuración",
@@ -164,6 +165,24 @@
       "docs.error.no_ref":
         "Este documento no tiene referencia de Cloudinary y no puede eliminarse desde aquí.",
       "docs.error.delete": "Error al eliminar: ",
+      "docs.tab_datastore": "Almacén de Datos",
+      "docs.tab_kb": "Base de Conocimiento",
+      "docs.upload_btn": "↑ Subir archivo",
+      "docs.move_to_kb": "→ Mover a KB",
+      "docs.move_to_ds": "← Mover al Almacén",
+      "docs.source_whatsapp": "WhatsApp",
+      "docs.source_web": "Web",
+      "docs.empty_ds":
+        "Sin archivos. Los archivos de WhatsApp aparecerán aquí.",
+      "docs.empty_kb":
+        "Sin archivos indexados. Mueve archivos desde el Almacén.",
+      "docs.promoting": "Indexando…",
+      "docs.demoting": "Desindexando…",
+      "chat.title": "Chat con KB",
+      "chat.placeholder": "Pregunta sobre tu Knowledge Base…",
+      "chat.send": "Enviar",
+      "chat.sources": "Fuentes",
+      "chat.empty": "Haz una pregunta para comenzar.",
 
       // Settings
       "settings.title": "Configuración",
@@ -695,6 +714,7 @@
       "sidebar.manage": "Manage",
       "sidebar.users": "Users",
       "sidebar.documents": "Documents",
+      "sidebar.kb_chat": "KB Chat",
       "sidebar.scenarios": "Scenarios",
       "sidebar.config": "Config",
       "sidebar.settings": "Settings",
@@ -783,6 +803,22 @@
       "docs.error.no_ref":
         "This document has no Cloudinary reference and cannot be deleted from here.",
       "docs.error.delete": "Delete failed: ",
+      "docs.tab_datastore": "Data Store",
+      "docs.tab_kb": "Knowledge Base",
+      "docs.upload_btn": "↑ Upload file",
+      "docs.move_to_kb": "→ Move to KB",
+      "docs.move_to_ds": "← Move to Data Store",
+      "docs.source_whatsapp": "WhatsApp",
+      "docs.source_web": "Web",
+      "docs.empty_ds": "No files yet. WhatsApp uploads appear here.",
+      "docs.empty_kb": "No indexed files. Move files from Data Store.",
+      "docs.promoting": "Indexing…",
+      "docs.demoting": "Removing from KB…",
+      "chat.title": "KB Chat",
+      "chat.placeholder": "Ask about your Knowledge Base…",
+      "chat.send": "Send",
+      "chat.sources": "Sources",
+      "chat.empty": "Ask a question to get started.",
 
       // Settings
       "settings.title": "Settings",

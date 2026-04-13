@@ -128,6 +128,14 @@ def documents_page(request: Request):
     return templates.TemplateResponse("documents.html", {"request": request})
 
 
+@router.get("/dashboard/chat", tags=["pages"])
+def chat_page(request: Request):
+    redirect = _require_auth(request)
+    if redirect:
+        return redirect
+    return templates.TemplateResponse("chat.html", {"request": request})
+
+
 @router.get("/dashboard/settings", tags=["pages"])
 def settings_page(request: Request):
     redirect = _require_auth(request)

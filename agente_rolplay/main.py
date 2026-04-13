@@ -11,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from agente_rolplay.config import PORT, SECRET_KEY
-from agente_rolplay.routers import admin, auth, pages, rag, roles, users, webhook
+from agente_rolplay.routers import admin, auth, datastore, pages, rag, roles, users, webhook
 
 
 @asynccontextmanager
@@ -41,6 +41,7 @@ app.add_middleware(
 
 app.include_router(webhook.router)
 app.include_router(rag.router)
+app.include_router(datastore.router)
 app.include_router(pages.router)
 app.include_router(auth.router)
 app.include_router(users.router)

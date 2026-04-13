@@ -47,6 +47,17 @@ _MIGRATIONS = [
     """,
     "CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_phone ON whatsapp_messages(phone_number)",
     "CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_created ON whatsapp_messages(created_at)",
+    # Data Store / Knowledge Base split columns on documents table
+    "ALTER TABLE documents ADD COLUMN IF NOT EXISTS location VARCHAR(20) DEFAULT 'knowledgebase'",
+    "ALTER TABLE documents ADD COLUMN IF NOT EXISTS cloudinary_url TEXT",
+    "ALTER TABLE documents ADD COLUMN IF NOT EXISTS file_type VARCHAR(50)",
+    "ALTER TABLE documents ADD COLUMN IF NOT EXISTS file_size INTEGER",
+    "ALTER TABLE documents ADD COLUMN IF NOT EXISTS resource_type VARCHAR(20)",
+    "ALTER TABLE documents ADD COLUMN IF NOT EXISTS uploaded_by VARCHAR(100)",
+    "ALTER TABLE documents ADD COLUMN IF NOT EXISTS upload_source VARCHAR(20) DEFAULT 'whatsapp'",
+    "ALTER TABLE documents ADD COLUMN IF NOT EXISTS vector_id VARCHAR(255)",
+    "CREATE INDEX IF NOT EXISTS idx_documents_location ON documents(location)",
+    "CREATE INDEX IF NOT EXISTS idx_documents_org_location ON documents(org_id, location)",
 ]
 
 

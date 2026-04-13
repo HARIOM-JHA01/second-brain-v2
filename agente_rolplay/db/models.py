@@ -106,6 +106,15 @@ class Document(Base):
     )
     name = Column(String(255), nullable=True)
     drive_file_id = Column(String(255), nullable=True)
+    # Data Store / Knowledge Base split
+    location = Column(String(20), default="knowledgebase")   # "datastore" | "knowledgebase"
+    cloudinary_url = Column(Text, nullable=True)             # stored directly to avoid extra API calls
+    file_type = Column(String(50), nullable=True)            # pdf, docx, image, etc.
+    file_size = Column(Integer, nullable=True)               # bytes
+    resource_type = Column(String(20), nullable=True)        # "raw" | "image"
+    uploaded_by = Column(String(100), nullable=True)         # phone number or "admin"
+    upload_source = Column(String(20), default="whatsapp")   # "whatsapp" | "web"
+    vector_id = Column(String(255), nullable=True)           # first Pinecone chunk ID (when in KB)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     organization = relationship("Organization", back_populates="documents")

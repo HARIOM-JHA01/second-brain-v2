@@ -3,6 +3,49 @@
 {% block extra_head %}
 {{ super() }}
 <style>
+  /* ── Tab layout ─────────────────────────────────── */
+  .ds-tabs {
+    display: flex; gap: 0; margin-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .ds-tab {
+    padding: .65rem 1.25rem; font-size: .875rem; font-weight: 600;
+    color: var(--text-muted); cursor: pointer; border: none; background: none;
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+    transition: all .2s; font-family: inherit;
+  }
+  .ds-tab:hover { color: var(--text); }
+  .ds-tab.active { color: var(--text); border-bottom-color: var(--indigo); }
+
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+
+  /* ── Toolbar ────────────────────────────────────── */
+  .ds-toolbar {
+    display: flex; align-items: center; gap: .75rem;
+    margin-bottom: 1.25rem; flex-wrap: wrap;
+  }
+  .ds-toolbar-right { margin-left: auto; display: flex; gap: .5rem; }
+
+  /* ── Upload zone ────────────────────────────────── */
+  #uploadInput { display: none; }
+
+  /* ── Search bar ─────────────────────────────────── */
+  .search-bar { position: relative; flex: 1; min-width: 200px; }
+  .search-bar input {
+    width: 100%; padding: .62rem 1rem .62rem 2.4rem;
+    background: var(--input-bg); border: 1px solid var(--border);
+    border-radius: 10px; color: var(--input-color);
+    font-size: .875rem; font-family: inherit; outline: none;
+    transition: border-color .2s;
+  }
+  .search-bar input:focus { border-color: var(--border-hover); }
+  .search-bar::before {
+    content: '🔍'; position: absolute; left: .75rem; top: 50%;
+    transform: translateY(-50%); font-size: .78rem; pointer-events: none;
+  }
+
+  /* ── Doc grid/cards ─────────────────────────────── */
   .doc-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
@@ -17,9 +60,7 @@
   }
   .doc-card:hover { border-color: var(--border-hover); transform: translateY(-2px); }
 
-  .doc-icon {
-    font-size: 2rem; line-height: 1; display: block;
-  }
+  .doc-icon { font-size: 2rem; line-height: 1; display: block; }
   .doc-name {
     font-size: .875rem; font-weight: 700; color: var(--text);
     word-break: break-word; line-height: 1.35;
@@ -41,61 +82,56 @@
   .doc-badge.excel { background: rgba(52,211,153,.1); color: #34d399;  border-color: rgba(52,211,153,.2); }
   .doc-badge.ppt   { background: rgba(251,146,60,.1); color: #fb923c;  border-color: rgba(251,146,60,.2); }
   .doc-badge.raw   { background: rgba(167,139,250,.1);color: #ef4444;  border-color: rgba(167,139,250,.2); }
+  .doc-badge.wa    { background: rgba(52,211,153,.08); color: #34d399; border-color: rgba(52,211,153,.2); }
+  .doc-badge.web   { background: rgba(99,102,241,.08); color: #818cf8; border-color: rgba(99,102,241,.2); }
 
   .doc-actions {
-    display: flex; gap: .5rem; margin-top: auto;
+    display: flex; gap: .5rem; margin-top: auto; flex-wrap: wrap;
   }
-  .doc-actions a, .doc-actions button {
+  .doc-actions button, .doc-actions a {
     flex: 1; text-align: center; justify-content: center;
-    padding: .38rem .6rem; font-size: .78rem;
+    padding: .38rem .5rem; font-size: .75rem; min-width: 0;
   }
 
-  .filter-bar {
-    display: flex; align-items: center; gap: .75rem;
-    margin-bottom: 1.25rem; flex-wrap: wrap;
-  }
-  .search-bar { position: relative; flex: 1; min-width: 200px; }
-  .search-bar input {
-    width: 100%; padding: .62rem 1rem .62rem 2.4rem;
-    background: var(--input-bg); border: 1px solid var(--border);
-    border-radius: 10px; color: var(--input-color);
-    font-size: .875rem; font-family: inherit; outline: none;
-    transition: border-color .2s;
-  }
-  .search-bar input:focus { border-color: var(--border-hover); }
-  .search-bar::before {
-    content: '🔍'; position: absolute; left: .75rem; top: 50%;
-    transform: translateY(-50%); font-size: .78rem; pointer-events: none;
-  }
-  select.filter-select {
-    padding: .62rem .9rem;
-    background: var(--input-bg); border: 1px solid var(--border);
-    border-radius: 10px; color: var(--text);
-    font-size: .875rem; font-family: inherit; outline: none;
-    transition: border-color .2s; cursor: pointer;
-  }
-  select.filter-select:focus { border-color: var(--border-hover); }
-
+  /* count chip */
   .count-chip {
     background: var(--surface); border: 1px solid var(--border);
     border-radius: 20px; padding: .25rem .75rem;
     font-size: .78rem; font-weight: 600; color: var(--text-muted);
   }
 
-  .view-toggle { display: flex; gap: .3rem; }
-  .view-btn {
-    width: 32px; height: 32px; border-radius: 7px;
-    background: var(--surface); border: 1px solid var(--border);
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer; font-size: .85rem; transition: all .2s; color: var(--text-muted);
+  /* semantic banner */
+  .search-mode-banner {
+    display: flex; align-items: center; gap: .5rem;
+    background: rgba(99,102,241,.08); border: 1px solid rgba(99,102,241,.2);
+    border-radius: 8px; padding: .5rem .9rem;
+    font-size: .8rem; color: #818cf8; font-weight: 600;
+    margin-bottom: 1rem;
   }
-  .view-btn.active { background: var(--indigo); border-color: var(--indigo); color: #fff; }
+  .relevance-badge {
+    display: inline-flex; align-items: center; gap: .25rem;
+    font-size: .65rem; font-weight: 700; letter-spacing: .2px;
+    background: rgba(99,102,241,.12); color: #818cf8;
+    border: 1px solid rgba(99,102,241,.25);
+    border-radius: 5px; padding: .12rem .45rem;
+  }
 
-  /* List view */
-  .doc-list { display: none; }
-  .doc-list.visible { display: block; }
-  .doc-grid.visible { display: grid; }
-  .doc-grid.hidden { display: none; }
+  /* shimmer */
+  @keyframes shimmer {
+    0%   { background-position: -400px 0; }
+    100% { background-position:  400px 0; }
+  }
+  .skel-line {
+    border-radius: 6px; height: 12px;
+    background: linear-gradient(90deg, var(--surface) 25%, var(--border) 50%, var(--surface) 75%);
+    background-size: 400px 100%;
+    animation: shimmer 1.4s infinite linear;
+  }
+  .doc-card-skel {
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: 12px; padding: 1.2rem 1.25rem;
+    display: flex; flex-direction: column; gap: .75rem;
+  }
 
   /* ── Preview modal ──────────────────────────────── */
   .preview-modal {
@@ -108,13 +144,11 @@
     background: var(--modal-bg); border: 1px solid var(--border);
     border-radius: 16px; width: 100%; max-width: 900px;
     max-height: 90vh; display: flex; flex-direction: column;
-    box-shadow: 0 24px 64px rgba(0,0,0,.5);
-    overflow: hidden;
+    box-shadow: 0 24px 64px rgba(0,0,0,.5); overflow: hidden;
   }
   .preview-header {
     display: flex; align-items: center; gap: .75rem;
-    padding: .9rem 1.25rem; border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
+    padding: .9rem 1.25rem; border-bottom: 1px solid var(--border); flex-shrink: 0;
   }
   .preview-header-name {
     font-size: .9rem; font-weight: 700; color: var(--text);
@@ -132,68 +166,29 @@
     align-items: center; justify-content: center;
     background: var(--surface); min-height: 0;
   }
-  .preview-body img {
-    max-width: 100%; max-height: 100%;
-    object-fit: contain; display: block;
-  }
-  .preview-body iframe {
-    width: 100%; height: 100%; border: none; display: block;
-  }
-  .preview-unsupported {
-    text-align: center; padding: 3rem; color: var(--text-muted);
-  }
+  .preview-body img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .preview-body iframe { width: 100%; height: 100%; border: none; }
+  .preview-unsupported { text-align: center; padding: 3rem; color: var(--text-muted); }
   .preview-unsupported .u-icon { font-size: 3rem; margin-bottom: 1rem; display: block; }
   .preview-footer {
     display: flex; gap: .65rem; padding: .85rem 1.25rem;
-    border-top: 1px solid var(--border); flex-shrink: 0;
-    justify-content: flex-end;
+    border-top: 1px solid var(--border); flex-shrink: 0; justify-content: flex-end;
   }
 
-  /* semantic search result extras */
-  .doc-snippet {
-    font-size: .74rem; color: var(--text-dim); line-height: 1.5;
-    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
-    overflow: hidden; margin-top: -.1rem;
+  /* progress overlay on promote */
+  .card-overlay {
+    position: absolute; inset: 0; border-radius: 12px;
+    background: rgba(0,0,0,.55); display: flex;
+    align-items: center; justify-content: center;
+    font-size: .78rem; font-weight: 700; color: #fff; gap: .4rem;
+    z-index: 10;
   }
-  .doc-thumb {
-    width: 100%; height: 130px; object-fit: cover;
-    border-radius: 8px; display: block;
-    background: var(--surface);
+  .card-spinner {
+    width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.35);
+    border-top-color: #fff; border-radius: 50%;
+    animation: spin .7s linear infinite;
   }
-
-  .relevance-badge {
-    display: inline-flex; align-items: center; gap: .25rem;
-    font-size: .65rem; font-weight: 700; letter-spacing: .2px;
-    background: rgba(99,102,241,.12); color: #818cf8;
-    border: 1px solid rgba(99,102,241,.25);
-    border-radius: 5px; padding: .12rem .45rem;
-  }
-  .search-mode-banner {
-    display: flex; align-items: center; gap: .5rem;
-    background: rgba(99,102,241,.08); border: 1px solid rgba(99,102,241,.2);
-    border-radius: 8px; padding: .5rem .9rem;
-    font-size: .8rem; color: #818cf8; font-weight: 600;
-    margin-bottom: 1rem;
-  }
-
-  /* shimmer animation (local copy for this page) */
-  @keyframes shimmer {
-    0%   { background-position: -400px 0; }
-    100% { background-position:  400px 0; }
-  }
-  .skel-line {
-    border-radius: 6px; height: 12px;
-    background: linear-gradient(90deg, var(--surface) 25%, var(--border) 50%, var(--surface) 75%);
-    background-size: 400px 100%;
-    animation: shimmer 1.4s infinite linear;
-  }
-
-  /* skeleton card */
-  .doc-card-skel {
-    background: var(--card-bg); border: 1px solid var(--border);
-    border-radius: 12px; padding: 1.2rem 1.25rem;
-    display: flex; flex-direction: column; gap: .75rem;
-  }
+  @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 {% endblock %}
 
@@ -208,61 +203,59 @@
   <span class="count-chip" id="docCount">—</span>
 </div>
 
-<!-- ── Semantic search banner ─────────────────────── -->
-<div class="search-mode-banner" id="semanticBanner" style="display:none;">
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-  Semantic search — showing results ranked by relevance
-  <button onclick="clearSearch()" style="margin-left:auto;background:none;border:none;color:#818cf8;cursor:pointer;font-size:.78rem;font-weight:700;">✕ Clear</button>
+<!-- ── Tabs ──────────────────────────────────────── -->
+<div class="ds-tabs">
+  <button class="ds-tab active" id="tabDS" onclick="switchTab('datastore')" data-i18n="docs.tab_datastore">Almacén de Datos</button>
+  <button class="ds-tab" id="tabKB" onclick="switchTab('knowledgebase')" data-i18n="docs.tab_kb">Base de Conocimiento</button>
 </div>
 
-<!-- ── Filter bar ────────────────────────────────── -->
-<div class="filter-bar">
-  <div class="search-bar">
-    <input type="text" id="searchInput" data-i18n-ph="docs.search.ph" placeholder="Search documents semantically…" oninput="onSearchInput(this.value)" />
+<!-- ══ Data Store Pane ══════════════════════════════ -->
+<div class="tab-pane active" id="paneDS">
+  <div class="ds-toolbar">
+    <span style="font-size:.8rem;color:var(--text-muted);" id="dsCountLabel">—</span>
+    <div class="ds-toolbar-right">
+      <input type="file" id="uploadInput" onchange="uploadFile(this)">
+      <button class="btn btn-primary btn-sm" onclick="document.getElementById('uploadInput').click()" data-i18n="docs.upload_btn">↑ Subir archivo</button>
+    </div>
   </div>
-  <select class="filter-select" id="typeFilter" onchange="filterDocs()">
-    <option value="" data-i18n="docs.filter.all">Todos los tipos</option>
-    <option value="pdf" data-i18n="docs.filter.pdf">PDF</option>
-    <option value="image" data-i18n="docs.filter.images">Imágenes</option>
-    <option value="word" data-i18n="docs.filter.word">Word</option>
-    <option value="excel" data-i18n="docs.filter.excel">Excel</option>
-    <option value="ppt" data-i18n="docs.filter.ppt">PowerPoint</option>
-    <option value="raw" data-i18n="docs.filter.other">Otro</option>
-  </select>
-  <div class="view-toggle">
-    <button class="view-btn active" id="gridViewBtn" onclick="setView('grid')" data-i18n-title="docs.view.grid" title="Vista de cuadrícula">⊞</button>
-    <button class="view-btn" id="listViewBtn" onclick="setView('list')" data-i18n-title="docs.view.list" title="Vista de lista">☰</button>
+
+  <div class="doc-grid" id="dsGrid">
+    {% for _ in range(6) %}
+    <div class="doc-card-skel">
+      <div class="skel-line" style="width:2rem;height:2rem;border-radius:8px;"></div>
+      <div class="skel-line" style="width:75%;height:13px;"></div>
+      <div class="skel-line" style="width:45%;height:10px;"></div>
+      <div class="skel-line" style="width:100%;height:56px;border-radius:8px;margin-top:.2rem;"></div>
+    </div>
+    {% endfor %}
   </div>
 </div>
 
-<!-- ── Grid view ─────────────────────────────────── -->
-<div class="doc-grid visible" id="docGrid">
-  {% for _ in range(8) %}
-  <div class="doc-card-skel">
-    <div class="skel-line" style="width:2rem;height:2rem;border-radius:8px;"></div>
-    <div class="skel-line" style="width:75%;height:13px;"></div>
-    <div class="skel-line" style="width:45%;height:10px;"></div>
-    <div class="skel-line" style="width:55%;height:10px;"></div>
-    <div class="skel-line" style="width:100%;height:30px;border-radius:8px;margin-top:.2rem;"></div>
+<!-- ══ Knowledge Base Pane ══════════════════════════ -->
+<div class="tab-pane" id="paneKB">
+  <!-- semantic search banner -->
+  <div class="search-mode-banner" id="semanticBanner" style="display:none;">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    Semantic search — showing results ranked by relevance
+    <button onclick="clearSearch()" style="margin-left:auto;background:none;border:none;color:#818cf8;cursor:pointer;font-size:.78rem;font-weight:700;">✕ Clear</button>
   </div>
-  {% endfor %}
-</div>
 
-<!-- ── List view ─────────────────────────────────── -->
-<div class="doc-list" id="docList">
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th data-i18n="docs.col.file">Archivo</th>
-          <th data-i18n="docs.col.type">Tipo</th>
-          <th data-i18n="docs.col.size">Tamaño</th>
-          <th data-i18n="docs.col.uploaded">Subido</th>
-          <th data-i18n="docs.col.actions">Acciones</th>
-        </tr>
-      </thead>
-      <tbody id="docListBody"></tbody>
-    </table>
+  <div class="ds-toolbar">
+    <div class="search-bar" style="max-width:420px;">
+      <input type="text" id="searchInput" data-i18n-ph="docs.search.ph" placeholder="Search knowledge base semantically…" oninput="onSearchInput(this.value)" />
+    </div>
+    <span style="font-size:.8rem;color:var(--text-muted);" id="kbCountLabel">—</span>
+  </div>
+
+  <div class="doc-grid" id="kbGrid">
+    {% for _ in range(6) %}
+    <div class="doc-card-skel">
+      <div class="skel-line" style="width:2rem;height:2rem;border-radius:8px;"></div>
+      <div class="skel-line" style="width:75%;height:13px;"></div>
+      <div class="skel-line" style="width:45%;height:10px;"></div>
+      <div class="skel-line" style="width:100%;height:56px;border-radius:8px;margin-top:.2rem;"></div>
+    </div>
+    {% endfor %}
   </div>
 </div>
 
@@ -291,12 +284,366 @@ const authFetch = (url, opts = {}) => fetch(url, {
   ...opts, headers: { 'Authorization': 'Bearer ' + token(), ...(opts.headers || {}) }
 });
 
-let allDocs = [];
-let currentView = 'grid';
+let dsDocs = [];   // Data Store documents
+let kbDocs = [];   // Knowledge Base documents
 let _searchTimer = null;
 let _semanticMode = false;
+let _currentTab = 'datastore';
 
-// ── Preview modal ──────────────────────────────────────────────────────────────
+// ── Tab switching ─────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  _currentTab = tab;
+  document.getElementById('tabDS').classList.toggle('active', tab === 'datastore');
+  document.getElementById('tabKB').classList.toggle('active', tab === 'knowledgebase');
+  document.getElementById('paneDS').classList.toggle('active', tab === 'datastore');
+  document.getElementById('paneKB').classList.toggle('active', tab === 'knowledgebase');
+  updateCountChip();
+  if (tab === 'knowledgebase' && !_semanticMode) clearSearch();
+}
+
+function updateCountChip() {
+  const n = _currentTab === 'datastore' ? dsDocs.length : kbDocs.length;
+  document.getElementById('docCount').textContent = n + ' file' + (n !== 1 ? 's' : '');
+}
+
+// ── File helpers ──────────────────────────────────────────────────────────────
+function getFileInfo(doc) {
+  const fmt  = (doc.file_type || doc.format || '').toLowerCase();
+  const rt   = (doc.resource_type || '').toLowerCase();
+  const name = (doc.name || '').toLowerCase();
+
+  if (fmt === 'pdf' || name.endsWith('.pdf'))
+    return { icon: '📕', type: 'pdf',   label: 'PDF' };
+  if (['jpg','jpeg','png','gif','webp','avif','svg'].includes(fmt) || rt === 'image')
+    return { icon: '🖼️', type: 'image', label: (fmt || 'Image').toUpperCase() };
+  if (['doc','docx'].includes(fmt) || name.endsWith('.docx') || name.endsWith('.doc'))
+    return { icon: '📝', type: 'word',  label: (fmt || 'Word').toUpperCase() };
+  if (['xls','xlsx','csv'].includes(fmt))
+    return { icon: '📊', type: 'excel', label: fmt.toUpperCase() };
+  if (['ppt','pptx'].includes(fmt))
+    return { icon: '📋', type: 'ppt',   label: fmt.toUpperCase() };
+  return   { icon: '📎', type: 'raw',   label: (fmt || 'File').toUpperCase() };
+}
+
+function fmtBytes(bytes) {
+  if (!bytes) return '—';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / 1048576).toFixed(1) + ' MB';
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString(
+    typeof getLang === 'function' && getLang() === 'es' ? 'es-ES' : 'en-US'
+  );
+}
+
+// ── Load both tabs ────────────────────────────────────────────────────────────
+async function loadDocs() {
+  if (!token()) { window.location.href = '/login'; return; }
+
+  const [dsRes, kbRes] = await Promise.all([
+    authFetch('/api/datastore'),
+    authFetch('/api/knowledgebase'),
+  ]);
+
+  if (dsRes.status === 401 || kbRes.status === 401) {
+    window.location.href = '/login'; return;
+  }
+
+  dsDocs = dsRes.ok ? await dsRes.json() : [];
+  kbDocs = kbRes.ok ? await kbRes.json() : [];
+
+  renderDS();
+  renderKB();
+  updateCountChip();
+}
+
+// ── Render Data Store ─────────────────────────────────────────────────────────
+function renderDS() {
+  const grid = document.getElementById('dsGrid');
+  document.getElementById('dsCountLabel').textContent =
+    dsDocs.length + ' file' + (dsDocs.length !== 1 ? 's' : '');
+
+  if (!dsDocs.length) {
+    grid.innerHTML = `
+      <div style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--text-muted);">
+        <span style="font-size:2.5rem;display:block;margin-bottom:.75rem;">📂</span>
+        <span data-i18n="docs.empty_ds">${t('docs.empty_ds')}</span>
+      </div>`;
+    return;
+  }
+
+  grid.innerHTML = dsDocs.map((doc, i) => {
+    const info = getFileInfo(doc);
+    const src = doc.upload_source === 'web' ? 'web' : 'wa';
+    const srcLabel = doc.upload_source === 'web'
+      ? (t('docs.source_web') || 'Web')
+      : (t('docs.source_whatsapp') || 'WhatsApp');
+    return `
+      <div class="doc-card" id="dsCard-${i}" style="position:relative;">
+        <span class="doc-icon">${info.icon}</span>
+        <div class="doc-name">${doc.name || 'Untitled'}</div>
+        <div class="doc-meta">
+          <span>
+            <span class="doc-badge ${info.type}">${info.label}</span>
+            <span class="doc-badge ${src}" style="margin-left:.25rem;">${srcLabel}</span>
+          </span>
+          <span>${fmtBytes(doc.file_size)}</span>
+          <span>${fmtDate(doc.created_at)}</span>
+          ${doc.uploaded_by && doc.uploaded_by !== 'admin'
+            ? `<span style="font-size:.7rem;color:var(--text-dim);">📱 ${doc.uploaded_by}</span>` : ''}
+        </div>
+        <div class="doc-actions">
+          ${doc.cloudinary_url
+            ? `<button class="btn btn-secondary btn-sm" onclick="openPreview('${doc.cloudinary_url}','${(doc.name||'').replace(/'/g,"\\'")}',${JSON.stringify(info)},'${fmtBytes(doc.file_size)}')">${t('docs.btn.view')}</button>`
+            : ''}
+          <button class="btn btn-primary btn-sm" onclick="promoteDoc(${i})" data-i18n="docs.move_to_kb">${t('docs.move_to_kb')}</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteDSDoc(${i})">${t('docs.btn.delete')}</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ── Render Knowledge Base ─────────────────────────────────────────────────────
+function renderKB() {
+  const grid = document.getElementById('kbGrid');
+  document.getElementById('kbCountLabel').textContent =
+    kbDocs.length + ' file' + (kbDocs.length !== 1 ? 's' : '');
+
+  if (!kbDocs.length) {
+    grid.innerHTML = `
+      <div style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--text-muted);">
+        <span style="font-size:2.5rem;display:block;margin-bottom:.75rem;">🗂️</span>
+        <span data-i18n="docs.empty_kb">${t('docs.empty_kb')}</span>
+      </div>`;
+    return;
+  }
+
+  grid.innerHTML = kbDocs.map((doc, i) => {
+    const info = getFileInfo(doc);
+    return `
+      <div class="doc-card" id="kbCard-${i}" style="position:relative;">
+        <span class="doc-icon">${info.icon}</span>
+        <div class="doc-name">${doc.name || 'Untitled'}</div>
+        <div class="doc-meta">
+          <span><span class="doc-badge ${info.type}">${info.label}</span></span>
+          <span>${fmtBytes(doc.file_size)}</span>
+          <span>${fmtDate(doc.created_at)}</span>
+        </div>
+        <div class="doc-actions">
+          ${doc.cloudinary_url
+            ? `<button class="btn btn-secondary btn-sm" onclick="openPreview('${doc.cloudinary_url}','${(doc.name||'').replace(/'/g,"\\'")}',${JSON.stringify(info)},'${fmtBytes(doc.file_size)}')">${t('docs.btn.view')}</button>`
+            : ''}
+          <button class="btn btn-secondary btn-sm" onclick="demoteDoc(${i})" data-i18n="docs.move_to_ds" style="font-size:.72rem;">${t('docs.move_to_ds')}</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteKBDoc(${i})">${t('docs.btn.delete')}</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ── Web admin upload ──────────────────────────────────────────────────────────
+async function uploadFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  input.value = '';
+
+  const fd = new FormData();
+  fd.append('file', file);
+
+  const btn = document.querySelector('button[onclick*="uploadInput"]');
+  const origText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳';
+
+  const r = await authFetch('/api/datastore/upload', { method: 'POST', body: fd });
+  btn.disabled = false;
+  btn.textContent = origText;
+
+  if (r.ok) {
+    const doc = await r.json();
+    dsDocs.unshift(doc);
+    renderDS();
+    updateCountChip();
+  } else {
+    const err = await r.json().catch(() => ({}));
+    alert('Upload failed: ' + (err.detail || 'Unknown error'));
+  }
+}
+
+// ── Promote Data Store → KB ───────────────────────────────────────────────────
+async function promoteDoc(i) {
+  const doc = dsDocs[i];
+  const card = document.getElementById(`dsCard-${i}`);
+
+  // Show overlay
+  const overlay = document.createElement('div');
+  overlay.className = 'card-overlay';
+  overlay.innerHTML = `<span class="card-spinner"></span><span data-i18n="docs.promoting">${t('docs.promoting')}</span>`;
+  card.appendChild(overlay);
+
+  // Disable all buttons in card
+  card.querySelectorAll('button').forEach(b => b.disabled = true);
+
+  const r = await authFetch(`/api/datastore/${doc.id}/promote`, { method: 'POST' });
+
+  if (r.ok) {
+    const updated = await r.json();
+    dsDocs.splice(i, 1);
+    kbDocs.unshift(updated);
+    renderDS();
+    renderKB();
+    updateCountChip();
+  } else {
+    card.removeChild(overlay);
+    card.querySelectorAll('button').forEach(b => b.disabled = false);
+    const err = await r.json().catch(() => ({}));
+    alert('Could not index file: ' + (err.detail || 'Unknown error'));
+  }
+}
+
+// ── Demote KB → Data Store ────────────────────────────────────────────────────
+async function demoteDoc(i) {
+  const doc = kbDocs[i];
+  const card = document.getElementById(`kbCard-${i}`);
+
+  const overlay = document.createElement('div');
+  overlay.className = 'card-overlay';
+  overlay.innerHTML = `<span class="card-spinner"></span><span data-i18n="docs.demoting">${t('docs.demoting')}</span>`;
+  card.appendChild(overlay);
+  card.querySelectorAll('button').forEach(b => b.disabled = true);
+
+  const r = await authFetch(`/api/knowledgebase/${doc.id}/demote`, { method: 'POST' });
+
+  if (r.ok) {
+    const updated = await r.json();
+    kbDocs.splice(i, 1);
+    dsDocs.unshift(updated);
+    renderDS();
+    renderKB();
+    updateCountChip();
+  } else {
+    card.removeChild(overlay);
+    card.querySelectorAll('button').forEach(b => b.disabled = false);
+    const err = await r.json().catch(() => ({}));
+    alert('Could not remove from KB: ' + (err.detail || 'Unknown error'));
+  }
+}
+
+// ── Delete Data Store doc ─────────────────────────────────────────────────────
+async function deleteDSDoc(i) {
+  const doc = dsDocs[i];
+  if (!confirm(t('docs.confirm.delete', { name: doc.name || 'this file' }))) return;
+
+  const r = await authFetch(`/api/datastore/${doc.id}`, { method: 'DELETE' });
+  if (r.ok) {
+    dsDocs.splice(i, 1);
+    renderDS();
+    updateCountChip();
+  } else {
+    const err = await r.json().catch(() => ({}));
+    alert('Delete failed: ' + (err.detail || 'Unknown error'));
+  }
+}
+
+// ── Delete KB doc ─────────────────────────────────────────────────────────────
+async function deleteKBDoc(i) {
+  const doc = kbDocs[i];
+  if (!confirm(t('docs.confirm.delete', { name: doc.name || 'this file' }))) return;
+
+  const r = await authFetch(`/api/knowledgebase/${doc.id}`, { method: 'DELETE' });
+  if (r.ok) {
+    kbDocs.splice(i, 1);
+    renderKB();
+    updateCountChip();
+  } else {
+    const err = await r.json().catch(() => ({}));
+    alert('Delete failed: ' + (err.detail || 'Unknown error'));
+  }
+}
+
+// ── Semantic search (KB tab only) ─────────────────────────────────────────────
+function onSearchInput(val) {
+  clearTimeout(_searchTimer);
+  const q = val.trim();
+  if (!q) { clearSearch(); return; }
+  if (q.length < 2) return;
+  _searchTimer = setTimeout(() => runSemanticSearch(q), 420);
+}
+
+function clearSearch() {
+  _semanticMode = false;
+  const inp = document.getElementById('searchInput');
+  if (inp) inp.value = '';
+  document.getElementById('semanticBanner').style.display = 'none';
+  renderKB();
+}
+
+async function runSemanticSearch(q) {
+  _semanticMode = true;
+  document.getElementById('semanticBanner').style.display = 'flex';
+
+  const grid = document.getElementById('kbGrid');
+  grid.innerHTML = Array(4).fill(`
+    <div class="doc-card-skel">
+      <div class="skel-line" style="width:2rem;height:2rem;border-radius:8px;"></div>
+      <div class="skel-line" style="width:75%;height:13px;"></div>
+      <div class="skel-line" style="width:45%;height:10px;"></div>
+      <div class="skel-line" style="width:100%;height:30px;border-radius:8px;margin-top:.2rem;"></div>
+    </div>`).join('');
+
+  const r = await authFetch(`/api/rag/search?q=${encodeURIComponent(q)}&top_k=5`);
+  if (!r.ok) {
+    grid.innerHTML = `<div style="grid-column:1/-1;padding:2rem;color:var(--text-muted);">Search failed. Try again.</div>`;
+    return;
+  }
+
+  const results = await r.json();
+  document.getElementById('kbCountLabel').textContent = results.length + ' result' + (results.length !== 1 ? 's' : '');
+
+  // Cross-reference with kbDocs for metadata
+  const docMap = {};
+  kbDocs.forEach(d => { if (d.name) docMap[d.name.toLowerCase()] = d; });
+
+  if (!results.length) {
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--text-muted);">
+      <span style="font-size:2.5rem;display:block;margin-bottom:.75rem;">🔍</span>No matching documents found</div>`;
+    return;
+  }
+
+  grid.innerHTML = results.map(r => {
+    const fname = r.filename || '—';
+    const matched = docMap[fname.toLowerCase()];
+    const info = matched ? getFileInfo(matched) : { icon: '📎', type: 'raw', label: 'File' };
+    const secureUrl = matched?.cloudinary_url || r.cloudinary_url || null;
+    const score = Math.round((r.score || 0) * 100);
+    const preview = (r.text_preview || '').trim();
+    const date = matched?.created_at ? fmtDate(matched.created_at) : '—';
+
+    return `
+      <div class="doc-card">
+        <span class="doc-icon">${info.icon}</span>
+        <div class="doc-name">${fname}</div>
+        ${preview ? `<div style="font-size:.74rem;color:var(--text-dim);line-height:1.5;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">${preview}</div>` : ''}
+        <div class="doc-meta">
+          <span>
+            <span class="doc-badge ${info.type}">${info.label}</span>
+            <span class="relevance-badge" style="margin-left:.3rem;">⚡ ${score}% match</span>
+          </span>
+          ${matched ? `<span>${fmtBytes(matched.file_size)}</span>` : ''}
+          <span>${date}</span>
+        </div>
+        <div class="doc-actions">
+          ${secureUrl
+            ? `<button class="btn btn-secondary btn-sm" onclick="openPreview('${secureUrl}','${fname.replace(/'/g,"\\'")}',${JSON.stringify(info)},'')">${t('docs.btn.view')}</button>`
+            : ''}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ── Preview modal ─────────────────────────────────────────────────────────────
 function openPreview(url, name, info, sizeFmt) {
   document.getElementById('prevIcon').textContent = info.icon;
   document.getElementById('prevName').textContent = name;
@@ -308,26 +655,18 @@ function openPreview(url, name, info, sizeFmt) {
 
   if (info.type === 'image') {
     const img = document.createElement('img');
-    img.src = url;
-    img.alt = name;
+    img.src = url; img.alt = name;
     img.style.cssText = 'max-width:100%;max-height:100%;object-fit:contain;';
     body.appendChild(img);
-
   } else if (info.type === 'pdf') {
     const iframe = document.createElement('iframe');
-    iframe.src = url;
-    iframe.style.cssText = 'width:100%;height:100%;border:none;';
-    iframe.title = name;
+    iframe.src = url; iframe.style.cssText = 'width:100%;height:100%;border:none;'; iframe.title = name;
     body.appendChild(iframe);
-
   } else if (['word','excel','ppt'].includes(info.type)) {
-    // Google Docs viewer for Office files
     const iframe = document.createElement('iframe');
     iframe.src = `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
-    iframe.style.cssText = 'width:100%;height:100%;border:none;';
-    iframe.title = name;
+    iframe.style.cssText = 'width:100%;height:100%;border:none;'; iframe.title = name;
     body.appendChild(iframe);
-
   } else {
     body.innerHTML = `
       <div class="preview-unsupported">
@@ -337,7 +676,6 @@ function openPreview(url, name, info, sizeFmt) {
         <a href="${url}" target="_blank" class="btn btn-primary btn-sm">Open file ↗</a>
       </div>`;
   }
-
   document.getElementById('previewModal').classList.add('show');
   document.body.style.overflow = 'hidden';
 }
@@ -345,292 +683,14 @@ function openPreview(url, name, info, sizeFmt) {
 function closePreview(e) {
   if (e && e.target !== document.getElementById('previewModal')) return;
   document.getElementById('previewModal').classList.remove('show');
-  document.getElementById('prevBody').innerHTML = '';   // stop iframe loading
+  document.getElementById('prevBody').innerHTML = '';
   document.body.style.overflow = '';
 }
 
-function getFileInfo(doc) {
-  const fmt = (doc.format || '').toLowerCase();
-  const rt  = (doc.resource_type || '').toLowerCase();
-  const name = (doc.name || '').toLowerCase();
-
-  if (fmt === 'pdf' || name.endsWith('.pdf'))
-    return { icon: '📕', type: 'pdf',   label: 'PDF' };
-  if (['jpg','jpeg','png','gif','webp','avif','svg'].includes(fmt) || rt === 'image')
-    return { icon: '🖼️', type: 'image', label: fmt.toUpperCase() || 'Image' };
-  if (['doc','docx'].includes(fmt) || name.endsWith('.docx') || name.endsWith('.doc'))
-    return { icon: '📝', type: 'word',  label: fmt.toUpperCase() || 'Word' };
-  if (['xls','xlsx','csv'].includes(fmt))
-    return { icon: '📊', type: 'excel', label: fmt.toUpperCase() };
-  if (['ppt','pptx'].includes(fmt))
-    return { icon: '📋', type: 'ppt',   label: fmt.toUpperCase() };
-  return   { icon: '📎', type: 'raw',   label: fmt || 'File' };
-}
-
-function fmtBytes(bytes) {
-  if (!bytes) return '—';
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
-  return (bytes / 1048576).toFixed(1) + ' MB';
-}
-
-async function loadDocs() {
-  if (!token()) { window.location.href = '/login'; return; }
-  const r = await authFetch('/api/users/documents');
-  if (r.status === 401) { window.location.href = '/login'; return; }
-  if (!r.ok) {
-    document.getElementById('docGrid').innerHTML =
-      `<div style="color:var(--error);padding:2rem;">${t('docs.error.load')}</div>`;
-    return;
-  }
-  allDocs = await r.json();
-  filterDocs();
-}
-
-// ── Keyword filter (type dropdown only, used when not in semantic mode) ───────
-function filterDocs() {
-  const type = document.getElementById('typeFilter').value;
-  const filtered = allDocs.filter(d => {
-    const info = getFileInfo(d);
-    return !type || info.type === type;
-  });
-  document.getElementById('docCount').textContent = filtered.length + ' file' + (filtered.length !== 1 ? 's' : '');
-  renderGrid(filtered);
-  renderList(filtered);
-}
-
-// ── Search input handler with debounce ────────────────────────────────────────
-function onSearchInput(val) {
-  clearTimeout(_searchTimer);
-  const q = val.trim();
-  if (!q) {
-    clearSearch();
-    return;
-  }
-  if (q.length < 2) return;
-  _searchTimer = setTimeout(() => runSemanticSearch(q), 420);
-}
-
-function clearSearch() {
-  _semanticMode = false;
-  document.getElementById('searchInput').value = '';
-  document.getElementById('semanticBanner').style.display = 'none';
-  document.getElementById('typeFilter').disabled = false;
-  filterDocs();
-}
-
-// ── Semantic search ───────────────────────────────────────────────────────────
-async function runSemanticSearch(q) {
-  _semanticMode = true;
-  document.getElementById('semanticBanner').style.display = 'flex';
-  document.getElementById('typeFilter').disabled = true;
-
-  // Show skeleton while waiting
-  const grid = document.getElementById('docGrid');
-  grid.innerHTML = Array(4).fill(`
-    <div class="doc-card-skel">
-      <div class="skel-line" style="width:2rem;height:2rem;border-radius:8px;"></div>
-      <div class="skel-line" style="width:75%;height:13px;"></div>
-      <div class="skel-line" style="width:45%;height:10px;"></div>
-      <div class="skel-line" style="width:55%;height:10px;"></div>
-      <div class="skel-line" style="width:100%;height:30px;border-radius:8px;margin-top:.2rem;"></div>
-    </div>`).join('');
-
-  const r = await authFetch(`/api/rag/search?q=${encodeURIComponent(q)}&top_k=5`);
-  if (!r.ok) {
-    grid.innerHTML = `<div style="grid-column:1/-1;padding:2rem;color:var(--text-muted);">Search failed. Try again.</div>`;
-    return;
-  }
-
-  const results = await r.json();
-  document.getElementById('docCount').textContent = results.length + ' result' + (results.length !== 1 ? 's' : '');
-  renderSemanticGrid(results);
-  renderSemanticList(results);
-}
-
-function renderSemanticGrid(results) {
-  const grid = document.getElementById('docGrid');
-  if (!results.length) {
-    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--text-muted);">
-      <span style="font-size:2.5rem;display:block;margin-bottom:.75rem;">🔍</span>No matching documents found</div>`;
-    return;
-  }
-
-  // Try to cross-reference with allDocs for full metadata (size, URL, etc.)
-  const docMap = {};
-  allDocs.forEach(d => { if (d.name) docMap[d.name.toLowerCase()] = d; });
-
-  grid.innerHTML = results.map((r, i) => {
-    const fname = r.filename || '—';
-    const matched = docMap[fname.toLowerCase()];
-    const info = matched ? getFileInfo(matched) : { icon: '📎', type: 'raw', label: 'File' };
-    const secureUrl = matched?.secure_url || r.cloudinary_url || null;
-    const isImage = info.type === 'image';
-    const score = Math.round((r.score || 0) * 100);
-    const preview = (r.text_preview || '').trim();
-    const date = matched?.created_at
-      ? new Date(matched.created_at).toLocaleDateString(getLang() === 'es' ? 'es-ES' : 'en-US')
-      : '—';
-
-    const topEl = isImage && secureUrl
-      ? `<img class="doc-thumb" src="${secureUrl}" alt="${fname}" loading="lazy">`
-      : `<span class="doc-icon">${info.icon}</span>`;
-
-    return `
-      <div class="doc-card">
-        ${topEl}
-        <div class="doc-name">${fname}</div>
-        ${!isImage && preview ? `<div class="doc-snippet">${preview}</div>` : ''}
-        <div class="doc-meta">
-          <span>
-            <span class="doc-badge ${info.type}">${info.label}</span>
-            <span class="relevance-badge" style="margin-left:.3rem;">⚡ ${score}% match</span>
-          </span>
-          ${matched ? `<span>${fmtBytes(matched.bytes)}</span>` : ''}
-          <span>${date}</span>
-        </div>
-        <div class="doc-actions">
-          ${secureUrl
-            ? `<button class="btn btn-secondary btn-sm" onclick="openPreview('${secureUrl}','${fname.replace(/'/g,"\\'")}',${JSON.stringify(info)},'${matched ? fmtBytes(matched.bytes) : ""}')">${t('docs.btn.view')}</button>`
-            : `<span class="btn btn-secondary btn-sm" style="opacity:.4;cursor:default;">${t('docs.no_url')}</span>`}
-          ${matched ? `<button class="btn btn-danger btn-sm" onclick="deleteDocByName('${encodeURIComponent(fname)}')">${t('docs.btn.delete')}</button>` : ''}
-        </div>
-      </div>`;
-  }).join('');
-}
-
-function renderSemanticList(results) {
-  const tbody = document.getElementById('docListBody');
-  const docMap = {};
-  allDocs.forEach(d => { if (d.name) docMap[d.name.toLowerCase()] = d; });
-
-  tbody.innerHTML = results.map((r, i) => {
-    const fname = r.filename || '—';
-    const matched = docMap[fname.toLowerCase()];
-    const info = matched ? getFileInfo(matched) : { icon: '📎', type: 'raw', label: 'File' };
-    const secureUrl = matched?.secure_url || r.cloudinary_url || null;
-    const score = Math.round((r.score || 0) * 100);
-    const date = matched?.created_at
-      ? new Date(matched.created_at).toLocaleDateString(getLang() === 'es' ? 'es-ES' : 'en-US') : '—';
-    return `
-      <tr>
-        <td class="td-name">${info.icon} ${fname}</td>
-        <td><span class="doc-badge ${info.type}">${info.label}</span></td>
-        <td>${matched ? fmtBytes(matched.bytes) : '—'}</td>
-        <td>${date}</td>
-        <td>
-          <div class="actions">
-            ${secureUrl ? `<a href="${secureUrl}" target="_blank" class="btn btn-secondary btn-sm">${t('docs.btn.view')}</a>` : ''}
-            <span class="relevance-badge">⚡ ${score}%</span>
-          </div>
-        </td>
-      </tr>`;
-  }).join('');
-}
-
-async function deleteDocByName(encodedName) {
-  const fname = decodeURIComponent(encodedName);
-  const doc = allDocs.find(d => (d.name || '').toLowerCase() === fname.toLowerCase());
-  if (!doc) return;
-  const idx = allDocs.indexOf(doc);
-  await deleteDoc(idx);
-}
-
-function renderGrid(docs) {
-  const grid = document.getElementById('docGrid');
-  if (!docs.length) {
-    grid.innerHTML = `
-      <div style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--text-muted);">
-        <span style="font-size:2.5rem;display:block;margin-bottom:.75rem;">📂</span>
-        ${t('docs.empty')}
-      </div>`;
-    return;
-  }
-  grid.innerHTML = docs.map((d, i) => {
-    const info = getFileInfo(d);
-    const isImage = info.type === 'image';
-    const date = d.created_at ? new Date(d.created_at).toLocaleDateString(getLang() === 'es' ? 'es-ES' : 'en-US') : '—';
-    const topEl = isImage && d.secure_url
-      ? `<img class="doc-thumb" src="${d.secure_url}" alt="${d.name || ''}" loading="lazy">`
-      : `<span class="doc-icon">${info.icon}</span>`;
-    return `
-      <div class="doc-card">
-        ${topEl}
-        <div class="doc-name">${d.name || 'Untitled'}</div>
-        <div class="doc-meta">
-          <span><span class="doc-badge ${info.type}">${info.label}</span></span>
-          <span>${fmtBytes(d.bytes)}</span>
-          <span>${date}</span>
-        </div>
-        <div class="doc-actions">
-          ${d.secure_url
-            ? `<button class="btn btn-secondary btn-sm" onclick="openPreview('${d.secure_url}','${(d.name||'').replace(/'/g,"\\'")}',getFileInfo(allDocs[${i}]),'${fmtBytes(d.bytes)}')">${t('docs.btn.view')}</button>`
-            : `<span class="btn btn-secondary btn-sm" style="opacity:.4;cursor:default;">${t('docs.no_url')}</span>`}
-          <button class="btn btn-danger btn-sm" onclick="deleteDoc(${i})">${t('docs.btn.delete')}</button>
-        </div>
-      </div>`;
-  }).join('');
-}
-
-function renderList(docs) {
-  const tbody = document.getElementById('docListBody');
-  if (!docs.length) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-muted);">${t('docs.empty.list')}</td></tr>`;
-    return;
-  }
-  tbody.innerHTML = docs.map((d, i) => {
-    const info = getFileInfo(d);
-    const date = d.created_at ? new Date(d.created_at).toLocaleDateString(getLang() === 'es' ? 'es-ES' : 'en-US') : '—';
-    return `
-      <tr>
-        <td class="td-name">${info.icon} ${d.name || 'Untitled'}</td>
-        <td><span class="doc-badge ${info.type}">${info.label}</span></td>
-        <td>${fmtBytes(d.bytes)}</td>
-        <td>${date}</td>
-        <td>
-          <div class="actions">
-            ${d.secure_url ? `<a href="${d.secure_url}" target="_blank" class="btn btn-secondary btn-sm">${t('docs.btn.view')}</a>` : ''}
-            <button class="btn btn-danger btn-sm" onclick="deleteDoc(${i})">${t('docs.btn.delete')}</button>
-          </div>
-        </td>
-      </tr>`;
-  }).join('');
-}
-
-async function deleteDoc(index) {
-  const doc = allDocs[index];
-  const name = doc.name || doc.public_id || 'this file';
-  if (!confirm(t('docs.confirm.delete', { name }))) return;
-
-  if (!doc.public_id) {
-    alert(t('docs.error.no_ref'));
-    return;
-  }
-
-  const params = new URLSearchParams({ public_id: doc.public_id });
-  if (doc.format) params.append('format', doc.format);
-
-  const r = await authFetch('/api/rag/files?' + params.toString(), { method: 'DELETE' });
-  if (r.ok) {
-    allDocs.splice(index, 1);
-    filterDocs();
-  } else {
-    const err = await r.json().catch(() => ({}));
-    alert(t('docs.error.delete') + (err.detail || 'Unknown error'));
-  }
-}
-
-function setView(view) {
-  currentView = view;
-  document.getElementById('docGrid').classList.toggle('visible', view === 'grid');
-  document.getElementById('docGrid').classList.toggle('hidden',  view !== 'grid');
-  document.getElementById('docList').classList.toggle('visible', view === 'list');
-  document.getElementById('gridViewBtn').classList.toggle('active', view === 'grid');
-  document.getElementById('listViewBtn').classList.toggle('active', view === 'list');
-}
-
-document.addEventListener('langchange', () => { if (!_semanticMode) filterDocs(); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { document.getElementById('prevBody').innerHTML = ''; document.getElementById('previewModal').classList.remove('show'); document.body.style.overflow = ''; } });
+document.addEventListener('langchange', () => { renderDS(); renderKB(); updateCountChip(); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closePreview();
+});
 
 loadDocs();
 </script>
