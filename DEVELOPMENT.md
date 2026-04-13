@@ -126,3 +126,52 @@ lsof -ti :5432 | xargs kill -9   # PostgreSQL
 **Password authentication failed:** Verify the password in `.env` matches what you configured above.
 
 **Connection refused:** Ensure the service is running — `docker ps` or `brew services list`.
+
+---
+
+## Running the Application
+
+### Hot Reload Development
+
+Run backend and frontend in separate terminals:
+
+```bash
+# Terminal 1 - Backend (port 8000)
+uv run uvicorn agente_rolplay.main:app --reload
+
+# Terminal 2 - Frontend (port 5173)
+cd frontend && npm run dev
+```
+
+Access the app at: http://localhost:5173/app/
+
+The frontend proxy forwards `/api` and `/auth` requests to the backend.
+
+### Production Build
+
+```bash
+# Build frontend
+cd frontend && npm run build
+
+# Copy build to backend static folder
+cp -r frontend/dist/* agente_rolplay/static/react/
+
+# Run production server
+uv run uvicorn agente_rolplay.main:app --host 0.0.0.0
+```
+
+### Frontend Structure
+
+```
+frontend/
+├── src/
+│   ├── api/           # API clients (client.ts, auth.ts, users.ts, etc.)
+│   ├── components/    # UI components (ui/, layout/, charts/)
+│   ├── contexts/      # React contexts (AuthContext, ThemeContext)
+│   ├── pages/         # Page components
+│   ├── locales/       # i18n translations (es.json, en.json)
+│   ├── types/         # TypeScript types
+│   └── utils/         # Utilities (date.ts)
+├── vite.config.ts     # Vite config with proxy setup
+└── tailwind.config.js # Tailwind theme
+```

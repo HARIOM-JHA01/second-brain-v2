@@ -118,7 +118,8 @@
       <div class="form-field">
         <label data-i18n="sadmin.scenarios.modal.file">Reference Files (optional)</label>
         <input type="file" id="c_reference_files" accept=".pdf,.docx,.pptx,.txt" multiple />
-        <div style="font-size:.75rem;color:var(--text-muted);margin-top:.25rem;">Select multiple files (PDF, DOCX, PPTX, TXT)</div>
+        <div style="font-size:.75rem;color:var(--text-muted);margin-top:.25rem;">Select multiple files (PDF, DOCX, PPTX, TXT) — you can pick files in multiple batches</div>
+        <div id="c_files_list" style="display:flex;flex-direction:column;gap:.3rem;margin-top:.4rem;"></div>
       </div>
       <div class="form-row">
         <label style="margin:0;font-size:.875rem;" data-i18n="sadmin.scenarios.modal.active">Active</label>
@@ -160,6 +161,7 @@
         <label data-i18n="sadmin.scenarios.modal.file">Add Reference Files (optional)</label>
         <input type="file" id="e_reference_files" accept=".pdf,.docx,.pptx,.txt" multiple />
         <div id="e_current_files" style="font-size:.8rem;color:var(--text-muted);margin-top:.5rem;"></div>
+        <div id="e_files_list" style="display:flex;flex-direction:column;gap:.3rem;margin-top:.4rem;"></div>
       </div>
       <div class="form-row">
         <label style="margin:0;font-size:.875rem;" data-i18n="sadmin.scenarios.modal.clear_files">Clear all reference files</label>
@@ -181,6 +183,35 @@
 <script>
 let allScenarios = [];
 let allOrgs = [];
+let createFilesAccum = [];   // accumulated files for create modal
+let editFilesAccum   = [];   // accumulated files for edit modal
+
+function renderFileChips(files, containerId) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  if (!files.length) { el.innerHTML = ''; return; }
+  el.innerHTML = files.map((f, i) =>
+    `<span class="file-badge" style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;max-width:100%;" data-list="${containerId}" data-idx="${i}">
+       <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(f.name)}</span>
+       <span class="remove-file-btn" data-list="${containerId}" data-idx="${i}" style="cursor:pointer;font-size:1rem;line-height:1;flex-shrink:0;" title="Remove">×</span>
+     </span>`
+  ).join('');
+}
+
+// Single delegated listener for chip removal (works across re-renders)
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.remove-file-btn');
+  if (!btn) return;
+  const idx = parseInt(btn.dataset.idx, 10);
+  const list = btn.dataset.list;
+  if (list === 'c_files_list') {
+    createFilesAccum.splice(idx, 1);
+    renderFileChips(createFilesAccum, 'c_files_list');
+  } else if (list === 'e_files_list') {
+    editFilesAccum.splice(idx, 1);
+    renderFileChips(editFilesAccum, 'e_files_list');
+  }
+});
 
 async function loadData() {
   const [scenariosRes, orgsRes] = await Promise.all([
@@ -274,6 +305,8 @@ function openCreateModal() {
   document.getElementById('createForm').reset();
   document.getElementById('c_is_active').checked = true;
   document.getElementById('createError').style.display = 'none';
+  createFilesAccum = [];
+  renderFileChips(createFilesAccum, 'c_files_list');
   document.getElementById('createModal').classList.add('show');
 }
 
@@ -286,7 +319,9 @@ function openEditModal(id) {
   document.getElementById('e_description').value = s.description || '';
   document.getElementById('e_system_prompt').value = s.system_prompt;
   document.getElementById('e_reference_files').value = '';
-  
+  editFilesAccum = [];
+  renderFileChips(editFilesAccum, 'e_files_list');
+
   const filesDiv = document.getElementById('e_current_files');
   if (s.reference_files && s.reference_files.length > 0) {
     filesDiv.innerHTML = `<strong>Current files (${s.reference_files.length}):</strong><div class="file-list" style="margin-top:.35rem;">${s.reference_files.map(f => `<span class="file-badge">${escHtml(f.file_name)}</span>`).join('')}</div>`;
@@ -310,6 +345,21 @@ function closeModal(id) {
   });
 });
 
+// Accumulate files across multiple picks instead of replacing
+document.getElementById('c_reference_files').addEventListener('change', function() {
+  const existing = new Set(createFilesAccum.map(f => f.name));
+  Array.from(this.files).forEach(f => { if (!existing.has(f.name)) createFilesAccum.push(f); });
+  this.value = '';  // reset input so same file can be re-picked if removed
+  renderFileChips(createFilesAccum, 'c_files_list');
+});
+
+document.getElementById('e_reference_files').addEventListener('change', function() {
+  const existing = new Set(editFilesAccum.map(f => f.name));
+  Array.from(this.files).forEach(f => { if (!existing.has(f.name)) editFilesAccum.push(f); });
+  this.value = '';
+  renderFileChips(editFilesAccum, 'e_files_list');
+});
+
 document.getElementById('createForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const errEl = document.getElementById('createError');
@@ -321,9 +371,8 @@ document.getElementById('createForm').addEventListener('submit', async (e) => {
   body.append('system_prompt', document.getElementById('c_system_prompt').value.trim());
   body.append('is_active', String(document.getElementById('c_is_active').checked));
   
-  const createFiles = document.getElementById('c_reference_files').files;
-  for (let i = 0; i < createFiles.length; i++) {
-    body.append('reference_files', createFiles[i]);
+  for (const f of createFilesAccum) {
+    body.append('reference_files', f);
   }
   
   const r = await fetch('/admin/api/scenarios', {
@@ -355,9 +404,8 @@ document.getElementById('editForm').addEventListener('submit', async (e) => {
   body.append('is_active', String(document.getElementById('e_is_active').checked));
   body.append('clear_reference_file', String(document.getElementById('e_clear_reference_file').checked));
   
-  const editFiles = document.getElementById('e_reference_files').files;
-  for (let i = 0; i < editFiles.length; i++) {
-    body.append('reference_files', editFiles[i]);
+  for (const f of editFilesAccum) {
+    body.append('reference_files', f);
   }
   
   const r = await fetch(`/admin/api/scenarios/${id}`, {
