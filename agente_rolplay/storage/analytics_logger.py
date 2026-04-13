@@ -278,6 +278,7 @@ def log_whatsapp_message_to_db(
                     )
                 )
                 db.commit()
+                print(f"[WhatsAppMessage] saved: phone={normalized} role={role} type={message_type} org={org_id}")
             finally:
                 db.close()
         except Exception as e:
