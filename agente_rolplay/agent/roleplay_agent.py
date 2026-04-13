@@ -147,6 +147,9 @@ def responder_usuario(
             coaching_system_prompt
             + f"\n\nLANGUAGE OVERRIDE: {lang_override}"
             + f"\n\nCurrent date: {get_mexico_city_time()}"
+            + "\n\nFORMATTING: You are replying on WhatsApp. Never use markdown (no **, no ##, no backticks). "
+            "For bold use single asterisks *like this*. For lists use plain numbers (1. 2. 3.) or dashes (-). "
+            "Write conversationally and keep each message concise."
         )
     else:
         system_prompt = construir_system_prompt(
