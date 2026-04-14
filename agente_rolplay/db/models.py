@@ -73,6 +73,7 @@ class Profile(Base):
     job_title = Column(String(255), nullable=True)
     whatsapp_number = Column(String(50), nullable=True)
     role_id = Column(UUID(as_uuid=True), ForeignKey("roles.id"), nullable=True)
+    settings = Column(JSON, default={})
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 

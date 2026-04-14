@@ -1,4 +1,5 @@
 import json
+import re
 from datetime import datetime, timedelta
 
 import redis as redis_lib
@@ -6,7 +7,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, status
 from sqlalchemy import func, distinct
 from sqlalchemy.orm import Session
 from uuid import UUID
-from typing import List
+from typing import Any, Dict, List
 
 from agente_rolplay.db.database import get_db
 from agente_rolplay.db.models import (
@@ -37,6 +38,92 @@ from agente_rolplay.config import redis_connection_kwargs, HAIKU_MODEL_NAME
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 
+_HEX_COLOR_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
+_ALLOWED_FONT_FAMILIES = {"inter", "poppins", "manrope", "source_sans_3"}
+_ALLOWED_FONT_SCALES = {"small", "medium", "large"}
+_ALLOWED_THEME_MODES = {"dark", "light"}
+_ALLOWED_LANGUAGES = {"es", "en"}
+_CUSTOMIZE_DEFAULTS = {
+    "primary_color": "#dc2626",
+    "secondary_color": "#991b1b",
+    "tertiary_color": "#fca5a5",
+    "font_family": "inter",
+    "font_scale": "medium",
+    "theme_mode": "dark",
+    "language": "es",
+}
+
+
+def _normalize_customize_payload(payload: Dict[str, Any]) -> Dict[str, str]:
+    def _get_str(key: str, default: str) -> str:
+        value = payload.get(key, default)
+        return str(value).strip() if value is not None else default
+
+    normalized = {
+        "primary_color": _get_str(
+            "primary_color", _CUSTOMIZE_DEFAULTS["primary_color"]
+        ),
+        "secondary_color": _get_str(
+            "secondary_color", _CUSTOMIZE_DEFAULTS["secondary_color"]
+        ),
+        "tertiary_color": _get_str(
+            "tertiary_color", _CUSTOMIZE_DEFAULTS["tertiary_color"]
+        ),
+        "font_family": _get_str("font_family", _CUSTOMIZE_DEFAULTS["font_family"]),
+        "font_scale": _get_str("font_scale", _CUSTOMIZE_DEFAULTS["font_scale"]),
+        "theme_mode": _get_str("theme_mode", _CUSTOMIZE_DEFAULTS["theme_mode"]),
+        "language": _get_str("language", _CUSTOMIZE_DEFAULTS["language"]),
+    }
+    return normalized
+
+
+def _validate_customize_payload(payload: Dict[str, str]) -> None:
+    for color_key in ("primary_color", "secondary_color", "tertiary_color"):
+        if not _HEX_COLOR_RE.match(payload[color_key]):
+            raise HTTPException(
+                status_code=400,
+                detail=f"{color_key} must be a valid hex color in #RRGGBB format",
+            )
+    if payload["font_family"] not in _ALLOWED_FONT_FAMILIES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"font_family must be one of: {', '.join(sorted(_ALLOWED_FONT_FAMILIES))}",
+        )
+    if payload["font_scale"] not in _ALLOWED_FONT_SCALES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"font_scale must be one of: {', '.join(sorted(_ALLOWED_FONT_SCALES))}",
+        )
+    if payload["theme_mode"] not in _ALLOWED_THEME_MODES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"theme_mode must be one of: {', '.join(sorted(_ALLOWED_THEME_MODES))}",
+        )
+    if payload["language"] not in _ALLOWED_LANGUAGES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"language must be one of: {', '.join(sorted(_ALLOWED_LANGUAGES))}",
+        )
+
+
+def _extract_customization(profile: Profile) -> Dict[str, Any]:
+    settings = profile.settings if isinstance(profile.settings, dict) else {}
+    raw_customize = settings.get("customize", {})
+    if not isinstance(raw_customize, dict):
+        raw_customize = {}
+
+    normalized = _normalize_customize_payload(raw_customize)
+    try:
+        _validate_customize_payload(normalized)
+    except HTTPException:
+        normalized = dict(_CUSTOMIZE_DEFAULTS)
+    response = {**normalized}
+
+    updated_at = raw_customize.get("updated_at")
+    if isinstance(updated_at, str) and updated_at.strip():
+        response["updated_at"] = updated_at.strip()
+    return response
+
 
 def get_org_for_user(db: Session, user_id: UUID) -> Organization:
     profile = db.query(Profile).filter(Profile.user_id == user_id).first()
@@ -49,6 +136,42 @@ def get_org_for_user(db: Session, user_id: UUID) -> Organization:
 
 
 # ── Literal routes MUST come before /{user_id} ───────────────────────────────
+
+
+@router.get("/customization")
+def get_customization(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    return _extract_customization(profile)
+
+
+@router.put("/customization")
+def update_customization(
+    payload: Dict[str, Any] = Body(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    normalized = _normalize_customize_payload(payload)
+    _validate_customize_payload(normalized)
+
+    settings = profile.settings if isinstance(profile.settings, dict) else {}
+    settings = dict(settings)
+    settings["customize"] = {
+        **normalized,
+        "updated_at": datetime.utcnow().isoformat(),
+    }
+    profile.settings = settings
+    db.commit()
+    db.refresh(profile)
+    return _extract_customization(profile)
 
 
 @router.get("/dashboard-stats", tags=["dashboard"])

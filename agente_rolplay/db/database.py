@@ -22,6 +22,7 @@ def get_db():
 _MIGRATIONS = [
     "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS full_name VARCHAR(255)",
     "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS job_title VARCHAR(255)",
+    "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS settings JSONB DEFAULT '{}'",
     "ALTER TABLE coaching_scenarios ADD COLUMN IF NOT EXISTS reference_file_name VARCHAR(255)",
     "ALTER TABLE coaching_scenarios ADD COLUMN IF NOT EXISTS reference_file_text TEXT",
     """

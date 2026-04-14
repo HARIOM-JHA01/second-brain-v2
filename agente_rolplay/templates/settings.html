@@ -12,6 +12,7 @@
     background: var(--card-bg); border: 1px solid var(--border);
     border-radius: 14px; padding: 1.5rem; transition: background .3s, border-color .3s;
   }
+  .settings-card.customize-card { grid-column: 1 / -1; }
   .settings-card-header {
     display: flex; justify-content: space-between; align-items: center;
     padding-bottom: .85rem; margin-bottom: 1.25rem;
@@ -78,6 +79,65 @@
   .save-msg { font-size: .8rem; display: none; }
   .save-msg.ok { color: var(--success, #34d399); }
   .save-msg.err { color: var(--error, #f87171); }
+
+  .customize-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+  }
+  @media (max-width: 980px) {
+    .customize-grid { grid-template-columns: 1fr; }
+  }
+  .customize-row {
+    display: flex;
+    flex-direction: column;
+    gap: .45rem;
+  }
+  .customize-row label {
+    color: var(--text-dim);
+    font-size: .8rem;
+    font-weight: 600;
+  }
+  .color-control {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+  }
+  .color-control input[type="color"] {
+    width: 44px;
+    height: 34px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: transparent;
+    padding: 0;
+    cursor: pointer;
+  }
+  .color-control input[type="text"],
+  .customize-row select {
+    width: 100%;
+    padding: .62rem .75rem;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--input-bg);
+    color: var(--text);
+    outline: none;
+    font-size: .85rem;
+    font-family: inherit;
+  }
+  .color-control input[type="text"]:focus,
+  .customize-row select:focus {
+    border-color: var(--indigo);
+  }
+  .customize-save {
+    margin-top: 1rem;
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    flex-wrap: wrap;
+  }
+  .customize-save .save-msg {
+    display: inline;
+  }
 </style>
 {% endblock %}
 
@@ -103,6 +163,71 @@
       <button class="btn btn-primary btn-sm" onclick="document.getElementById('addRoleModal').classList.add('show')" data-i18n="settings.roles.add">+ Agregar rol</button>
     </div>
     <div id="rolesList"><span style="color:var(--text-muted);font-size:.88rem;" data-i18n="common.loading">Cargando…</span></div>
+  </div>
+
+  <!-- Customize -->
+  <div class="settings-card customize-card">
+    <div class="settings-card-header">
+      <h3 data-i18n="settings.customize.title">Customize</h3>
+    </div>
+    <div class="customize-grid">
+      <div class="customize-row">
+        <label for="prefPrimaryColor" data-i18n="settings.customize.primary">Primary color</label>
+        <div class="color-control">
+          <input type="color" id="prefPrimaryColor" />
+          <input type="text" id="prefPrimaryHex" maxlength="7" placeholder="#dc2626" />
+        </div>
+      </div>
+      <div class="customize-row">
+        <label for="prefSecondaryColor" data-i18n="settings.customize.secondary">Secondary color</label>
+        <div class="color-control">
+          <input type="color" id="prefSecondaryColor" />
+          <input type="text" id="prefSecondaryHex" maxlength="7" placeholder="#991b1b" />
+        </div>
+      </div>
+      <div class="customize-row">
+        <label for="prefTertiaryColor" data-i18n="settings.customize.tertiary">Tertiary color</label>
+        <div class="color-control">
+          <input type="color" id="prefTertiaryColor" />
+          <input type="text" id="prefTertiaryHex" maxlength="7" placeholder="#fca5a5" />
+        </div>
+      </div>
+      <div class="customize-row">
+        <label for="prefFontFamily" data-i18n="settings.customize.font_family">Font family</label>
+        <select id="prefFontFamily">
+          <option value="inter">Inter</option>
+          <option value="poppins">Poppins</option>
+          <option value="manrope">Manrope</option>
+          <option value="source_sans_3">Source Sans 3</option>
+        </select>
+      </div>
+      <div class="customize-row">
+        <label for="prefFontScale" data-i18n="settings.customize.font_scale">Font scale</label>
+        <select id="prefFontScale">
+          <option value="small" data-i18n="settings.customize.scale.small">Small</option>
+          <option value="medium" data-i18n="settings.customize.scale.medium">Medium</option>
+          <option value="large" data-i18n="settings.customize.scale.large">Large</option>
+        </select>
+      </div>
+      <div class="customize-row">
+        <label for="prefThemeMode" data-i18n="settings.customize.theme_mode">Theme mode</label>
+        <select id="prefThemeMode">
+          <option value="dark" data-i18n="settings.customize.theme.dark">Dark</option>
+          <option value="light" data-i18n="settings.customize.theme.light">Light</option>
+        </select>
+      </div>
+      <div class="customize-row">
+        <label for="prefLanguage" data-i18n="settings.customize.language">Language</label>
+        <select id="prefLanguage">
+          <option value="es">ES</option>
+          <option value="en">EN</option>
+        </select>
+      </div>
+    </div>
+    <div class="customize-save">
+      <button class="btn btn-primary btn-sm" id="saveCustomizeBtn" data-i18n="settings.customize.save">Save customization</button>
+      <span class="save-msg" id="customizeMsg"></span>
+    </div>
   </div>
 
 </div>
@@ -188,6 +313,141 @@ if (!token) window.location.href = '/login';
 const authFetch = (url, opts = {}) => fetch(url, {
   ...opts, headers: { 'Authorization': 'Bearer ' + token, ...(opts.headers || {}) }
 });
+
+const HEX_RE = /^#[0-9A-Fa-f]{6}$/;
+const customizeEls = {
+  primaryColor: document.getElementById('prefPrimaryColor'),
+  primaryHex: document.getElementById('prefPrimaryHex'),
+  secondaryColor: document.getElementById('prefSecondaryColor'),
+  secondaryHex: document.getElementById('prefSecondaryHex'),
+  tertiaryColor: document.getElementById('prefTertiaryColor'),
+  tertiaryHex: document.getElementById('prefTertiaryHex'),
+  fontFamily: document.getElementById('prefFontFamily'),
+  fontScale: document.getElementById('prefFontScale'),
+  themeMode: document.getElementById('prefThemeMode'),
+  language: document.getElementById('prefLanguage'),
+  saveBtn: document.getElementById('saveCustomizeBtn'),
+  msg: document.getElementById('customizeMsg'),
+};
+
+function normalizeHex(value, fallback) {
+  const text = String(value || '').trim();
+  if (HEX_RE.test(text)) return text.toLowerCase();
+  return fallback;
+}
+
+function getCustomizePayloadFromForm() {
+  const fallback = window.customizeSettings?.defaults || {};
+  return {
+    primary_color: normalizeHex(customizeEls.primaryHex.value, fallback.primary_color || '#dc2626'),
+    secondary_color: normalizeHex(customizeEls.secondaryHex.value, fallback.secondary_color || '#991b1b'),
+    tertiary_color: normalizeHex(customizeEls.tertiaryHex.value, fallback.tertiary_color || '#fca5a5'),
+    font_family: customizeEls.fontFamily.value || fallback.font_family || 'inter',
+    font_scale: customizeEls.fontScale.value || fallback.font_scale || 'medium',
+    theme_mode: customizeEls.themeMode.value || fallback.theme_mode || 'dark',
+    language: customizeEls.language.value || fallback.language || 'es',
+  };
+}
+
+function setCustomizeFormValues(pref) {
+  customizeEls.primaryColor.value = pref.primary_color;
+  customizeEls.primaryHex.value = pref.primary_color;
+  customizeEls.secondaryColor.value = pref.secondary_color;
+  customizeEls.secondaryHex.value = pref.secondary_color;
+  customizeEls.tertiaryColor.value = pref.tertiary_color;
+  customizeEls.tertiaryHex.value = pref.tertiary_color;
+  customizeEls.fontFamily.value = pref.font_family;
+  customizeEls.fontScale.value = pref.font_scale;
+  customizeEls.themeMode.value = pref.theme_mode;
+  customizeEls.language.value = pref.language;
+}
+
+function previewCustomization() {
+  const payload = getCustomizePayloadFromForm();
+  if (window.customizeSettings?.applyCustomization) {
+    window.customizeSettings.applyCustomization(payload, { persistCache: true });
+  }
+  setCustomizeFormValues(payload);
+}
+
+function bindColorPair(colorEl, hexEl) {
+  colorEl.addEventListener('input', () => {
+    hexEl.value = colorEl.value;
+    previewCustomization();
+  });
+  hexEl.addEventListener('input', () => {
+    if (HEX_RE.test(hexEl.value.trim())) {
+      colorEl.value = hexEl.value.trim();
+      previewCustomization();
+    }
+  });
+  hexEl.addEventListener('blur', () => {
+    const payload = getCustomizePayloadFromForm();
+    setCustomizeFormValues(payload);
+    previewCustomization();
+  });
+}
+
+async function loadCustomizationForm() {
+  const r = await authFetch('/api/users/customization');
+  if (!r.ok) {
+    throw new Error('Failed to load customization');
+  }
+  const pref = await r.json();
+  setCustomizeFormValues(pref);
+  previewCustomization();
+}
+
+async function saveCustomization() {
+  const payload = getCustomizePayloadFromForm();
+  customizeEls.saveBtn.disabled = true;
+  customizeEls.msg.className = 'save-msg';
+  customizeEls.msg.textContent = t('settings.customize.saving');
+
+  const r = await authFetch('/api/users/customization', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  customizeEls.saveBtn.disabled = false;
+
+  if (!r.ok) {
+    const d = await r.json().catch(() => ({}));
+    customizeEls.msg.className = 'save-msg err';
+    customizeEls.msg.textContent = d.detail || t('settings.customize.error');
+    return;
+  }
+
+  const saved = await r.json();
+  setCustomizeFormValues(saved);
+  if (window.customizeSettings?.applyCustomization) {
+    window.customizeSettings.applyCustomization(saved, { persistCache: true });
+  }
+  customizeEls.msg.className = 'save-msg ok';
+  customizeEls.msg.textContent = t('settings.customize.saved');
+}
+
+async function initCustomizeSettings() {
+  bindColorPair(customizeEls.primaryColor, customizeEls.primaryHex);
+  bindColorPair(customizeEls.secondaryColor, customizeEls.secondaryHex);
+  bindColorPair(customizeEls.tertiaryColor, customizeEls.tertiaryHex);
+
+  [customizeEls.fontFamily, customizeEls.fontScale, customizeEls.themeMode, customizeEls.language]
+    .forEach(el => el.addEventListener('change', previewCustomization));
+
+  customizeEls.saveBtn.addEventListener('click', saveCustomization);
+
+  try {
+    await loadCustomizationForm();
+    customizeEls.msg.className = 'save-msg';
+    customizeEls.msg.textContent = '';
+  } catch (_) {
+    const fallback = window.customizeSettings?.getCurrent?.() || window.customizeSettings?.defaults;
+    if (fallback) setCustomizeFormValues(fallback);
+    customizeEls.msg.className = 'save-msg err';
+    customizeEls.msg.textContent = t('settings.customize.error');
+  }
+}
 
 // Account info
 (async () => {
@@ -294,6 +554,7 @@ async function deleteRole(id, name) {
 
 document.addEventListener('langchange', () => loadRoles());
 
+initCustomizeSettings();
 loadRoles();
 </script>
 {% endblock %}

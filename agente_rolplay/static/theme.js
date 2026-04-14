@@ -13,6 +13,8 @@
     localStorage.setItem(STORAGE_KEY, theme);
   }
 
+  window.applyTheme = applyTheme;
+
   // Expose globally so onclick handlers work
   window.toggleTheme = function () {
     applyTheme(html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
