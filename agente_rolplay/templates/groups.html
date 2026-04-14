@@ -90,7 +90,15 @@
         </tr>
       </thead>
       <tbody id="groupsTable">
-        <tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text-muted);" data-i18n="common.loading">Cargando…</td></tr>
+        {% for _ in range(6) %}
+        <tr class="skel-row">
+          {% for w in ['34%','16%','22%','26%'] %}
+          <td style="padding:.85rem 1rem;">
+            <div class="skel-line" style="width:{{ w }};height:11px;border-radius:5px;"></div>
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
       </tbody>
     </table>
   </div>
@@ -200,6 +208,17 @@ let loading    = true;
 let currentUserId = null;
 let currentMemberIds = new Set();
 
+function groupsSkeletonRows() {
+  return Array.from({ length: 6 }).map(() => `
+    <tr class="skel-row">
+      <td style="padding:.85rem 1rem;"><div class="skel-line" style="width:34%;height:11px;border-radius:5px;"></div></td>
+      <td style="padding:.85rem 1rem;"><div class="skel-line" style="width:16%;height:11px;border-radius:5px;"></div></td>
+      <td style="padding:.85rem 1rem;"><div class="skel-line" style="width:22%;height:11px;border-radius:5px;"></div></td>
+      <td style="padding:.85rem 1rem;"><div class="skel-line" style="width:26%;height:11px;border-radius:5px;"></div></td>
+    </tr>
+  `).join('');
+}
+
 function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
@@ -211,8 +230,7 @@ function fmtDate(iso) {
 async function loadData() {
   if (!token()) { window.location.href = '/login'; return; }
   loading = true;
-  document.getElementById('groupsTable').innerHTML =
-    `<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text-muted);">${t('common.loading')}</td></tr>`;
+  document.getElementById('groupsTable').innerHTML = groupsSkeletonRows();
 
   const [groupsRes, meRes] = await Promise.all([
     authFetch('/api/users/groups'),
@@ -258,6 +276,12 @@ async function loadAssignableUsers() {
 }
 
 function renderTable() {
+  if (loading) {
+    document.getElementById('groupCount').textContent = '—';
+    document.getElementById('groupsTable').innerHTML = groupsSkeletonRows();
+    return;
+  }
+
   document.getElementById('groupCount').textContent = allGroups.length;
   const tbody = document.getElementById('groupsTable');
   if (!allGroups.length) {

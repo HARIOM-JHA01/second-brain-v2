@@ -153,7 +153,16 @@
     <div class="settings-card-header">
       <h3 data-i18n="settings.account.title">Cuenta</h3>
     </div>
-    <div id="accountInfo"><span style="color:var(--text-muted);font-size:.88rem;" data-i18n="common.loading">Cargando…</span></div>
+    <div id="accountInfo">
+      <div class="info-row">
+        <div class="skel-line" style="width:34%;height:11px;border-radius:5px;"></div>
+        <div class="skel-line" style="width:42%;height:11px;border-radius:5px;"></div>
+      </div>
+      <div class="info-row">
+        <div class="skel-line" style="width:28%;height:11px;border-radius:5px;"></div>
+        <div class="skel-line" style="width:36%;height:11px;border-radius:5px;"></div>
+      </div>
+    </div>
   </div>
 
   <!-- Roles & Permissions -->
@@ -162,7 +171,16 @@
       <h3 data-i18n="settings.roles.title">Roles y permisos</h3>
       <button class="btn btn-primary btn-sm" onclick="document.getElementById('addRoleModal').classList.add('show')" data-i18n="settings.roles.add">+ Agregar rol</button>
     </div>
-    <div id="rolesList"><span style="color:var(--text-muted);font-size:.88rem;" data-i18n="common.loading">Cargando…</span></div>
+    <div id="rolesList">
+      {% for _ in range(4) %}
+      <div class="role-item">
+        <div class="role-header">
+          <div class="skel-line" style="width:30%;height:11px;border-radius:5px;"></div>
+          <div class="skel-line" style="width:8%;height:11px;border-radius:5px;"></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
   </div>
 
   <!-- Customize -->
@@ -468,9 +486,20 @@ function toggleRole(id) {
   chev.classList.toggle('open');
 }
 
+function rolesSkeleton() {
+  return Array.from({ length: 4 }).map(() => `
+    <div class="role-item">
+      <div class="role-header">
+        <div class="skel-line" style="width:30%;height:11px;border-radius:5px;"></div>
+        <div class="skel-line" style="width:8%;height:11px;border-radius:5px;"></div>
+      </div>
+    </div>
+  `).join('');
+}
+
 async function loadRoles() {
   const el = document.getElementById('rolesList');
-  el.innerHTML = `<span style="color:var(--text-muted);font-size:.88rem;">${t('settings.roles.loading')}</span>`;
+  el.innerHTML = rolesSkeleton();
   const r = await authFetch('/api/roles');
   if (!r.ok) { el.innerHTML = `<span style="color:var(--error)">${t('settings.roles.error')}</span>`; return; }
   const roles = await r.json();

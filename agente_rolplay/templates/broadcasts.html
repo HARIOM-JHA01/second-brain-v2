@@ -160,7 +160,15 @@
         </tr>
       </thead>
       <tbody id="broadcastsTable">
-        <tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted);" data-i18n="common.loading">Loading…</td></tr>
+        {% for _ in range(6) %}
+        <tr class="skel-row">
+          {% for w in ['28%','24%','22%','18%','15%','20%'] %}
+          <td style="padding:.85rem 1rem;">
+            <div class="skel-line" style="width:{{ w }};height:11px;border-radius:5px;"></div>
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
       </tbody>
     </table>
   </div>
@@ -263,9 +271,16 @@ async function loadData() {
 
 function renderLoading() {
   document.getElementById('broadcastCount').textContent = '—';
-  document.getElementById('broadcastsTable').innerHTML = `
-    <tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted);">${t('common.loading')}</td></tr>
-  `;
+  document.getElementById('broadcastsTable').innerHTML = Array.from({ length: 6 }).map(() => `
+    <tr class="skel-row">
+      <td style="padding:.85rem 1rem;"><div class="skel-line" style="width:28%;height:11px;border-radius:5px;"></div></td>
+      <td style="padding:.85rem 1rem;"><div class="skel-line" style="width:24%;height:11px;border-radius:5px;"></div></td>
+      <td style="padding:.85rem 1rem;"><div class="skel-line" style="width:22%;height:11px;border-radius:5px;"></div></td>
+      <td style="padding:.85rem 1rem;"><div class="skel-line" style="width:18%;height:11px;border-radius:5px;"></div></td>
+      <td style="padding:.85rem 1rem;"><div class="skel-line" style="width:15%;height:11px;border-radius:5px;"></div></td>
+      <td style="padding:.85rem 1rem;"><div class="skel-line" style="width:20%;height:11px;border-radius:5px;"></div></td>
+    </tr>
+  `).join('');
 }
 
 function populateDropdowns() {
@@ -320,6 +335,11 @@ function onTemplateChange() {
 }
 
 function renderTable() {
+  if (loading) {
+    renderLoading();
+    return;
+  }
+
   document.getElementById('broadcastCount').textContent = allBroadcasts.length;
   const tbody = document.getElementById('broadcastsTable');
   if (!allBroadcasts.length) {
