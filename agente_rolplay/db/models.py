@@ -37,6 +37,9 @@ class Organization(Base):
     coaching_scenarios = relationship(
         "CoachingScenario", back_populates="organization", cascade="all, delete-orphan"
     )
+    groups = relationship(
+        "Group", back_populates="organization", cascade="all, delete-orphan"
+    )
 
 
 class User(Base):
@@ -107,14 +110,20 @@ class Document(Base):
     name = Column(String(255), nullable=True)
     drive_file_id = Column(String(255), nullable=True)
     # Data Store / Knowledge Base split
-    location = Column(String(20), default="knowledgebase")   # "datastore" | "knowledgebase"
-    cloudinary_url = Column(Text, nullable=True)             # stored directly to avoid extra API calls
-    file_type = Column(String(50), nullable=True)            # pdf, docx, image, etc.
-    file_size = Column(Integer, nullable=True)               # bytes
-    resource_type = Column(String(20), nullable=True)        # "raw" | "image"
-    uploaded_by = Column(String(100), nullable=True)         # phone number or "admin"
-    upload_source = Column(String(20), default="whatsapp")   # "whatsapp" | "web"
-    vector_id = Column(String(255), nullable=True)           # first Pinecone chunk ID (when in KB)
+    location = Column(
+        String(20), default="knowledgebase"
+    )  # "datastore" | "knowledgebase"
+    cloudinary_url = Column(
+        Text, nullable=True
+    )  # stored directly to avoid extra API calls
+    file_type = Column(String(50), nullable=True)  # pdf, docx, image, etc.
+    file_size = Column(Integer, nullable=True)  # bytes
+    resource_type = Column(String(20), nullable=True)  # "raw" | "image"
+    uploaded_by = Column(String(100), nullable=True)  # phone number or "admin"
+    upload_source = Column(String(20), default="whatsapp")  # "whatsapp" | "web"
+    vector_id = Column(
+        String(255), nullable=True
+    )  # first Pinecone chunk ID (when in KB)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     organization = relationship("Organization", back_populates="documents")
@@ -209,3 +218,86 @@ class WhatsAppMessage(Base):
     content = Column(Text, nullable=False)
     message_type = Column(String(20), default="text")  # text, audio, image, document
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+
+class Group(Base):
+    __tablename__ = "groups"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    name = Column(String(255), nullable=False)
+    created_by_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    organization = relationship("Organization", back_populates="groups")
+    members = relationship(
+        "GroupMember", back_populates="group", cascade="all, delete-orphan"
+    )
+
+
+class GroupMember(Base):
+    __tablename__ = "group_members"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    group_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("groups.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    profile_id = Column(UUID(as_uuid=True), nullable=True)  # Profile in the org
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    group = relationship("Group", back_populates="members")
+
+
+class MessageTemplate(Base):
+    __tablename__ = "message_templates"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id = Column(UUID(as_uuid=True), nullable=True)  # null = super admin created
+    name = Column(String(255), nullable=False)
+    content = Column(Text, nullable=False)
+    variables = Column(JSON, default=list)  # ["1", "2", "3"...] extracted from content
+    is_active = Column(Boolean, default=True)
+    created_by_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class BroadcastSchedule(Base):
+    __tablename__ = "broadcast_schedules"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    template_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("message_templates.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    group_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("groups.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    scheduled_at = Column(DateTime, nullable=False)
+    variable_values = Column(JSON, default=dict)  # {"1": "value", "2": "value"}
+    status = Column(
+        String(20), default="pending"
+    )  # pending, processing, completed, failed
+    sent_count = Column(Integer, default=0)
+    failed_count = Column(Integer, default=0)
+    created_by_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    sent_at = Column(DateTime, nullable=True)

@@ -1,0 +1,357 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Templates{% endblock %}
+{% block page_title %}Message Templates{% endblock %}
+{% block page_subtitle %}Manage WhatsApp message templates for broadcasts{% endblock %}
+
+{% block extra_style %}
+.count-chip {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 20px; padding: .25rem .75rem;
+  font-size: .78rem; font-weight: 600; color: var(--text-muted);
+}
+.modal-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5);
+  z-index: 1000; align-items: center; justify-content: center;
+}
+.modal-overlay.show { display: flex; }
+.modal-box {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+  padding: 1.75rem; width: 100%; max-width: 540px; max-height: 90vh; overflow-y: auto;
+}
+.modal-box h3 { margin: 0 0 1.25rem; font-size: 1.1rem; }
+.form-field { display: flex; flex-direction: column; gap: .4rem; margin-bottom: 1rem; }
+.form-field label { font-size: .82rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
+.form-field input, .form-field select, .form-field textarea {
+  padding: .65rem .9rem; background: var(--input-bg); border: 1px solid var(--border);
+  border-radius: 9px; color: var(--text); font-size: .875rem; font-family: inherit; outline: none;
+  transition: border-color .15s;
+}
+.form-field input:focus, .form-field select:focus, .form-field textarea:focus { border-color: var(--accent); }
+.form-field textarea { resize: vertical; min-height: 180px; font-family: monospace; }
+.modal-actions { display: flex; gap: .75rem; margin-top: 1.25rem; }
+.modal-actions button { flex: 1; }
+.alert-error { background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3); color: #ef4444; border-radius: 8px; padding: .6rem .9rem; font-size: .85rem; margin-top: .75rem; display: none; }
+.template-preview {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  padding: 1rem; font-size: .85rem; color: var(--text-dim); white-space: pre-wrap; max-height: 200px; overflow-y: auto;
+}
+{% endblock %}
+
+{% block content %}
+<div class="section-card">
+  <div class="section-card-header">
+    <div class="section-card-title">All Templates <span class="count-chip" id="templateCount">—</span></div>
+    <button class="btn btn-primary btn-sm" onclick="openCreateModal()">+ New Template</button>
+  </div>
+
+  <div class="search-bar" style="max-width:300px;margin-bottom:1rem;">
+    <input type="text" id="searchInput" placeholder="Search by name…" oninput="filterTemplates()" />
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Organization</th>
+          <th>Content</th>
+          <th>Status</th>
+          <th>Created</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="templatesTable">
+        <tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted);">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div id="createModal" class="modal-overlay">
+  <div class="modal-box">
+    <h3>New Template</h3>
+    <form id="createForm">
+      <div class="form-field">
+        <label>Name *</label>
+        <input type="text" id="c_name" required placeholder="e.g. Weekly AI Updates" />
+      </div>
+      <div class="form-field">
+        <label>Content *</label>
+        <textarea id="c_content" required placeholder="Hi {{1}}, here are the updates:&#10;1. {{2}}&#10;{{3}}&#10;&#10;Stay tuned!"></textarea>
+        <div style="font-size:.75rem;color:var(--text-muted);margin-top:.25rem;">
+          Use {{1}}, {{2}}, etc. for variables. {{1}} defaults to user's name. Other values provided when scheduling broadcast.
+</div>
+    </div>
+<div class="form-field">
+        <label>Use Case API ID <span style="font-weight:400;text-transform:none;">(optional — for live session coaching)</span></label>
+        <input type="number" id="c_usecase_api_id" placeholder="e.g. 385" min="1" />
+        <div style="font-size:.75rem;color:var(--text-muted);margin-top:.25rem;">If set, the coach will fetch the latest session from the Rolplay API instead of using uploaded files.</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:.75rem;margin:1rem 0;">
+        <label style="margin:0;font-size:.875rem;font-weight:600;">Active</label>
+        <input type="checkbox" id="c_is_active" checked style="width:auto;margin:0;" />
+      </div>
+      <div class="alert-error" id="createError"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('createModal')" data-i18n="sadmin.common.cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary" data-i18n="sadmin.scenarios.modal.create_btn">Create Scenario</button>
+      </div>
+    <div style="display:flex;align-items:center;gap:.75rem;margin:1rem 0;justify-content:flex-start;">
+      <label style="margin:0;font-size:.875rem;font-weight:600;">Active</label>
+      <input type="checkbox" id="e_is_active" style="width:auto;margin:0;" />
+    </div>
+    <div class="alert-error" id="editError"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-secondary" onclick="closeModal('editModal')" data-i18n="sadmin.common.cancel">Cancel</button>
+      <button type="submit" class="btn btn-primary" data-i18n="sadmin.scenarios.modal.save_btn">Save Changes</button>
+    </div>
+      <div id="createPreview" class="template-preview" style="display:none;"></div>
+      <div class="alert-error" id="createError"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('createModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Create Template</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="editModal" class="modal-overlay">
+  <div class="modal-box">
+    <h3>Edit Template</h3>
+    <form id="editForm">
+      <input type="hidden" id="e_id" />
+      <div class="form-field">
+        <label>Name *</label>
+        <input type="text" id="e_name" required />
+      </div>
+      <div class="form-field">
+        <label>Content *</label>
+        <textarea id="e_content" required></textarea>
+      </div>
+      <div class="form-field">
+        <label>Organization</label>
+        <select id="e_org">
+          <option value="">All Organizations (Global)</option>
+        </select>
+      </div>
+      <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:1rem;">
+        <input type="checkbox" id="e_is_active" style="width:auto;margin:0;" />
+        <label style="margin:0;font-size:.875rem;font-weight:600;">Active</label>
+      </div>
+      <div id="editPreview" class="template-preview" style="display:none;"></div>
+      <div class="alert-error" id="editError"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('editModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+let allTemplates = [];
+let allOrgs = [];
+let templateLoading = true;
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function renderVarBadges(el) {
+  if (!el) return;
+  try {
+    const vars = JSON.parse(el.dataset.vars || '[]');
+    if (vars && vars.length) {
+      el.innerHTML = vars.map(v => '<span class="badge badge-active" style="margin:.1rem;">{{' + v + '}}</span>').join('');
+    } else {
+      el.textContent = '—';
+    }
+  } catch(e) {
+    el.textContent = '—';
+  }
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString();
+}
+
+function renderLoadingState() {
+  document.getElementById('templateCount').textContent = '—';
+  document.getElementById('templatesTable').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted);">Loading…</td></tr>';
+}
+
+async function loadData() {
+  templateLoading = true;
+  renderLoadingState();
+  const [templatesRes, orgsRes] = await Promise.all([
+    fetch('/admin/api/templates'),
+    fetch('/admin/api/organizations'),
+  ]);
+  if (!templatesRes.ok) {
+    templateLoading = false;
+    document.getElementById('templatesTable').innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--error);">Failed to load templates</td></tr>';
+    return;
+  }
+  allTemplates = await templatesRes.json();
+  allOrgs = orgsRes.ok ? await orgsRes.json() : [];
+  templateLoading = false;
+  populateOrgDropdowns();
+  filterTemplates();
+}
+
+function populateOrgDropdowns() {
+  const sorted = [...allOrgs].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  ['c_org', 'e_org'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    sel.innerHTML = '<option value="">All Organizations (Global)</option>';
+    sorted.forEach(o => {
+      const opt = document.createElement('option');
+      opt.value = o.id; opt.textContent = o.name || o.id;
+      sel.appendChild(opt);
+    });
+  });
+}
+
+function filterTemplates() {
+  if (templateLoading) {
+    renderLoadingState();
+    return;
+  }
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  let filtered = allTemplates;
+  if (q) filtered = filtered.filter(t => (t.name || '').toLowerCase().includes(q));
+  document.getElementById('templateCount').textContent = filtered.length;
+  renderTable(filtered);
+}
+
+function renderTable(data) {
+  const tbody = document.getElementById('templatesTable');
+  if (!data.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted);">No templates found</td></tr>';
+    return;
+  }
+  tbody.innerHTML = data.map(t => {
+    const badges = t.variables && t.variables.length 
+      ? t.variables.map(v => '<span class="badge badge-active" style="margin:.1rem;">{{' + v + '}}</span>').join('')
+      : '—';
+    return `
+    <tr>
+      <td style="font-weight:600;">${escHtml(t.name)}</td>
+      <td>${t.org_name || '🌐 Global'}</td>
+      <td style="max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(t.content)}">${escHtml(t.content)}</td>
+      <td><span class="badge ${t.is_active ? 'badge-active' : 'badge-inactive'}">${t.is_active ? 'Active' : 'Inactive'}</span></td>
+      <td style="color:var(--text-muted);font-size:.8rem;">${fmtDate(t.created_at)}</td>
+      <td style="display:flex;gap:.4rem;">
+        <button class="btn btn-secondary btn-sm" onclick="openEditModal('${t.id}')">Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteTemplate('${t.id}', '${escHtml(t.name)}')">Delete</button>
+      </td>
+    </tr>
+  `}).join('');
+}
+
+function openCreateModal() {
+  document.getElementById('createForm').reset();
+  document.getElementById('createError').style.display = 'none';
+  document.getElementById('createPreview').style.display = 'none';
+  document.getElementById('createModal').classList.add('show');
+}
+
+function openEditModal(id) {
+  const t = allTemplates.find(x => x.id === id);
+  if (!t) return;
+  document.getElementById('e_id').value = t.id;
+  document.getElementById('e_name').value = t.name;
+  document.getElementById('e_content').value = t.content;
+  document.getElementById('e_org').value = t.org_id || '';
+  document.getElementById('e_is_active').checked = t.is_active;
+  document.getElementById('editError').style.display = 'none';
+  document.getElementById('editPreview').style.display = 'none';
+  document.getElementById('editModal').classList.add('show');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('show');
+}
+
+['createModal', 'editModal'].forEach(id => {
+  document.getElementById(id).addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeModal(id);
+  });
+});
+
+document.getElementById('createForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const errEl = document.getElementById('createError');
+  errEl.style.display = 'none';
+  const body = {
+    name: document.getElementById('c_name').value.trim(),
+    content: document.getElementById('c_content').value,
+    org_id: document.getElementById('c_org').value || null,
+  };
+  const r = await fetch('/admin/api/templates', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body),
+  });
+  if (r.ok) {
+    const created = await r.json();
+    allTemplates.unshift(created);
+    closeModal('createModal');
+    filterTemplates();
+  } else {
+    const d = await r.json().catch(() => ({}));
+    errEl.textContent = d.detail || 'Failed to create template';
+    errEl.style.display = 'block';
+  }
+});
+
+document.getElementById('editForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const errEl = document.getElementById('editError');
+  errEl.style.display = 'none';
+  const id = document.getElementById('e_id').value;
+  const body = {
+    name: document.getElementById('e_name').value.trim(),
+    content: document.getElementById('e_content').value,
+    is_active: document.getElementById('e_is_active').checked,
+  };
+  const r = await fetch(`/admin/api/templates/${id}`, {
+    method: 'PATCH',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body),
+  });
+  if (r.ok) {
+    const updated = await r.json();
+    const idx = allTemplates.findIndex(t => t.id === id);
+    if (idx !== -1) allTemplates[idx] = { ...allTemplates[idx], ...updated };
+    closeModal('editModal');
+    filterTemplates();
+  } else {
+    const d = await r.json().catch(() => ({}));
+    errEl.textContent = d.detail || 'Failed to save changes';
+    errEl.style.display = 'block';
+  }
+});
+
+async function deleteTemplate(id, name) {
+  if (!confirm(`Delete template "${name}"? This cannot be undone.`)) return;
+  const r = await fetch(`/admin/api/templates/${id}`, { method: 'DELETE' });
+  if (r.ok) {
+    allTemplates = allTemplates.filter(t => t.id !== id);
+    filterTemplates();
+  } else {
+    alert('Failed to delete template');
+  }
+}
+
+loadData();
+
+// Render variable badges after table renders
+setTimeout(() => {
+  document.querySelectorAll('.var-badges').forEach(renderVarBadges);
+}, 100);
+</script>
+{% endblock %}

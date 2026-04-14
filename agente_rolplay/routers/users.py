@@ -2,14 +2,27 @@ import json
 from datetime import datetime, timedelta
 
 import redis as redis_lib
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, status
 from sqlalchemy import func, distinct
 from sqlalchemy.orm import Session
 from uuid import UUID
 from typing import List
 
 from agente_rolplay.db.database import get_db
-from agente_rolplay.db.models import CoachingScenario, Document, MessageLog, User, Profile, Organization, Role, WhatsAppMessage
+from agente_rolplay.db.models import (
+    BroadcastSchedule,
+    CoachingScenario,
+    Document,
+    Group,
+    GroupMember,
+    MessageLog,
+    MessageTemplate,
+    User,
+    Profile,
+    Organization,
+    Role,
+    WhatsAppMessage,
+)
 from agente_rolplay.db.schemas import (
     ProfileResponse,
     ProfileCreate,
@@ -37,6 +50,7 @@ def get_org_for_user(db: Session, user_id: UUID) -> Organization:
 
 # ── Literal routes MUST come before /{user_id} ───────────────────────────────
 
+
 @router.get("/dashboard-stats", tags=["dashboard"])
 def get_dashboard_stats(
     db: Session = Depends(get_db),
@@ -52,18 +66,28 @@ def get_dashboard_stats(
     week_ago = now - timedelta(days=7)
     month_ago = now - timedelta(days=30)
 
-    total_users = db.query(func.count(Profile.id)).filter(Profile.org_id == org_id).scalar()
-    active_users = db.query(func.count(Profile.id)).filter(
-        Profile.org_id == org_id, Profile.is_active == True
-    ).scalar()
-    new_users_7d = db.query(func.count(Profile.id)).filter(
-        Profile.org_id == org_id, Profile.created_at >= week_ago
-    ).scalar()
-    new_users_30d = db.query(func.count(Profile.id)).filter(
-        Profile.org_id == org_id, Profile.created_at >= month_ago
-    ).scalar()
+    total_users = (
+        db.query(func.count(Profile.id)).filter(Profile.org_id == org_id).scalar()
+    )
+    active_users = (
+        db.query(func.count(Profile.id))
+        .filter(Profile.org_id == org_id, Profile.is_active == True)
+        .scalar()
+    )
+    new_users_7d = (
+        db.query(func.count(Profile.id))
+        .filter(Profile.org_id == org_id, Profile.created_at >= week_ago)
+        .scalar()
+    )
+    new_users_30d = (
+        db.query(func.count(Profile.id))
+        .filter(Profile.org_id == org_id, Profile.created_at >= month_ago)
+        .scalar()
+    )
     total_roles = db.query(func.count(Role.id)).filter(Role.org_id == org_id).scalar()
-    total_docs = db.query(func.count(Document.id)).filter(Document.org_id == org_id).scalar()
+    total_docs = (
+        db.query(func.count(Document.id)).filter(Document.org_id == org_id).scalar()
+    )
 
     org = db.query(Organization).filter(Organization.id == org_id).first()
 
@@ -91,29 +115,53 @@ def get_dashboard_stats(
     message_types_breakdown = {"text": 0, "audio": 0, "image": 0, "document": 0}
 
     if org_phones:
-        messages_7d = db.query(func.count(MessageLog.id)).filter(
-            MessageLog.created_at >= week_ago,
-            MessageLog.phone_number.in_(org_phones),
-        ).scalar() or 0
-        messages_30d = db.query(func.count(MessageLog.id)).filter(
-            MessageLog.created_at >= month_ago,
-            MessageLog.phone_number.in_(org_phones),
-        ).scalar() or 0
-        voice_notes_7d = db.query(func.count(MessageLog.id)).filter(
-            MessageLog.created_at >= week_ago,
-            MessageLog.is_voice_note == True,
-            MessageLog.phone_number.in_(org_phones),
-        ).scalar() or 0
-        truly_active_users_7d = db.query(func.count(distinct(MessageLog.phone_number))).filter(
-            MessageLog.created_at >= week_ago,
-            MessageLog.phone_number.in_(org_phones),
-        ).scalar() or 0
-        avg_ms_row = db.query(func.avg(MessageLog.response_time_ms)).filter(
-            MessageLog.created_at >= month_ago,
-            MessageLog.phone_number.in_(org_phones),
-            MessageLog.response_time_ms.isnot(None),
-            MessageLog.is_error == False,
-        ).scalar()
+        messages_7d = (
+            db.query(func.count(MessageLog.id))
+            .filter(
+                MessageLog.created_at >= week_ago,
+                MessageLog.phone_number.in_(org_phones),
+            )
+            .scalar()
+            or 0
+        )
+        messages_30d = (
+            db.query(func.count(MessageLog.id))
+            .filter(
+                MessageLog.created_at >= month_ago,
+                MessageLog.phone_number.in_(org_phones),
+            )
+            .scalar()
+            or 0
+        )
+        voice_notes_7d = (
+            db.query(func.count(MessageLog.id))
+            .filter(
+                MessageLog.created_at >= week_ago,
+                MessageLog.is_voice_note == True,
+                MessageLog.phone_number.in_(org_phones),
+            )
+            .scalar()
+            or 0
+        )
+        truly_active_users_7d = (
+            db.query(func.count(distinct(MessageLog.phone_number)))
+            .filter(
+                MessageLog.created_at >= week_ago,
+                MessageLog.phone_number.in_(org_phones),
+            )
+            .scalar()
+            or 0
+        )
+        avg_ms_row = (
+            db.query(func.avg(MessageLog.response_time_ms))
+            .filter(
+                MessageLog.created_at >= month_ago,
+                MessageLog.phone_number.in_(org_phones),
+                MessageLog.response_time_ms.isnot(None),
+                MessageLog.is_error == False,
+            )
+            .scalar()
+        )
         avg_response_ms = int(avg_ms_row) if avg_ms_row else None
 
         # Messages per day (last 30 days) for chart
@@ -134,21 +182,36 @@ def get_dashboard_stats(
 
         # Message type breakdown (last 30 days)
         for msg_type in ("text", "audio", "image", "document"):
-            cnt = db.query(func.count(MessageLog.id)).filter(
-                MessageLog.created_at >= month_ago,
-                MessageLog.phone_number.in_(org_phones),
-                MessageLog.message_type == msg_type,
-            ).scalar() or 0
+            cnt = (
+                db.query(func.count(MessageLog.id))
+                .filter(
+                    MessageLog.created_at >= month_ago,
+                    MessageLog.phone_number.in_(org_phones),
+                    MessageLog.message_type == msg_type,
+                )
+                .scalar()
+                or 0
+            )
             message_types_breakdown[msg_type] = cnt
 
-    docs_uploaded_7d = db.query(func.count(Document.id)).filter(
-        Document.org_id == org_id,
-        Document.created_at >= week_ago,
-    ).scalar() or 0
-    docs_uploaded_30d = db.query(func.count(Document.id)).filter(
-        Document.org_id == org_id,
-        Document.created_at >= month_ago,
-    ).scalar() or 0
+    docs_uploaded_7d = (
+        db.query(func.count(Document.id))
+        .filter(
+            Document.org_id == org_id,
+            Document.created_at >= week_ago,
+        )
+        .scalar()
+        or 0
+    )
+    docs_uploaded_30d = (
+        db.query(func.count(Document.id))
+        .filter(
+            Document.org_id == org_id,
+            Document.created_at >= month_ago,
+        )
+        .scalar()
+        or 0
+    )
 
     # Signups per day (last 30 days) for chart
     signup_rows = (
@@ -228,7 +291,12 @@ def get_conversation_insights(
     )
 
     if not messages:
-        return {"summary": None, "top_messages": [], "generated_at": None, "message_count": 0}
+        return {
+            "summary": None,
+            "top_messages": [],
+            "generated_at": None,
+            "message_count": 0,
+        }
 
     # Build prompt for Haiku
     messages_text = "\n".join(f"- {m.content}" for m in messages)
@@ -258,7 +326,10 @@ def get_conversation_insights(
         parsed = json.loads(clean)
     except Exception as e:
         print(f"[conversation-insights] AI call failed: {e!r}")
-        parsed = {"summary": "Could not generate insights at this time.", "top_messages": []}
+        parsed = {
+            "summary": "Could not generate insights at this time.",
+            "top_messages": [],
+        }
 
     result = {
         "summary": parsed.get("summary"),
@@ -307,6 +378,7 @@ def list_org_documents(
 
 
 # ── CRUD (parameterized routes) ───────────────────────────────────────────────
+
 
 @router.get("", response_model=List[ProfileWithUser])
 def list_users(
@@ -367,7 +439,11 @@ def create_user(
 
     org = get_org_for_user(db, current_user.id)
 
-    normalized_number = normalize_whatsapp_number(user_data.whatsapp_number) if user_data.whatsapp_number else user_data.whatsapp_number
+    normalized_number = (
+        normalize_whatsapp_number(user_data.whatsapp_number)
+        if user_data.whatsapp_number
+        else user_data.whatsapp_number
+    )
 
     existing = (
         db.query(Profile)
@@ -410,7 +486,7 @@ def create_user(
     return profile
 
 
-@router.get("/{user_id}", response_model=ProfileWithUser)
+@router.get("/{user_id:uuid}", response_model=ProfileWithUser)
 def get_user(
     user_id: UUID,
     db: Session = Depends(get_db),
@@ -459,7 +535,7 @@ def get_user(
     )
 
 
-@router.put("/{user_id}", response_model=ProfileResponse)
+@router.put("/{user_id:uuid}", response_model=ProfileResponse)
 def update_user(
     user_id: UUID,
     user_data: ProfileUpdate,
@@ -484,6 +560,7 @@ def update_user(
         profile.job_title = user_data.job_title
     if user_data.whatsapp_number is not None:
         from agente_rolplay.db.whatsapp_auth import normalize_whatsapp_number
+
         profile.whatsapp_number = normalize_whatsapp_number(user_data.whatsapp_number)
     if user_data.role_id is not None:
         profile.role_id = user_data.role_id
@@ -495,7 +572,7 @@ def update_user(
     return profile
 
 
-@router.delete("/{user_id}")
+@router.delete("/{user_id:uuid}")
 def delete_user(
     user_id: UUID,
     db: Session = Depends(get_db),
@@ -516,7 +593,7 @@ def delete_user(
     return {"message": "User access revoked"}
 
 
-@router.delete("/{user_id}/hard-delete")
+@router.delete("/{user_id:uuid}/hard-delete")
 def hard_delete_user(
     user_id: UUID,
     db: Session = Depends(get_db),
@@ -549,9 +626,7 @@ def hard_delete_user(
     db.flush()
 
     remaining_profiles = (
-        db.query(Profile)
-        .filter(Profile.user_id == target_user_id)
-        .first()
+        db.query(Profile).filter(Profile.user_id == target_user_id).first()
     )
     if not remaining_profiles:
         user = db.query(User).filter(User.id == target_user_id).first()
@@ -580,25 +655,29 @@ def list_scenarios(
         .all()
     )
     from agente_rolplay.db.models import CoachingSession
+
     result = []
     for s in scenarios:
         session_count = (
             db.query(func.count(CoachingSession.id))
             .filter(CoachingSession.scenario_id == s.id)
-            .scalar() or 0
+            .scalar()
+            or 0
         )
-        result.append({
-            "id": str(s.id),
-            "name": s.name,
-            "description": s.description,
-            "is_active": s.is_active,
-            "created_at": s.created_at.isoformat() if s.created_at else None,
-            "session_count": session_count,
-        })
+        result.append(
+            {
+                "id": str(s.id),
+                "name": s.name,
+                "description": s.description,
+                "is_active": s.is_active,
+                "created_at": s.created_at.isoformat() if s.created_at else None,
+                "session_count": session_count,
+            }
+        )
     return result
 
 
-@router.post("/{user_id}/reactivate", response_model=ProfileResponse)
+@router.post("/{user_id:uuid}/reactivate", response_model=ProfileResponse)
 def reactivate_user(
     user_id: UUID,
     db: Session = Depends(get_db),
@@ -618,3 +697,469 @@ def reactivate_user(
     db.commit()
     db.refresh(profile)
     return profile
+
+
+# ── Groups (org-scoped) ─────────────────────────────────────────────────────
+
+
+def _extract_template_variables(content: str) -> list[str]:
+    """Extract {{1}}, {{2}}, etc. from template content."""
+    import re
+
+    matches = re.findall(r"\{\{(\d+)\}\}", content)
+    return sorted(set(matches), key=lambda x: int(x))
+
+
+@router.get("/groups")
+def list_groups(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """List all groups for the user's organization."""
+    profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    groups = (
+        db.query(Group)
+        .filter(Group.org_id == profile.org_id)
+        .order_by(Group.created_at.desc())
+        .all()
+    )
+    result = []
+    for g in groups:
+        member_count = (
+            db.query(func.count(GroupMember.id))
+            .filter(GroupMember.group_id == g.id)
+            .scalar()
+            or 0
+        )
+        result.append(
+            {
+                "id": str(g.id),
+                "name": g.name,
+                "member_count": member_count,
+                "created_at": g.created_at.isoformat() if g.created_at else None,
+                "created_by_id": str(g.created_by_id) if g.created_by_id else None,
+            }
+        )
+    return result
+
+
+@router.post("/groups")
+def create_group(
+    name: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Create a new group in the user's organization."""
+    profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    if not name:
+        raise HTTPException(status_code=400, detail="name is required")
+
+    group = Group(
+        org_id=profile.org_id,
+        name=name,
+        created_by_id=current_user.id,
+    )
+    db.add(group)
+    db.commit()
+    db.refresh(group)
+    return {
+        "id": str(group.id),
+        "name": group.name,
+        "member_count": 0,
+        "created_at": group.created_at.isoformat() if group.created_at else None,
+        "created_by_id": str(group.created_by_id) if group.created_by_id else None,
+    }
+
+
+@router.patch("/groups/{group_id}")
+def update_group(
+    group_id: str,
+    name: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Update a group name."""
+    profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    group = (
+        db.query(Group)
+        .filter(Group.id == group_id, Group.org_id == profile.org_id)
+        .first()
+    )
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    if name:
+        group.name = name
+    db.commit()
+    db.refresh(group)
+    return {"id": str(group.id), "name": group.name}
+
+
+@router.delete("/groups/{group_id}")
+def delete_group(
+    group_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Delete a group."""
+    profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    group = (
+        db.query(Group)
+        .filter(Group.id == group_id, Group.org_id == profile.org_id)
+        .first()
+    )
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    if group.created_by_id and group.created_by_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the group creator can delete this group")
+
+    db.delete(group)
+    db.commit()
+    return {"deleted": group_id}
+
+
+# ── Group Members ──────────────────────────────────────────────────────────
+
+
+@router.get("/groups/{group_id}/members")
+def list_group_members(
+    group_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """List members of a group."""
+    profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    group = (
+        db.query(Group)
+        .filter(Group.id == group_id, Group.org_id == profile.org_id)
+        .first()
+    )
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    members = db.query(GroupMember).filter(GroupMember.group_id == group_id).all()
+    result = []
+    for m in members:
+        member_profile = db.query(Profile).filter(Profile.id == m.profile_id).first()
+        result.append(
+            {
+                "id": str(m.id),
+                "user_id": str(m.user_id),
+                "profile_id": str(m.profile_id) if m.profile_id else None,
+                "full_name": member_profile.full_name if member_profile else None,
+                "whatsapp_number": member_profile.whatsapp_number
+                if member_profile
+                else None,
+            }
+        )
+    return result
+
+
+@router.post("/groups/{group_id}/members")
+def add_group_members(
+    group_id: str,
+    profile_ids: List[str] = Body(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Add multiple users to a group."""
+    profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    group = (
+        db.query(Group)
+        .filter(Group.id == group_id, Group.org_id == profile.org_id)
+        .first()
+    )
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    if group.created_by_id and group.created_by_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the group creator can manage members")
+
+    added = []
+    for pid in profile_ids:
+        p = (
+            db.query(Profile)
+            .filter(Profile.id == pid, Profile.org_id == profile.org_id)
+            .first()
+        )
+        if p:
+            existing = (
+                db.query(GroupMember)
+                .filter(GroupMember.group_id == group_id, GroupMember.profile_id == pid)
+                .first()
+            )
+            if not existing:
+                member = GroupMember(
+                    group_id=group.id,
+                    user_id=p.user_id,
+                    profile_id=p.id,
+                )
+                db.add(member)
+                added.append(pid)
+
+    db.commit()
+    return {"added": added}
+
+
+@router.delete("/groups/{group_id}/members/{profile_id}")
+def remove_group_member(
+    group_id: str,
+    profile_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Remove a user from a group."""
+    profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    group = (
+        db.query(Group)
+        .filter(Group.id == group_id, Group.org_id == profile.org_id)
+        .first()
+    )
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    if group.created_by_id and group.created_by_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the group creator can manage members")
+
+    member = (
+        db.query(GroupMember)
+        .filter(GroupMember.group_id == group_id, GroupMember.profile_id == profile_id)
+        .first()
+    )
+    if not member:
+        raise HTTPException(status_code=404, detail="Member not found")
+
+    db.delete(member)
+    db.commit()
+    return {"removed": profile_id}
+
+
+@router.get("/org-users")
+def list_org_users(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """List all users in the organization (for group assignment)."""
+    profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    profiles = (
+        db.query(Profile)
+        .filter(Profile.org_id == profile.org_id, Profile.is_active == True)
+        .all()
+    )
+    return [
+        {
+            "id": str(p.id),
+            "full_name": p.full_name,
+            "whatsapp_number": p.whatsapp_number,
+            "job_title": p.job_title,
+        }
+        for p in profiles
+    ]
+
+
+# ── Message Templates (org-scoped) ───────────────────────────────────────────────
+
+
+@router.get("/templates")
+def list_org_templates(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """List templates available to the organization."""
+    profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    templates = (
+        db.query(MessageTemplate)
+        .filter(
+            (MessageTemplate.org_id == profile.org_id)
+            | (MessageTemplate.org_id == None)
+        )
+        .filter(MessageTemplate.is_active == True)
+        .order_by(MessageTemplate.created_at.desc())
+        .all()
+    )
+
+    return [
+        {
+            "id": str(t.id),
+            "name": t.name,
+            "content": t.content,
+            "variables": t.variables or [],
+        }
+        for t in templates
+    ]
+
+
+# ── Broadcast Schedules ────────────────────────────────────────────────────
+
+
+@router.get("/broadcasts")
+def list_broadcasts(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """List broadcast schedules for the organization."""
+    profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    broadcasts = (
+        db.query(BroadcastSchedule)
+        .filter(BroadcastSchedule.org_id == profile.org_id)
+        .order_by(BroadcastSchedule.scheduled_at.desc())
+        .all()
+    )
+
+    result = []
+    for b in broadcasts:
+        template = (
+            db.query(MessageTemplate)
+            .filter(MessageTemplate.id == b.template_id)
+            .first()
+            if b.template_id
+            else None
+        )
+        group = (
+            db.query(Group).filter(Group.id == b.group_id).first()
+            if b.group_id
+            else None
+        )
+        result.append(
+            {
+                "id": str(b.id),
+                "template_id": str(b.template_id) if b.template_id else None,
+                "template_name": template.name if template else None,
+                "group_id": str(b.group_id) if b.group_id else None,
+                "group_name": group.name if group else None,
+                "scheduled_at": b.scheduled_at.isoformat() if b.scheduled_at else None,
+                "variable_values": b.variable_values or {},
+                "status": b.status,
+                "sent_count": b.sent_count,
+                "failed_count": b.failed_count,
+                "created_at": b.created_at.isoformat() if b.created_at else None,
+            }
+        )
+    return result
+
+
+@router.post("/broadcasts")
+def create_broadcast(
+    template_id: str,
+    group_id: str,
+    scheduled_at: str,
+    variable_values: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Schedule a new broadcast."""
+    profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    template = (
+        db.query(MessageTemplate).filter(MessageTemplate.id == template_id).first()
+    )
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+
+    group = (
+        db.query(Group)
+        .filter(Group.id == group_id, Group.org_id == profile.org_id)
+        .first()
+    )
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    from datetime import datetime
+
+    try:
+        scheduled_dt = datetime.fromisoformat(scheduled_at.replace("Z", "+00:00"))
+    except ValueError:
+        try:
+            scheduled_dt = datetime.fromisoformat(scheduled_at)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid scheduled_at format")
+
+    if scheduled_dt <= datetime.utcnow():
+        raise HTTPException(
+            status_code=400, detail="scheduled_at must be in the future"
+        )
+
+    broadcast = BroadcastSchedule(
+        org_id=profile.org_id,
+        template_id=template.id,
+        group_id=group.id,
+        scheduled_at=scheduled_dt,
+        variable_values=variable_values or {},
+        created_by_id=current_user.id,
+    )
+    db.add(broadcast)
+    db.commit()
+    db.refresh(broadcast)
+    return {
+        "id": str(broadcast.id),
+        "template_id": str(broadcast.template_id),
+        "group_id": str(broadcast.group_id),
+        "scheduled_at": broadcast.scheduled_at.isoformat(),
+        "variable_values": broadcast.variable_values or {},
+        "status": broadcast.status,
+    }
+
+
+@router.delete("/broadcasts/{broadcast_id}")
+def cancel_broadcast(
+    broadcast_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Cancel a pending broadcast."""
+    profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    broadcast = (
+        db.query(BroadcastSchedule)
+        .filter(
+            BroadcastSchedule.id == broadcast_id,
+            BroadcastSchedule.org_id == profile.org_id,
+        )
+        .first()
+    )
+    if not broadcast:
+        raise HTTPException(status_code=404, detail="Broadcast not found")
+
+    if broadcast.status != "pending":
+        raise HTTPException(
+            status_code=400, detail="Only pending broadcasts can be cancelled"
+        )
+
+    db.delete(broadcast)
+    db.commit()
+    return {"deleted": broadcast_id}

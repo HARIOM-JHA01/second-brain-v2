@@ -156,7 +156,7 @@ function renderUsers() {
   tbody.innerHTML = users.map(u => `
     <tr>
       <td class="td-name">${u.full_name || u.username || '—'}</td>
-      <td>${maskWhatsApp(u.whatsapp_number)}</td>
+      <td style="white-space:nowrap;font-family:monospace;letter-spacing:.05em;">${maskWhatsApp(u.whatsapp_number)}</td>
       <td>${u.job_title || '—'}</td>
       <td>${u.role?.name || '—'}</td>
       <td><span class="badge ${u.is_active ? 'badge-active' : 'badge-inactive'}">${u.is_active ? t('common.active') : t('common.inactive')}</span></td>

@@ -11,7 +11,17 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from agente_rolplay.config import PORT, SECRET_KEY
-from agente_rolplay.routers import admin, auth, coaching, datastore, pages, rag, roles, users, webhook
+from agente_rolplay.routers import (
+    admin,
+    auth,
+    coaching,
+    datastore,
+    pages,
+    rag,
+    roles,
+    users,
+    webhook,
+)
 
 
 @asynccontextmanager
@@ -21,6 +31,12 @@ async def lifespan(app: FastAPI):
 
     init_db()
     start_poller()
+
+    import asyncio
+    from agente_rolplay.broadcast_worker import broadcast_scheduler
+
+    asyncio.create_task(broadcast_scheduler())
+
     yield
 
 

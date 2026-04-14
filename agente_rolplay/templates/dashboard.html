@@ -304,7 +304,8 @@
   }
   .card-skel {
     position: absolute; inset: 0; border-radius: 14px; z-index: 10;
-    background: var(--card-bg);
+    background: var(--card-bg-solid, var(--bg));
+    backdrop-filter: none;
     display: flex; flex-direction: column; gap: .75rem;
     padding: 1.4rem 1.5rem;
   }
@@ -352,6 +353,13 @@
     </a>
     <a href="/dashboard/scenarios" class="{% if '/dashboard/scenarios' in request.url.path %}active{% endif %}">
       <span class="sidebar-icon">🎯</span> <span data-i18n="sidebar.scenarios">Escenarios</span>
+    </a>
+    <div class="sidebar-section" data-i18n="sidebar.broadcast">Broadcast</div>
+    <a href="/dashboard/groups" class="{% if '/dashboard/groups' in request.url.path %}active{% endif %}">
+      <span class="sidebar-icon">👥</span> <span data-i18n="sidebar.teams">Equipos</span>
+    </a>
+    <a href="/dashboard/broadcasts" class="{% if '/dashboard/broadcasts' in request.url.path %}active{% endif %}">
+      <span class="sidebar-icon">📨</span> <span data-i18n="sidebar.broadcasts">Broadcast</span>
     </a>
     <div class="sidebar-section" data-i18n="sidebar.config">Config</div>
     <a href="/dashboard/settings" class="{% if '/dashboard/settings' in request.url.path %}active{% endif %}">
@@ -720,6 +728,7 @@
 
     // ── State ──────────────────────────────────────────────────────────────────
     let _stats = null;           // raw API response stored after first fetch
+    let _users = null;           // cached users list
     let msgsChartFull = [];
     let signupsChartFull = [];
     let chartMsgs = null;
@@ -801,6 +810,94 @@
       // The donut just stays as-is when period changes (it reflects full data available)
     }
 
+    // ── Render with cached data (no fetch, no skeletons) ──────────────────────
+    function renderDashboard(s, users) {
+      if (!s) return;
+
+      // Header
+      document.getElementById('welcomeTitle').textContent =
+        s.org_name ? `${s.org_name} ${t('dash.title')}` : t('dash.title');
+      document.getElementById('welcomeSub').textContent =
+        new Date().toLocaleDateString(getLang() === 'es' ? 'es-ES' : 'en-US', {weekday:'long', month:'long', day:'numeric'});
+
+      // Static pills
+      document.getElementById('pill-total').textContent = s.total_users ?? '—';
+      document.getElementById('pill-active').textContent = s.active_users ?? '—';
+      document.getElementById('pill-docs').textContent = s.total_docs ?? '—';
+      document.getElementById('pill-resp').textContent =
+        s.avg_response_ms != null ? s.avg_response_ms + ' ms' : '—';
+
+      // User status labels
+      const total = (s.active_users ?? 0) + (s.inactive_users ?? 0) || 1;
+      document.getElementById('lbl-active-pct').textContent =
+        Math.round(s.active_users / total * 100) + '%';
+      document.getElementById('lbl-inactive-pct').textContent =
+        Math.round(s.inactive_users / total * 100) + '%';
+
+      // Message type labels
+      const mt = s.message_types_breakdown || {};
+      document.getElementById('lbl-text').textContent = mt.text ?? 0;
+      document.getElementById('lbl-audio').textContent = mt.audio ?? 0;
+      document.getElementById('lbl-image').textContent = mt.image ?? 0;
+      document.getElementById('lbl-document').textContent = mt.document ?? 0;
+
+      // Store full chart data
+      msgsChartFull = s.messages_chart || [];
+      signupsChartFull = s.signups_chart || [];
+
+      // ── Build charts ──────────────────────────────────────────────────────
+      const { labels: ml, counts: mc } = buildDateLabels(msgsChartFull, currentPeriod);
+      if (chartMsgs) chartMsgs.destroy();
+      chartMsgs = makeLineChart('chartMessages', ml, mc, 'rgb(99,102,241)');
+      hideSkel('skelMessages');
+
+      if (chartUserStatus) chartUserStatus.destroy();
+      chartUserStatus = makeDonutChart(
+        'chartUserStatus',
+        [t('common.active'), t('common.inactive')],
+        [s.active_users ?? 0, s.inactive_users ?? 0],
+        ['#34d399', '#f87171']
+      );
+      hideSkel('skelUserStatus');
+
+      const { labels: sl, counts: sc } = buildDateLabels(signupsChartFull, currentPeriod);
+      if (chartSignups) chartSignups.destroy();
+      chartSignups = makeBarChart('chartSignups', sl, sc, 'rgb(99,102,241)');
+      hideSkel('skelSignups');
+
+      const typeVals = [mt.text ?? 0, mt.audio ?? 0, mt.image ?? 0, mt.document ?? 0];
+      if (chartMsgTypes) chartMsgTypes.destroy();
+      chartMsgTypes = makeDonutChart(
+        'chartMsgTypes',
+        [t('dash.lbl.text'), t('dash.lbl.audio'), t('dash.lbl.images'), t('dash.lbl.docs')],
+        typeVals.some(v => v > 0) ? typeVals : [1, 0, 0, 0],
+        ['#60a5fa', '#ef4444', '#34d399', '#fb923c']
+      );
+      hideSkel('skelMsgTypes');
+
+      // Apply period-specific KPIs
+      renderPeriod(currentPeriod);
+
+      // Team table
+      if (users) {
+        const tbody = document.getElementById('recentUsersTable');
+        if (!users.length) {
+          tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><span class="empty-icon">👥</span>${t('dash.empty')}</div></td></tr>`;
+        } else {
+          tbody.innerHTML = users.slice(0, 8).map(u => `
+            <tr>
+              <td class="td-name">${u.full_name || u.username || '—'}</td>
+              <td style="white-space:nowrap;font-family:monospace;letter-spacing:.05em;">${maskWhatsApp(u.whatsapp_number)}</td>
+              <td style="color:var(--text-muted);">${u.job_title || '—'}</td>
+              <td>${u.role?.name || '—'}</td>
+              <td><span class="badge ${u.is_active ? 'badge-active' : 'badge-inactive'}">${u.is_active ? t('common.active') : t('common.inactive')}</span></td>
+              <td style="color:var(--text-muted);font-size:.82rem;">${u.created_at ? new Date(u.created_at).toLocaleDateString(getLang() === 'es' ? 'es-ES' : 'en-US') : '—'}</td>
+            </tr>
+          `).join('');
+        }
+      }
+    }
+
     // ── Main load ──────────────────────────────────────────────────────────────
     async function loadDashboard() {
       if (!token()) { window.location.href = '/login'; return; }
@@ -817,94 +914,14 @@
       }
 
       if (statsRes.ok) {
-        const s = await statsRes.json();
-        _stats = s;
-
-        // Header
-        document.getElementById('welcomeTitle').textContent =
-          s.org_name ? `${s.org_name} ${t('dash.title')}` : t('dash.title');
-        document.getElementById('welcomeSub').textContent =
-          new Date().toLocaleDateString(getLang() === 'es' ? 'es-ES' : 'en-US', {weekday:'long', month:'long', day:'numeric'});
-
-        // Static pills
-        document.getElementById('pill-total').textContent = s.total_users ?? '—';
-        document.getElementById('pill-active').textContent = s.active_users ?? '—';
-        document.getElementById('pill-docs').textContent = s.total_docs ?? '—';
-        document.getElementById('pill-resp').textContent =
-          s.avg_response_ms != null ? s.avg_response_ms + ' ms' : '—';
-
-        // User status labels
-        const total = (s.active_users ?? 0) + (s.inactive_users ?? 0) || 1;
-        document.getElementById('lbl-active-pct').textContent =
-          Math.round(s.active_users / total * 100) + '%';
-        document.getElementById('lbl-inactive-pct').textContent =
-          Math.round(s.inactive_users / total * 100) + '%';
-
-        // Message type labels
-        const mt = s.message_types_breakdown || {};
-        document.getElementById('lbl-text').textContent = mt.text ?? 0;
-        document.getElementById('lbl-audio').textContent = mt.audio ?? 0;
-        document.getElementById('lbl-image').textContent = mt.image ?? 0;
-        document.getElementById('lbl-document').textContent = mt.document ?? 0;
-
-        // Store full chart data
-        msgsChartFull = s.messages_chart || [];
-        signupsChartFull = s.signups_chart || [];
-
-        // ── Build charts ──────────────────────────────────────────────────────
-        const { labels: ml, counts: mc } = buildDateLabels(msgsChartFull, currentPeriod);
-        if (chartMsgs) chartMsgs.destroy();
-        chartMsgs = makeLineChart('chartMessages', ml, mc, 'rgb(99,102,241)');
-        hideSkel('skelMessages');
-
-        if (chartUserStatus) chartUserStatus.destroy();
-        chartUserStatus = makeDonutChart(
-          'chartUserStatus',
-          [t('common.active'), t('common.inactive')],
-          [s.active_users ?? 0, s.inactive_users ?? 0],
-          ['#34d399', '#f87171']
-        );
-        hideSkel('skelUserStatus');
-
-        const { labels: sl, counts: sc } = buildDateLabels(signupsChartFull, currentPeriod);
-        if (chartSignups) chartSignups.destroy();
-        chartSignups = makeBarChart('chartSignups', sl, sc, 'rgb(99,102,241)');
-        hideSkel('skelSignups');
-
-        const typeVals = [mt.text ?? 0, mt.audio ?? 0, mt.image ?? 0, mt.document ?? 0];
-        if (chartMsgTypes) chartMsgTypes.destroy();
-        chartMsgTypes = makeDonutChart(
-          'chartMsgTypes',
-          [t('dash.lbl.text'), t('dash.lbl.audio'), t('dash.lbl.images'), t('dash.lbl.docs')],
-          typeVals.some(v => v > 0) ? typeVals : [1, 0, 0, 0],
-          ['#60a5fa', '#ef4444', '#34d399', '#fb923c']
-        );
-        hideSkel('skelMsgTypes');
-
-        // Apply period-specific KPIs
-        renderPeriod(currentPeriod);
+        _stats = await statsRes.json();
       }
-
-      // Team table
       if (usersRes.ok) {
-        const users = await usersRes.json();
-        const tbody = document.getElementById('recentUsersTable');
-        if (!users.length) {
-          tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><span class="empty-icon">👥</span>${t('dash.empty')}</div></td></tr>`;
-        } else {
-          tbody.innerHTML = users.slice(0, 8).map(u => `
-            <tr>
-              <td class="td-name">${u.full_name || u.username || '—'}</td>
-              <td>${maskWhatsApp(u.whatsapp_number)}</td>
-              <td style="color:var(--text-muted);">${u.job_title || '—'}</td>
-              <td>${u.role?.name || '—'}</td>
-              <td><span class="badge ${u.is_active ? 'badge-active' : 'badge-inactive'}">${u.is_active ? t('common.active') : t('common.inactive')}</span></td>
-              <td style="color:var(--text-muted);font-size:.82rem;">${u.created_at ? new Date(u.created_at).toLocaleDateString(getLang() === 'es' ? 'es-ES' : 'en-US') : '—'}</td>
-            </tr>
-          `).join('');
-        }
+        _users = await usersRes.json();
         await loadRolesForModal();
       }
+
+      renderDashboard(_stats, _users);
     }
 
     async function loadRolesForModal() {
@@ -1027,7 +1044,9 @@
       }
     }
 
-    document.addEventListener('langchange', () => loadDashboard());
+    document.addEventListener('langchange', () => {
+      if (_stats) renderDashboard(_stats, _users);
+    });
     loadDashboard();
     loadInsights();
     </script>

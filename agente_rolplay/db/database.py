@@ -58,6 +58,53 @@ _MIGRATIONS = [
     "ALTER TABLE documents ADD COLUMN IF NOT EXISTS vector_id VARCHAR(255)",
     "CREATE INDEX IF NOT EXISTS idx_documents_location ON documents(location)",
     "CREATE INDEX IF NOT EXISTS idx_documents_org_location ON documents(org_id, location)",
+    # Groups and Broadcast tables
+    """
+        CREATE TABLE IF NOT EXISTS groups (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            org_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
+            name VARCHAR(255) NOT NULL,
+            created_by_id UUID REFERENCES users(id),
+            created_at TIMESTAMP DEFAULT now()
+        )
+    """,
+    """
+        CREATE TABLE IF NOT EXISTS group_members (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            group_id UUID REFERENCES groups(id) ON DELETE CASCADE NOT NULL,
+            user_id UUID REFERENCES users(id) ON DELETE CASCADE NOT NULL,
+            profile_id UUID,
+            created_at TIMESTAMP DEFAULT now()
+        )
+    """,
+    """
+        CREATE TABLE IF NOT EXISTS message_templates (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            org_id UUID REFERENCES organizations(id),
+            name VARCHAR(255) NOT NULL,
+            content TEXT NOT NULL,
+            variables JSONB DEFAULT '[]',
+            is_active BOOLEAN DEFAULT true,
+            created_by_id UUID REFERENCES users(id),
+            created_at TIMESTAMP DEFAULT now()
+        )
+    """,
+    """
+        CREATE TABLE IF NOT EXISTS broadcast_schedules (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            org_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
+            template_id UUID REFERENCES message_templates(id) ON DELETE SET NULL,
+            group_id UUID REFERENCES groups(id) ON DELETE SET NULL,
+            scheduled_at TIMESTAMP NOT NULL,
+            variable_values JSONB DEFAULT '{}',
+            status VARCHAR(20) DEFAULT 'pending',
+            sent_count INTEGER DEFAULT 0,
+            failed_count INTEGER DEFAULT 0,
+            created_by_id UUID REFERENCES users(id),
+            created_at TIMESTAMP DEFAULT now(),
+            sent_at TIMESTAMP
+        )
+    """,
 ]
 
 

@@ -1,0 +1,442 @@
+{% extends "dashboard.html" %}
+{% block title %}Teams — Second Brain{% endblock %}
+
+{% block dashboard_content %}
+<style>
+  .groups-table {
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+  .groups-table thead th {
+    font-size: .76rem;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .groups-table tbody tr {
+    transition: background .18s ease;
+  }
+  .groups-table tbody tr:hover {
+    background: var(--surface-hover);
+  }
+  .group-name {
+    font-weight: 700;
+    font-size: .97rem;
+    color: var(--text);
+  }
+  .member-pill {
+    display: inline-flex;
+    min-width: 2.1rem;
+    justify-content: center;
+    align-items: center;
+    padding: .2rem .52rem;
+    border-radius: 999px;
+    background: rgba(59,130,246,.12);
+    border: 1px solid rgba(59,130,246,.22);
+    color: #60a5fa;
+    font-size: .78rem;
+    font-weight: 700;
+  }
+  .groups-actions {
+    display: flex;
+    gap: .45rem;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .groups-date {
+    color: var(--text-muted);
+    font-size: .84rem;
+    font-weight: 500;
+  }
+  .count-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.65rem;
+    height: 1.35rem;
+    padding: 0 .4rem;
+    border-radius: 999px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: .75rem;
+    font-weight: 700;
+  }
+</style>
+
+<div class="page-header">
+  <div>
+    <h1 data-i18n="groups.title">Equipos</h1>
+    <div class="page-header-sub" data-i18n="groups.subtitle">Gestiona equipos de usuarios para broadcasts</div>
+  </div>
+  <button class="btn btn-primary" onclick="openCreateModal()" data-i18n="groups.btn.new">+ Nuevo Equipo</button>
+</div>
+
+<div class="section-card">
+  <div class="section-card-header">
+    <div class="section-card-title">
+      <span data-i18n="groups.all">Todos los equipos</span>
+      <span class="count-chip" id="groupCount" style="margin-left:.5rem;">—</span>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table class="groups-table">
+      <thead>
+        <tr>
+          <th data-i18n="groups.col.name">Nombre</th>
+          <th data-i18n="groups.col.members">Miembros</th>
+          <th data-i18n="groups.col.created">Creado</th>
+          <th data-i18n="groups.col.actions">Acciones</th>
+        </tr>
+      </thead>
+      <tbody id="groupsTable">
+        <tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text-muted);" data-i18n="common.loading">Cargando…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Create modal -->
+<div id="createModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 data-i18n="groups.modal.create.title">Nuevo Equipo</h2>
+      <button class="modal-close" onclick="closeModal('createModal')">&times;</button>
+    </div>
+    <form id="createForm">
+      <div class="form-group">
+        <label data-i18n="groups.modal.create.name">Nombre *</label>
+        <input type="text" id="c_name" required data-i18n-ph="groups.modal.create.ph" placeholder="e.g. Equipo Ventas" />
+      </div>
+      <div class="form-group">
+        <label>Select users</label>
+        <div style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;background:var(--bg);">
+          <table style="width:100%;font-size:.85rem;border-collapse:collapse;">
+            <thead>
+              <tr style="border-bottom:1px solid var(--border);">
+                <th style="text-align:left;padding:.6rem .75rem;font-size:.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;">User</th>
+                <th style="width:60px;text-align:center;font-size:.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;">Add</th>
+              </tr>
+            </thead>
+            <tbody id="createUsersList"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="alert-error" id="createError"></div>
+      <div style="display:flex;gap:.75rem;margin-top:1.25rem;">
+        <button type="button" class="btn btn-secondary" style="flex:1;" onclick="closeModal('createModal')" data-i18n="common.cancel">Cancelar</button>
+        <button type="submit" class="btn btn-primary" style="flex:1;" data-i18n="groups.modal.create.btn">Crear</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Members modal -->
+<div id="membersModal" class="modal">
+  <div class="modal-content" style="max-width:580px;">
+    <div class="modal-header">
+      <h2 data-i18n="groups.modal.members.title">Miembros del Equipo</h2>
+      <button class="modal-close" onclick="closeModal('membersModal')">&times;</button>
+    </div>
+    <form id="membersForm">
+      <input type="hidden" id="m_group_id" />
+      <div class="form-group">
+        <label data-i18n="groups.modal.members.select">Seleccionar usuarios</label>
+        <div style="max-height:260px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;background:var(--bg);">
+          <table style="width:100%;font-size:.85rem;border-collapse:collapse;">
+            <thead>
+              <tr style="border-bottom:1px solid var(--border);">
+                <th style="text-align:left;padding:.6rem .75rem;font-size:.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;" data-i18n="groups.modal.members.col.user">Usuario</th>
+                <th style="width:60px;text-align:center;font-size:.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;" data-i18n="groups.modal.members.col.add">Agregar</th>
+              </tr>
+            </thead>
+            <tbody id="availableUsers"></tbody>
+          </table>
+        </div>
+      </div>
+      <div style="padding:.75rem;background:var(--bg);border:1px solid var(--border);border-radius:10px;margin-bottom:1rem;">
+        <div style="font-size:.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.5rem;" data-i18n="groups.modal.members.current">Miembros actuales</div>
+        <div id="currentMembers" style="display:flex;flex-wrap:wrap;gap:.35rem;min-height:1.5rem;"></div>
+      </div>
+      <div style="display:flex;gap:.75rem;">
+        <button type="button" class="btn btn-secondary" style="flex:1;" onclick="closeModal('membersModal')" data-i18n="common.cancel">Cancelar</button>
+        <button type="submit" class="btn btn-primary" style="flex:1;" data-i18n="groups.modal.members.save">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Delete confirmation modal -->
+<div id="deleteModal" class="modal">
+  <div class="modal-content" style="max-width:520px;">
+    <div class="modal-header">
+      <h2>Delete Team</h2>
+      <button class="modal-close" onclick="closeModal('deleteModal')">&times;</button>
+    </div>
+    <form id="deleteForm">
+      <input type="hidden" id="d_group_id" />
+      <div style="margin-bottom:1rem;color:var(--text-muted);line-height:1.45;">
+        This action will permanently delete the team
+        <strong id="d_group_name" style="color:var(--text);"></strong>.
+      </div>
+      <div class="alert-error" id="deleteError"></div>
+      <div style="display:flex;gap:.75rem;">
+        <button type="button" class="btn btn-secondary" style="flex:1;" onclick="closeModal('deleteModal')" data-i18n="common.cancel">Cancelar</button>
+        <button type="submit" class="btn btn-danger" style="flex:1;">Delete Team</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+const token = () => localStorage.getItem('access_token');
+const authFetch = (url, opts = {}) => fetch(url, {
+  ...opts, headers: { 'Authorization': 'Bearer ' + token(), ...(opts.headers || {}) }
+});
+
+let allGroups  = [];
+let allUsers   = [];
+let loading    = true;
+let currentUserId = null;
+let currentMemberIds = new Set();
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function fmtDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString(getLang() === 'es' ? 'es-ES' : 'en-US');
+}
+
+async function loadData() {
+  if (!token()) { window.location.href = '/login'; return; }
+  loading = true;
+  document.getElementById('groupsTable').innerHTML =
+    `<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text-muted);">${t('common.loading')}</td></tr>`;
+
+  const [groupsRes, meRes] = await Promise.all([
+    authFetch('/api/users/groups'),
+    authFetch('/auth/me'),
+  ]);
+  if (groupsRes.status === 401 || meRes.status === 401) {
+    window.location.href = '/login'; return;
+  }
+  allUsers  = await loadAssignableUsers();
+  loading   = false;
+  allGroups = groupsRes.ok ? await groupsRes.json() : [];
+  if (meRes.ok) { const me = await meRes.json(); currentUserId = me.id; }
+  renderTable();
+}
+
+async function loadAssignableUsers() {
+  const primary = await authFetch('/api/users/org-users');
+  if (primary.status === 401) {
+    window.location.href = '/login';
+    return [];
+  }
+  if (primary.ok) {
+    const users = await primary.json();
+    if (users.length) return users;
+  }
+
+  const fallback = await authFetch('/api/users');
+  if (fallback.status === 401) {
+    window.location.href = '/login';
+    return [];
+  }
+  if (!fallback.ok) return [];
+
+  const users = await fallback.json();
+  return users
+    .filter(u => u.is_active !== false)
+    .map(u => ({
+      id: u.id,
+      full_name: u.full_name || u.username || '',
+      whatsapp_number: u.whatsapp_number || '',
+      job_title: u.job_title || '',
+    }));
+}
+
+function renderTable() {
+  document.getElementById('groupCount').textContent = allGroups.length;
+  const tbody = document.getElementById('groupsTable');
+  if (!allGroups.length) {
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:2.5rem;color:var(--text-muted);">${t('groups.empty')}</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = allGroups.map(g => {
+    const isOwner = currentUserId && g.created_by_id === currentUserId;
+    const actions = isOwner
+      ? `<button class="btn btn-secondary btn-sm" onclick="openMembersModal('${g.id}')">${t('groups.btn.members')}</button>
+         <button class="btn btn-danger btn-sm" onclick="openDeleteModal('${g.id}')">${t('groups.btn.delete')}</button>`
+      : `<span style="font-size:.78rem;color:var(--text-muted);">${t('groups.not_owner')}</span>`;
+    return `
+    <tr>
+      <td><span class="group-name">${escHtml(g.name)}</span></td>
+      <td><span class="member-pill">${g.member_count ?? 0}</span></td>
+      <td><span class="groups-date">${fmtDate(g.created_at)}</span></td>
+      <td><div class="groups-actions">${actions}</div></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderCreateUsersList() {
+  const tbody = document.getElementById('createUsersList');
+  if (!allUsers.length) {
+    tbody.innerHTML = `<tr><td colspan="2" style="padding:.75rem;color:var(--text-muted);text-align:center;">No users available</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = allUsers.map(u => `
+    <tr style="border-bottom:1px solid var(--border);">
+      <td style="padding:.6rem .75rem;">
+        <div style="font-weight:500;">${escHtml(u.full_name || t('groups.noname'))}</div>
+        <div style="font-size:.75rem;color:var(--text-muted);font-family:monospace;">${escHtml(u.whatsapp_number || '')}</div>
+      </td>
+      <td style="text-align:center;padding:.6rem;">
+        <input type="checkbox" class="create-user-checkbox" value="${u.id}" style="width:auto;cursor:pointer;" />
+      </td>
+    </tr>
+  `).join('');
+}
+
+function openCreateModal() {
+  document.getElementById('createForm').reset();
+  document.getElementById('createError').style.display = 'none';
+  renderCreateUsersList();
+  document.getElementById('createModal').classList.add('show');
+}
+
+async function openMembersModal(groupId) {
+  const group = allGroups.find(g => g.id === groupId);
+  if (!group) return;
+  document.getElementById('m_group_id').value = groupId;
+
+  const membersRes = await authFetch(`/api/users/groups/${groupId}/members`);
+  const currentMembers = membersRes.ok ? await membersRes.json() : [];
+  currentMemberIds = new Set(currentMembers.map(m => m.profile_id).filter(Boolean));
+
+  document.getElementById('availableUsers').innerHTML = allUsers.map(u => `
+    <tr style="border-bottom:1px solid var(--border);">
+      <td style="padding:.6rem .75rem;">
+        <div style="font-weight:500;">${escHtml(u.full_name || t('groups.noname'))}</div>
+        <div style="font-size:.75rem;color:var(--text-muted);font-family:monospace;">${escHtml(u.whatsapp_number || '')}</div>
+      </td>
+      <td style="text-align:center;padding:.6rem;">
+        <input type="checkbox" class="user-checkbox" value="${u.id}" ${currentMemberIds.has(u.id) ? 'checked' : ''} style="width:auto;cursor:pointer;" />
+      </td>
+    </tr>
+  `).join('');
+
+  const membersDiv = document.getElementById('currentMembers');
+  membersDiv.innerHTML = currentMembers.length
+    ? currentMembers.map(m => `<span class="badge badge-active">${escHtml(m.full_name || t('groups.noname'))}</span>`).join('')
+    : `<span style="color:var(--text-muted);font-size:.8rem;">${t('groups.modal.members.none')}</span>`;
+
+  document.getElementById('membersModal').classList.add('show');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('show');
+}
+
+['createModal','membersModal','deleteModal'].forEach(id => {
+  document.getElementById(id).addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeModal(id);
+  });
+});
+
+document.getElementById('createForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const errEl = document.getElementById('createError');
+  errEl.style.display = 'none';
+  const name = document.getElementById('c_name').value.trim();
+  const selectedProfileIds = Array.from(document.querySelectorAll('.create-user-checkbox:checked')).map(c => c.value);
+  if (!name) return;
+  const r = await authFetch(`/api/users/groups?name=${encodeURIComponent(name)}`, {
+    method: 'POST',
+  });
+  if (r.ok) {
+    const created = await r.json();
+    if (selectedProfileIds.length) {
+      const membersRes = await authFetch(`/api/users/groups/${created.id}/members`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(selectedProfileIds),
+      });
+      if (membersRes.ok) {
+        created.member_count = selectedProfileIds.length;
+      } else {
+        alert('Team created, but some users could not be assigned. You can edit members now.');
+      }
+    }
+    allGroups.unshift(created);
+    closeModal('createModal');
+    renderTable();
+  } else {
+    errEl.textContent = t('groups.error.create');
+    errEl.style.display = 'block';
+  }
+});
+
+document.getElementById('membersForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const groupId = document.getElementById('m_group_id').value;
+  const selectedIds = new Set(Array.from(document.querySelectorAll('.user-checkbox:checked')).map(c => c.value));
+  const toAdd = Array.from(selectedIds).filter(id => !currentMemberIds.has(id));
+  const toRemove = Array.from(currentMemberIds).filter(id => !selectedIds.has(id));
+
+  const requests = [];
+  if (toAdd.length) {
+    requests.push(
+      authFetch(`/api/users/groups/${groupId}/members`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(toAdd),
+      })
+    );
+  }
+  for (const profileId of toRemove) {
+    requests.push(authFetch(`/api/users/groups/${groupId}/members/${profileId}`, { method: 'DELETE' }));
+  }
+
+  const responses = await Promise.all(requests);
+  const allOk = responses.every(res => res.ok);
+  if (allOk) {
+    const idx = allGroups.findIndex(g => g.id === groupId);
+    if (idx !== -1) allGroups[idx].member_count = selectedIds.size;
+    closeModal('membersModal');
+    renderTable();
+  } else {
+    alert(t('groups.error.save'));
+  }
+});
+
+function openDeleteModal(id) {
+  const group = allGroups.find(g => g.id === id);
+  const name = group?.name || '';
+  document.getElementById('d_group_id').value = id;
+  document.getElementById('d_group_name').textContent = `"${name}"`;
+  document.getElementById('deleteError').style.display = 'none';
+  document.getElementById('deleteModal').classList.add('show');
+}
+
+document.getElementById('deleteForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const id = document.getElementById('d_group_id').value;
+  const r = await authFetch(`/api/users/groups/${id}`, {method: 'DELETE'});
+  if (r.ok) {
+    allGroups = allGroups.filter(g => g.id !== id);
+    closeModal('deleteModal');
+    renderTable();
+  } else {
+    const errEl = document.getElementById('deleteError');
+    errEl.textContent = t('groups.error.delete');
+    errEl.style.display = 'block';
+  }
+});
+
+document.addEventListener('langchange', renderTable);
+
+loadData();
+</script>
+{% endblock %}

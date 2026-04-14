@@ -8,7 +8,7 @@ import os
 import tempfile
 from pathlib import Path
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse
@@ -20,11 +20,15 @@ from agente_rolplay.config import ADMIN_EMAIL, ADMIN_PASSWORD
 from agente_rolplay.db.auth import get_password_hash
 from agente_rolplay.db.database import get_db
 from agente_rolplay.db.models import (
+    BroadcastSchedule,
     CoachingScenario,
     CoachingScenarioReferenceFile,
     CoachingSession,
     Document,
+    Group,
+    GroupMember,
     MessageLog,
+    MessageTemplate,
     Organization,
     Profile,
     Role,
@@ -44,6 +48,7 @@ MAX_SCENARIO_REFERENCE_CHARS = 50000
 
 MENU_OPTIONS_KEY = "admin:menu_options"
 _ALL_MENU_OPTIONS = {"1", "2", "3", "4"}
+
 
 def _get_redis():
     return _redis_lib.Redis(**redis_connection_kwargs())
@@ -525,7 +530,12 @@ def get_menu_options(request: Request):
             loaded = _json.loads(raw)
             if isinstance(loaded, dict):
                 state = {k: bool(loaded.get(k, True)) for k in _ALL_MENU_OPTIONS}
-    except (_redis_lib.exceptions.RedisError, _json.JSONDecodeError, TypeError, ValueError) as e:
+    except (
+        _redis_lib.exceptions.RedisError,
+        _json.JSONDecodeError,
+        TypeError,
+        ValueError,
+    ) as e:
         print(f"get_menu_options redis fallback: {e}")
     return state
 
@@ -827,3 +837,136 @@ def delete_scenario_reference_file(
     db.delete(ref_file)
     db.commit()
     return {"deleted": file_id}
+
+
+import re
+
+
+def _extract_template_variables(content: str) -> list[str]:
+    """Extract {{1}}, {{2}}, etc. from template content."""
+    matches = re.findall(r"\{\{(\d+)\}\}", content)
+    return sorted(set(matches), key=lambda x: int(x))
+
+
+# ── Message Templates (superadmin) ───────────────────────────────────────────
+
+
+class CreateTemplateRequest(BaseModel):
+    name: str
+    content: str
+    org_id: Optional[str] = None
+
+
+@router.get("/templates")
+def list_templates(request: Request, db: Session = Depends(get_db)):
+    require_admin(request)
+    templates = (
+        db.query(MessageTemplate).order_by(MessageTemplate.created_at.desc()).all()
+    )
+    result = []
+    for t in templates:
+        org = (
+            db.query(Organization).filter(Organization.id == t.org_id).first()
+            if t.org_id
+            else None
+        )
+        result.append(
+            {
+                "id": str(t.id),
+                "name": t.name,
+                "content": t.content,
+                "variables": t.variables or [],
+                "is_active": t.is_active,
+                "org_id": str(t.org_id) if t.org_id else None,
+                "org_name": org.name if org else None,
+                "created_at": t.created_at.isoformat() if t.created_at else None,
+            }
+        )
+    return result
+
+
+@router.post("/templates")
+def create_template(
+    body: CreateTemplateRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    require_admin(request)
+
+    if not body.name:
+        raise HTTPException(status_code=400, detail="name is required")
+    if not body.content:
+        raise HTTPException(status_code=400, detail="content is required")
+
+    variables = _extract_template_variables(body.content)
+    template = MessageTemplate(
+        name=body.name,
+        content=body.content,
+        variables=variables,
+        org_id=body.org_id,
+    )
+    db.add(template)
+    db.commit()
+    db.refresh(template)
+    return {
+        "id": str(template.id),
+        "name": template.name,
+        "content": template.content,
+        "variables": template.variables or [],
+        "is_active": template.is_active,
+        "org_id": str(template.org_id) if template.org_id else None,
+        "created_at": template.created_at.isoformat() if template.created_at else None,
+    }
+
+
+@router.patch("/templates/{template_id}")
+async def update_template(
+    template_id: str,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    require_admin(request)
+    body = await request.json()
+
+    template = (
+        db.query(MessageTemplate).filter(MessageTemplate.id == template_id).first()
+    )
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+
+    if "name" in body:
+        template.name = body["name"]
+    if "content" in body:
+        template.content = body["content"]
+        template.variables = _extract_template_variables(body["content"])
+    if "is_active" in body:
+        template.is_active = body["is_active"]
+
+    db.commit()
+    db.refresh(template)
+    return {
+        "id": str(template.id),
+        "name": template.name,
+        "content": template.content,
+        "variables": template.variables or [],
+        "is_active": template.is_active,
+    }
+
+
+@router.delete("/templates/{template_id}")
+def delete_template(
+    template_id: str,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    require_admin(request)
+
+    template = (
+        db.query(MessageTemplate).filter(MessageTemplate.id == template_id).first()
+    )
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+
+    db.delete(template)
+    db.commit()
+    return {"deleted": template_id}

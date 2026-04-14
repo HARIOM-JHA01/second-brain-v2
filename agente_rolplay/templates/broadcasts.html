@@ -1,0 +1,444 @@
+{% extends "dashboard.html" %}
+{% block title %}Broadcast — Second Brain{% endblock %}
+
+{% block dashboard_content %}
+<style>
+  .broadcast-table {
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+  .broadcast-table thead th {
+    font-size: .76rem;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .broadcast-table tbody tr {
+    transition: background .18s ease;
+  }
+  .broadcast-table tbody tr:hover {
+    background: var(--surface-hover);
+  }
+  .count-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.65rem;
+    height: 1.35rem;
+    padding: 0 .4rem;
+    border-radius: 999px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: .75rem;
+    font-weight: 700;
+  }
+  .template-cell {
+    font-weight: 700;
+    color: var(--text);
+  }
+  .group-cell {
+    color: var(--text-dim);
+    font-weight: 500;
+  }
+  .date-cell {
+    color: var(--text-muted);
+    font-size: .84rem;
+  }
+  .sent-pill {
+    display: inline-flex;
+    min-width: 3.4rem;
+    justify-content: center;
+    align-items: center;
+    padding: .2rem .52rem;
+    border-radius: 999px;
+    background: rgba(59,130,246,.12);
+    border: 1px solid rgba(59,130,246,.22);
+    color: #60a5fa;
+    font-size: .78rem;
+    font-weight: 700;
+  }
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    border-radius: 999px;
+    font-size: .76rem;
+    font-weight: 700;
+    padding: .24rem .55rem;
+    border: 1px solid transparent;
+  }
+  .status-pill::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  .status-pending {
+    background: rgba(251,191,36,.14);
+    color: #f59e0b;
+    border-color: rgba(251,191,36,.24);
+  }
+  .status-pending::before { background: #f59e0b; }
+  .status-completed {
+    background: rgba(52,211,153,.12);
+    color: #34d399;
+    border-color: rgba(52,211,153,.24);
+  }
+  .status-completed::before { background: #34d399; }
+  .status-failed {
+    background: rgba(248,113,113,.12);
+    color: #f87171;
+    border-color: rgba(248,113,113,.24);
+  }
+  .status-failed::before { background: #f87171; }
+  .status-default {
+    background: rgba(148,163,184,.12);
+    color: #94a3b8;
+    border-color: rgba(148,163,184,.24);
+  }
+  .status-default::before { background: #94a3b8; }
+  .broadcast-actions {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    flex-wrap: wrap;
+  }
+  .preview-box {
+    padding: .85rem;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    margin-top: .35rem;
+  }
+  .preview-box pre {
+    margin: .45rem 0 0;
+    white-space: pre-wrap;
+    line-height: 1.4;
+    color: var(--text-dim);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: .77rem;
+  }
+  .auto-var-note {
+    margin: .2rem 0 .75rem;
+    padding: .65rem .8rem;
+    border-radius: 10px;
+    border: 1px solid rgba(96,165,250,.26);
+    background: rgba(96,165,250,.08);
+    color: #93c5fd;
+    font-size: .8rem;
+    line-height: 1.35;
+  }
+</style>
+
+<div class="page-header">
+  <div>
+    <h1 data-i18n="broadcasts.title">Broadcast</h1>
+    <div class="page-header-sub" data-i18n="broadcasts.subtitle">Schedule WhatsApp messages to your team</div>
+  </div>
+  <button class="btn btn-primary" onclick="openCreateModal()" data-i18n="broadcasts.btn.new">+ New Broadcast</button>
+</div>
+
+<div class="section-card">
+  <div class="section-card-header">
+    <div class="section-card-title">
+      <span data-i18n="broadcasts.all">Scheduled broadcasts</span>
+      <span class="count-chip" id="broadcastCount" style="margin-left:.5rem;">—</span>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table class="broadcast-table">
+      <thead>
+        <tr>
+          <th data-i18n="broadcasts.col.template">Template</th>
+          <th data-i18n="broadcasts.col.group">Team</th>
+          <th data-i18n="broadcasts.col.scheduled">Scheduled</th>
+          <th data-i18n="broadcasts.col.status">Status</th>
+          <th data-i18n="broadcasts.col.sent">Sent</th>
+          <th data-i18n="broadcasts.col.actions">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="broadcastsTable">
+        <tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted);" data-i18n="common.loading">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div id="createModal" class="modal">
+  <div class="modal-content" style="max-width:640px;">
+    <div class="modal-header">
+      <h2 data-i18n="broadcasts.modal.create.title">New Broadcast</h2>
+      <button class="modal-close" onclick="closeModal('createModal')">&times;</button>
+    </div>
+    <form id="createForm">
+      <div class="form-group">
+        <label data-i18n="broadcasts.modal.template">Template *</label>
+        <select id="c_template" required onchange="onTemplateChange()">
+          <option value="" data-i18n="broadcasts.modal.template.ph">Select template…</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label data-i18n="broadcasts.modal.group">Team *</label>
+        <select id="c_group" required>
+          <option value="" data-i18n="broadcasts.modal.group.ph">Select team…</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label data-i18n="broadcasts.modal.datetime">Date & time *</label>
+        <input type="datetime-local" id="c_scheduled_at" required />
+      </div>
+      <div id="variableFields"></div>
+      <div id="templatePreview" class="preview-box" style="display:none;"></div>
+      <div class="alert-error" id="createError"></div>
+      <div style="display:flex;gap:.75rem;margin-top:1.2rem;">
+        <button type="button" class="btn btn-secondary" style="flex:1;" onclick="closeModal('createModal')" data-i18n="common.cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary" style="flex:1;" data-i18n="broadcasts.modal.create.btn">Schedule</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+let allBroadcasts = [];
+let allTemplates = [];
+let allGroups = [];
+let loading = true;
+
+const token = () => localStorage.getItem('access_token');
+const authFetch = (url, opts = {}) => fetch(url, {
+  ...opts, headers: { Authorization: 'Bearer ' + token(), ...(opts.headers || {}) }
+});
+
+function escHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const locale = getLang() === 'es' ? 'es-ES' : 'en-US';
+  return new Date(iso).toLocaleString(locale, {
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function statusClass(status) {
+  if (status === 'pending') return 'status-pending';
+  if (status === 'completed') return 'status-completed';
+  if (status === 'failed') return 'status-failed';
+  return 'status-default';
+}
+
+function statusLabel(status) {
+  if (status === 'pending') return t('broadcasts.status.pending');
+  if (status === 'completed') return t('broadcasts.status.completed');
+  if (status === 'failed') return t('broadcasts.status.failed');
+  return status || '—';
+}
+
+async function loadData() {
+  loading = true;
+  renderLoading();
+  const [broadcastsRes, templatesRes, groupsRes] = await Promise.all([
+    authFetch('/api/users/broadcasts'),
+    authFetch('/api/users/templates'),
+    authFetch('/api/users/groups'),
+  ]);
+  if (broadcastsRes.status === 401 || templatesRes.status === 401 || groupsRes.status === 401) {
+    window.location.href = '/login';
+    return;
+  }
+  loading = false;
+  allBroadcasts = broadcastsRes.ok ? await broadcastsRes.json() : [];
+  allTemplates = templatesRes.ok ? await templatesRes.json() : [];
+  allGroups = groupsRes.ok ? await groupsRes.json() : [];
+  populateDropdowns();
+  renderTable();
+}
+
+function renderLoading() {
+  document.getElementById('broadcastCount').textContent = '—';
+  document.getElementById('broadcastsTable').innerHTML = `
+    <tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted);">${t('common.loading')}</td></tr>
+  `;
+}
+
+function populateDropdowns() {
+  const templateSel = document.getElementById('c_template');
+  templateSel.innerHTML = `<option value="">${t('broadcasts.modal.template.ph')}</option>`;
+  allTemplates.forEach((tmpl) => {
+    const opt = document.createElement('option');
+    opt.value = tmpl.id;
+    opt.textContent = tmpl.name;
+    templateSel.appendChild(opt);
+  });
+
+  const groupSel = document.getElementById('c_group');
+  groupSel.innerHTML = `<option value="">${t('broadcasts.modal.group.ph')}</option>`;
+  allGroups.forEach((grp) => {
+    const opt = document.createElement('option');
+    opt.value = grp.id;
+    opt.textContent = `${grp.name} (${grp.member_count || 0})`;
+    groupSel.appendChild(opt);
+  });
+}
+
+function onTemplateChange() {
+  const templateId = document.getElementById('c_template').value;
+  const template = allTemplates.find((tmpl) => tmpl.id === templateId);
+  const varsDiv = document.getElementById('variableFields');
+  const previewDiv = document.getElementById('templatePreview');
+
+  if (!template || !template.variables || template.variables.length === 0) {
+    varsDiv.innerHTML = '';
+    previewDiv.style.display = 'none';
+    return;
+  }
+
+  const vars = template.variables.filter((v) => v !== '1');
+  const hasAutoName = template.variables.includes('1');
+  const noteHtml = hasAutoName
+    ? `<div class="auto-var-note">${t('broadcasts.modal.var1.auto')}</div>`
+    : '';
+  varsDiv.innerHTML = noteHtml + vars.map((v) => {
+    const varTag = '{' + '{' + v + '}' + '}';
+    return `
+      <div class="form-group">
+        <label>${t('broadcasts.modal.var.label')} ${varTag}</label>
+        <input type="text" id="var_${v}" placeholder="${t('broadcasts.modal.var.ph')} ${varTag}" />
+      </div>
+    `;
+  }).join('');
+
+  previewDiv.innerHTML = `<strong>${t('broadcasts.modal.preview')}</strong><pre>${escHtml(template.content || '')}</pre>`;
+  previewDiv.style.display = 'block';
+}
+
+function renderTable() {
+  document.getElementById('broadcastCount').textContent = allBroadcasts.length;
+  const tbody = document.getElementById('broadcastsTable');
+  if (!allBroadcasts.length) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2.2rem;color:var(--text-muted);">${t('broadcasts.empty')}</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = allBroadcasts.map((b) => {
+    const total = (b.sent_count || 0) + (b.failed_count || 0);
+    return `
+      <tr>
+        <td><span class="template-cell">${escHtml(b.template_name || '—')}</span></td>
+        <td><span class="group-cell">${escHtml(b.group_name || '—')}</span></td>
+        <td><span class="date-cell">${fmtDate(b.scheduled_at)}</span></td>
+        <td><span class="status-pill ${statusClass(b.status)}">${statusLabel(b.status)}</span></td>
+        <td><span class="sent-pill">${b.sent_count || 0}/${total}</span></td>
+        <td>
+          <div class="broadcast-actions">
+            ${b.status === 'pending'
+              ? `<button class="btn btn-danger btn-sm" onclick="cancelBroadcast('${b.id}')">${t('broadcasts.btn.cancel')}</button>`
+              : '<span style="color:var(--text-muted);">—</span>'}
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function openCreateModal() {
+  document.getElementById('createForm').reset();
+  const errEl = document.getElementById('createError');
+  errEl.style.display = 'none';
+  errEl.textContent = '';
+  document.getElementById('variableFields').innerHTML = '';
+  document.getElementById('templatePreview').style.display = 'none';
+
+  const now = new Date();
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  const nowIso = now.toISOString().slice(0, 16);
+  document.getElementById('c_scheduled_at').value = nowIso;
+  document.getElementById('c_scheduled_at').min = nowIso;
+
+  document.getElementById('createModal').classList.add('show');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('show');
+}
+
+document.getElementById('createModal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeModal('createModal');
+});
+
+document.getElementById('createForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const errEl = document.getElementById('createError');
+  errEl.style.display = 'none';
+  errEl.textContent = '';
+
+  const template_id = document.getElementById('c_template').value;
+  const group_id = document.getElementById('c_group').value;
+  const scheduled_at = document.getElementById('c_scheduled_at').value;
+
+  if (!template_id || !group_id || !scheduled_at) {
+    errEl.textContent = t('broadcasts.error.required');
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const variable_values = {};
+  const template = allTemplates.find((tmpl) => tmpl.id === template_id);
+  if (template && template.variables) {
+    template.variables.forEach((v) => {
+      const el = document.getElementById(`var_${v}`);
+      if (el && el.value) variable_values[v] = el.value;
+    });
+  }
+
+  const body = {
+    template_id,
+    group_id,
+    scheduled_at: new Date(scheduled_at).toISOString(),
+    variable_values,
+  };
+
+  const res = await authFetch('/api/users/broadcasts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  if (res.ok) {
+    const created = await res.json();
+    allBroadcasts.unshift(created);
+    closeModal('createModal');
+    renderTable();
+  } else {
+    const data = await res.json().catch(() => ({}));
+    errEl.textContent = data.detail || t('broadcasts.error.create');
+    errEl.style.display = 'block';
+  }
+});
+
+async function cancelBroadcast(id) {
+  if (!confirm(t('broadcasts.confirm.cancel'))) return;
+  const res = await authFetch(`/api/users/broadcasts/${id}`, { method: 'DELETE' });
+  if (res.ok) {
+    allBroadcasts = allBroadcasts.filter((b) => b.id !== id);
+    renderTable();
+  } else {
+    alert(t('broadcasts.error.cancel'));
+  }
+}
+
+document.addEventListener('langchange', () => {
+  populateDropdowns();
+  renderTable();
+});
+
+loadData();
+</script>
+{% endblock %}

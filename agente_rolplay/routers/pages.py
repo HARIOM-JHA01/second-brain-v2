@@ -88,12 +88,16 @@ def home():
 
 @router.get("/login", tags=["pages"])
 def login_page(request: Request):
-    return templates.TemplateResponse("auth.html", {"request": request, "initial_mode": "login"})
+    return templates.TemplateResponse(
+        "auth.html", {"request": request, "initial_mode": "login"}
+    )
 
 
 @router.get("/signup", tags=["pages"])
 def signup_page(request: Request):
-    return templates.TemplateResponse("auth.html", {"request": request, "initial_mode": "signup"})
+    return templates.TemplateResponse(
+        "auth.html", {"request": request, "initial_mode": "signup"}
+    )
 
 
 def _require_auth(request: Request):
@@ -145,6 +149,7 @@ def settings_page(request: Request):
 
 
 # ── Admin pages ───────────────────────────────────────────────────────────────
+
 
 def _require_admin(request: Request):
     if not request.session.get("is_admin"):
@@ -205,3 +210,27 @@ def admin_settings_page(request: Request):
     if redirect:
         return redirect
     return templates.TemplateResponse("admin_settings.html", {"request": request})
+
+
+@router.get("/admin/templates", tags=["admin"])
+def admin_templates_page(request: Request):
+    redirect = _require_admin(request)
+    if redirect:
+        return redirect
+    return templates.TemplateResponse("admin_templates.html", {"request": request})
+
+
+@router.get("/dashboard/groups", tags=["pages"])
+def groups_page(request: Request):
+    redirect = _require_auth(request)
+    if redirect:
+        return redirect
+    return templates.TemplateResponse("groups.html", {"request": request})
+
+
+@router.get("/dashboard/broadcasts", tags=["pages"])
+def broadcasts_page(request: Request):
+    redirect = _require_auth(request)
+    if redirect:
+        return redirect
+    return templates.TemplateResponse("broadcasts.html", {"request": request})
