@@ -112,6 +112,7 @@ _DEFAULT_AI_CONFIG = {"provider": "anthropic", "model": "claude-sonnet-4-6"}
 def _get_ai_config(redis_client) -> dict:
     """Return {'provider': str, 'model': str} from Redis. Falls back to Anthropic defaults."""
     import json as _json
+
     try:
         raw = redis_client.get(_AI_CONFIG_KEY)
         if raw:
@@ -127,6 +128,7 @@ def _get_enabled_menu_options(redis_client) -> set:
     """Return the set of enabled menu option keys e.g. {'1','2','3','4'}.
     Defaults to all enabled when the key is absent."""
     import json as _json
+
     raw = redis_client.get(MENU_OPTIONS_KEY)
     if not raw:
         return {"1", "2", "3", "4"}
@@ -157,7 +159,9 @@ def _compose_coaching_prompt(scenario, db) -> str:
                 "</session_data>"
             )
         else:
-            print(f"usecase_api: no context for id={scenario.usecase_api_id}, using base prompt")
+            print(
+                f"usecase_api: no context for id={scenario.usecase_api_id}, using base prompt"
+            )
             return system_prompt
 
     # Standard scenario: reference files uploaded by admin
@@ -632,13 +636,13 @@ def _start_coaching_scenario_selection(
             lines.append(line)
         lines.append("\nReply with the number of the scenario.")
     else:
-        lines = ["Elige un escenario de coaching:\n"]
+        lines = ["Elige donde requieres asistencia:\n"]
         for i, s in enumerate(scenario_list, 1):
             line = f"{i}. *{s['name']}*"
             if s["description"]:
                 line += f" — {s['description']}"
             lines.append(line)
-        lines.append("\nResponde con el número del escenario.")
+        lines.append("\nResponde con el número deseado.")
 
     send_twilio_message(from_number, "\n".join(lines))
     redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
@@ -757,9 +761,9 @@ def _handle_scenario_selection(
         )
     else:
         msg = (
-            f"🎯 *¡Sesión de coaching iniciada!*\n\n"
+            f"🎯 *¡Sesión con asistente iniciada!*\n\n"
             f"Escenario: *{chosen['name']}*\n\n"
-            f"El coach comenzará ahora.\n\n"
+            f"El asistente comenzará ahora.\n\n"
             f"_Para terminar la sesión escribe 'salir'. Para obtener tu reporte escribe 'reporte'._"
         )
     send_twilio_message(from_number, msg)
@@ -1152,7 +1156,12 @@ def process_incoming_messages_functional(form_data, redis_client=r):
                 redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
                 return "Success"
             elif selection_f != "1":
-                send_twilio_message(from_number, get_menu_message(current_lang, _get_enabled_menu_options(redis_client)))
+                send_twilio_message(
+                    from_number,
+                    get_menu_message(
+                        current_lang, _get_enabled_menu_options(redis_client)
+                    ),
+                )
                 redis_client.set(
                     f"coaching:menu_pending:{phone_number}", "1", ex=COACHING_MENU_TTL
                 )
@@ -1396,12 +1405,16 @@ def process_incoming_messages_functional(form_data, redis_client=r):
             add_to_chat_history(
                 chat_history_id, f"[Sent image: {filename}]", "user", phone_number
             )
-            log_whatsapp_message_to_db(phone_number, "user", f"[Sent image: {filename}]", "image")
+            log_whatsapp_message_to_db(
+                phone_number, "user", f"[Sent image: {filename}]", "image"
+            )
             bot_history_msg = f"Image '{filename}' saved to Data Store."
             add_to_chat_history(
                 chat_history_id, bot_history_msg, "assistant", phone_number
             )
-            log_whatsapp_message_to_db(phone_number, "assistant", bot_history_msg, "image")
+            log_whatsapp_message_to_db(
+                phone_number, "assistant", bot_history_msg, "image"
+            )
         else:
             error_message = result.get("error", "Unknown") if result else "Unknown"
             send_twilio_message(from_number, f"Error uploading image: {error_message}")
@@ -1707,8 +1720,14 @@ def process_incoming_messages(form_data, redis_client=r):
                         _only = next(iter(_enabled_opts))
                         redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
                         if _only == "2":
-                            redis_client.set(f"file_upload_pending:{phone_number}", "pending", ex=DEDUP_KEY_TTL)
-                            send_twilio_message(from_number, get_file_upload_message(current_lang))
+                            redis_client.set(
+                                f"file_upload_pending:{phone_number}",
+                                "pending",
+                                ex=DEDUP_KEY_TTL,
+                            )
+                            send_twilio_message(
+                                from_number, get_file_upload_message(current_lang)
+                            )
                             return "Success"
                         elif _only == "3":
                             _clear_coaching_state(phone_number, redis_client)
@@ -1721,7 +1740,9 @@ def process_incoming_messages(form_data, redis_client=r):
                                 lang=current_lang,
                             )
                         elif _only == "4":
-                            send_twilio_message(from_number, get_beta_support_message(current_lang))
+                            send_twilio_message(
+                                from_number, get_beta_support_message(current_lang)
+                            )
                             return "Success"
                         # _only == "1": fall through to normal agent below
 
@@ -1871,7 +1892,12 @@ def process_incoming_messages(form_data, redis_client=r):
                 return "Success"
             else:
                 # Invalid reply — resend menu
-                send_twilio_message(from_number, get_menu_message(current_lang, _get_enabled_menu_options(redis_client)))
+                send_twilio_message(
+                    from_number,
+                    get_menu_message(
+                        current_lang, _get_enabled_menu_options(redis_client)
+                    ),
+                )
                 redis_client.set(
                     f"coaching:menu_pending:{phone_number}", "1", ex=COACHING_MENU_TTL
                 )
@@ -2179,12 +2205,16 @@ def process_incoming_messages(form_data, redis_client=r):
             add_to_chat_history(
                 chat_history_id, f"[Sent image: {filename}]", "user", phone_number
             )
-            log_whatsapp_message_to_db(phone_number, "user", f"[Sent image: {filename}]", "image")
+            log_whatsapp_message_to_db(
+                phone_number, "user", f"[Sent image: {filename}]", "image"
+            )
             bot_history_msg = f"Image '{filename}' saved to Data Store."
             add_to_chat_history(
                 chat_history_id, bot_history_msg, "assistant", phone_number
             )
-            log_whatsapp_message_to_db(phone_number, "assistant", bot_history_msg, "image")
+            log_whatsapp_message_to_db(
+                phone_number, "assistant", bot_history_msg, "image"
+            )
         else:
             error_message = result.get("error", "Unknown") if result else "Unknown"
             send_twilio_message(from_number, f"Error uploading image: {error_message}")
