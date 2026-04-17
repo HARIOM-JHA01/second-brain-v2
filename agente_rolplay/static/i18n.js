@@ -510,28 +510,28 @@
       "lp.sec.4.desc":
         "Los usuarios se reconocen mediante su identidad verificada en WhatsApp, reduciendo fricción y manteniendo el acceso vinculado a la persona correcta.",
       "lp.nav.privacy": "Seguridad y privacidad",
-      "lp.priv.label": "Privacidad de datos",
-      "lp.priv.title": "Privacidad por defecto.",
+      "lp.priv.label": "Seguridad y Privacidad",
+      "lp.priv.title": "Privacidad integrada en la experiencia.",
       "lp.priv.sub":
-        "Cada decisión técnica fue tomada pensando en la seguridad de tus datos. Sin sorpresas, sin compromisos.",
-      "lp.priv.1.title": "Conversaciones que expiran en 10 minutos",
+        "Second Brain está diseñado para limitar la retención innecesaria, restringir el acceso a usuarios autorizados y proteger la información sensible durante cualquier interacción.",
+      "lp.priv.1.title": "Conversaciones de corta duración",
       "lp.priv.1.desc":
-        "Las sesiones de chat se eliminan automáticamente tras 10 minutos de inactividad. Nunca acumulamos historial de conversaciones de tu equipo.",
-      "lp.priv.2.title": "Máximo 12 mensajes en memoria",
+        "Las sesiones de chat expiran tras un periodo breve de inactividad, lo que ayuda a reducir la retención innecesaria del contexto conversacional.",
+      "lp.priv.2.title": "Memoria de sesión limitada",
       "lp.priv.2.desc":
-        "El historial tiene un límite estricto de 12 intercambios por sesión. Nunca construimos perfiles de conversación a largo plazo de tus empleados.",
-      "lp.priv.3.title": "Sin almacenamiento de mensajes en bruto",
+        "La memoria conversacional se mantiene intencionalmente limitada por sesión para apoyar la interacción sin construir perfiles de conversación a largo plazo.",
+      "lp.priv.3.title": "Sin historial bruto de chat a largo plazo",
       "lp.priv.3.desc":
-        "Solo se conservan los documentos de tu base de conocimiento, accesibles únicamente por usuarios registrados de tu organización. Los archivos están cifrados de extremo a extremo — ni siquiera Rolplay puede acceder a su contenido.",
+        "Second Brain está diseñado para evitar conservar historiales brutos de mensajes como registro permanente de las conversaciones de los empleados.",
       "lp.priv.4.title": "Control de permisos por consulta",
       "lp.priv.4.desc":
-        "Cada mensaje es clasificado por IA antes de acceder a cualquier documento. Los datos financieros, estratégicos y sensibles solo fluyen hacia roles autorizados.",
+        "Cada mensaje se evalúa antes de acceder a cualquier documento, para que el contenido sensible solo esté disponible para los roles autorizados.",
       "lp.priv.5.title": "Identidad verificada por WhatsApp",
       "lp.priv.5.desc":
-        "Los usuarios son identificados por su número de WhatsApp verificado — sin contraseñas, sin cuentas que gestionar para los usuarios finales.",
-      "lp.priv.6.title": "Infraestructura de grado empresarial",
+        "El acceso del usuario se vincula a la identidad verificada de WhatsApp usada en la interacción, con menor fricción para el usuario final.",
+      "lp.priv.6.title": "Infraestructura preparada para entornos empresariales",
       "lp.priv.6.desc":
-        "Toda la infraestructura que sustenta Second Brain cumple con SOC 2 y está diseñada para entornos empresariales, con cifrado en reposo y en tránsito.",
+        "La plataforma está diseñada para entornos empresariales, con controles de seguridad para proteger la información en almacenamiento y en tránsito.",
       "lp.priv.trust.label":
         "Construido sobre infraestructura empresarial conforme con SOC 2",
       "lp.priv.trust.1": "Cifrado de extremo a extremo",
@@ -540,7 +540,7 @@
       "lp.priv.trust.4": "Acceso basado en roles",
       "lp.priv.trust.5": "Identidad verificada por WhatsApp",
       "lp.priv.quote":
-        '"Tus conversaciones son efímeras — los mensajes expiran en 10 minutos y el historial está limitado a 12 intercambios. Los documentos que subes están cifrados de extremo a extremo y solo son accesibles para los usuarios registrados de tu organización. Ni siquiera Rolplay puede leer su contenido."',
+        "Las conversaciones son intencionalmente de corta duración, el acceso se verifica antes de cada búsqueda y el conocimiento organizacional permanece restringido a los usuarios autorizados.",
       "lp.cta.h2":
         '¿Listo para darle a tu equipo un <span class="grad-text">segundo cerebro?</span>',
       "lp.cta.p":
@@ -1224,28 +1224,28 @@
       "lp.sec.4.desc":
         "Users are recognized through their verified WhatsApp identity, reducing friction while keeping access tied to the right person.",
       "lp.nav.privacy": "Security & Privacy",
-      "lp.priv.label": "Data Privacy",
-      "lp.priv.title": "Built with privacy by default.",
+      "lp.priv.label": "Security & Privacy",
+      "lp.priv.title": "Privacy built into the experience.",
       "lp.priv.sub":
-        "Every technical decision was made with your data's safety in mind. No surprises, no trade-offs.",
-      "lp.priv.1.title": "Conversations expire in 10 minutes",
+        "Second Brain is designed to limit unnecessary retention, restrict access to authorized users, and keep sensitive knowledge protected throughout the interaction.",
+      "lp.priv.1.title": "Short-Lived Conversations",
       "lp.priv.1.desc":
-        "Chat sessions automatically delete after 10 minutes of inactivity. We never accumulate conversation history on your team.",
-      "lp.priv.2.title": "Max 12 messages in memory",
+        "Chat sessions expire after a short period of inactivity, helping reduce unnecessary retention of conversational context.",
+      "lp.priv.2.title": "Limited Session Memory",
       "lp.priv.2.desc":
-        "History is hard-capped at 12 exchanges per session. Long-term conversation profiles of your employees are never built.",
-      "lp.priv.3.title": "No raw conversation storage",
+        "Conversation memory is intentionally limited per session to support the interaction without building long-term employee conversation profiles.",
+      "lp.priv.3.title": "No Long-Term Raw Chat History",
       "lp.priv.3.desc":
-        "Only your uploaded knowledge base documents are retained, accessible exclusively by registered users in your organization. All files are end-to-end encrypted — even Rolplay cannot access their contents.",
-      "lp.priv.4.title": "Query-level permission gating",
+        "Second Brain is designed to avoid keeping long-term raw message histories as a permanent record of employee conversations.",
+      "lp.priv.4.title": "Per-Request Permission Control",
       "lp.priv.4.desc":
-        "Every message is classified by AI before touching any document. Financial, strategic, and sensitive data only flows to authorized roles.",
-      "lp.priv.5.title": "WhatsApp-verified identity",
+        "Each message is evaluated before any document is accessed, so sensitive content is only available to authorized roles.",
+      "lp.priv.5.title": "Verified WhatsApp Identity",
       "lp.priv.5.desc":
-        "Users are matched by their verified WhatsApp number — no passwords, no accounts, no credentials for end users to manage.",
-      "lp.priv.6.title": "Enterprise-grade infrastructure",
+        "User access is tied to the verified WhatsApp identity used in the interaction, with less friction for end users.",
+      "lp.priv.6.title": "Enterprise-Ready Infrastructure",
       "lp.priv.6.desc":
-        "All infrastructure powering Second Brain is built to enterprise-grade security standards, with encryption at rest and in transit.",
+        "The platform is designed for enterprise environments, with security controls for protecting data in storage and in transit.",
       "lp.priv.trust.label":
         "Built on enterprise-grade, SOC 2 compliant infrastructure",
       "lp.priv.trust.1": "End-to-end encryption",
@@ -1254,7 +1254,7 @@
       "lp.priv.trust.4": "Role-based access",
       "lp.priv.trust.5": "WhatsApp-verified identity",
       "lp.priv.quote":
-        '"Your conversations are ephemeral — messages expire in 10 minutes and history is capped at 12 exchanges. The documents you upload are end-to-end encrypted and accessible only to registered users in your organization. Not even Rolplay can read their contents."',
+        "Conversations are intentionally short-lived, access is checked before retrieval, and organizational knowledge remains restricted to authorized users.",
       "lp.cta.h2":
         'Ready to give your team a <span class="grad-text">second brain?</span>',
       "lp.cta.p":
