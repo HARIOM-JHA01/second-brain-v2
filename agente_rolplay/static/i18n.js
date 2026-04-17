@@ -415,21 +415,21 @@
       "lp.feat.9.desc":
         "Sin tiempos de espera, sin citas. Tu equipo obtiene respuestas de inmediato, 24/7, desde cualquier dispositivo con WhatsApp.",
       "lp.how.label": "Cómo funciona",
-      "lp.how.title": "Listo en minutos.",
+      "lp.how.title": "Pon a tu equipo en marcha en unos pocos pasos.",
       "lp.how.sub":
-        "Sin integraciones, sin entrenamiento. Solo WhatsApp y tus documentos.",
-      "lp.how.1.title": "Crea tu cuenta",
+        "Configura tu espacio, carga tu base de conocimiento, gestiona accesos y empieza a responder preguntas por WhatsApp.",
+      "lp.how.1.title": "Crea tu espacio de trabajo",
       "lp.how.1.desc":
-        "Regístrate con tu correo, configura tu organización y agrega tu número de WhatsApp a tu perfil.",
+        "Regístrate con tu correo, configura tu organización y agrega el número de WhatsApp que usará tu equipo.",
       "lp.how.2.title": "Sube tus documentos",
       "lp.how.2.desc":
-        "Envía archivos directamente al número de WhatsApp o sube en masa desde el panel. PDFs, documentos Word, hojas de cálculo — todos soportados.",
+        "Agrega PDFs, archivos de Word, PowerPoints, hojas de cálculo y otros materiales clave para construir la base de conocimiento de tu empresa.",
       "lp.how.3.title": "Invita a tu equipo",
       "lp.how.3.desc":
-        "Agrega miembros por número de teléfono y asigna roles. Controla quién puede acceder a consultas financieras, estratégicas o sensibles.",
-      "lp.how.4.title": "Pregunta lo que quieras",
+        "Agrega miembros, asigna roles y controla quién puede acceder a cada tipo de información.",
+      "lp.how.4.title": "Empieza a hacer preguntas",
       "lp.how.4.desc":
-        "Tu equipo simplemente escribe al número en lenguaje natural — en inglés o español — y obtiene respuestas precisas y citadas al instante.",
+        "Tu equipo puede preguntar en lenguaje natural por WhatsApp y recibir respuestas rápidas, claras y sustentadas en tus documentos.",
       "lp.flow.label": "Arquitectura",
       "lp.flow.title": "Un paso por mensaje.",
       "lp.flow.sub":
@@ -1130,21 +1130,21 @@
       "lp.feat.9.desc":
         "No wait times, no scheduling. Your team gets answers immediately, 24/7, from any device they have WhatsApp on.",
       "lp.how.label": "How it works",
-      "lp.how.title": "Up and running in minutes.",
+      "lp.how.title": "Get your team up and running in a few steps.",
       "lp.how.sub":
-        "No integrations, no training. Just WhatsApp and your documents.",
-      "lp.how.1.title": "Create your account",
+        "Set up your workspace, upload your knowledge base, manage access, and start answering questions through WhatsApp.",
+      "lp.how.1.title": "Create your workspace",
       "lp.how.1.desc":
-        "Sign up with your email, set up your organization, and add your WhatsApp number to your profile.",
+        "Sign up with your email, set up your organization, and connect the WhatsApp number your team will use.",
       "lp.how.2.title": "Upload your documents",
       "lp.how.2.desc":
-        "Send files directly to the WhatsApp number or bulk-upload via the dashboard. PDFs, Word docs, spreadsheets — all supported.",
+        "Add PDFs, Word files, PowerPoints, spreadsheets, and other key materials to build your company knowledge base.",
       "lp.how.3.title": "Invite your team",
       "lp.how.3.desc":
-        "Add members by phone number and assign roles. Control who can access financial, strategic, or sensitive queries.",
-      "lp.how.4.title": "Ask anything, anytime",
+        "Add team members, assign roles, and control who can access different types of information.",
+      "lp.how.4.title": "Start asking questions",
       "lp.how.4.desc":
-        "Your team just messages the number in plain language — in English or Spanish — and gets accurate, cited answers instantly.",
+        "Your team can ask in natural language through WhatsApp and receive fast, clear answers grounded in your documents.",
       "lp.flow.label": "Architecture",
       "lp.flow.title": "Every message, every step.",
       "lp.flow.sub":
