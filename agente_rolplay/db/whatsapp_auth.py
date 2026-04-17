@@ -74,6 +74,29 @@ def lookup_whatsapp_user(phone_number: str) -> Optional[Dict[str, Any]]:
         db.close()
 
 
+def lookup_org_by_twilio_number(twilio_number: str) -> Optional[Dict[str, Any]]:
+    """Look up organization by its assigned Twilio 'To' number.
+
+    twilio_number should be the raw value from Twilio's To field,
+    e.g. 'whatsapp:+14155238886'.
+    Returns dict with org_id and org_name, or None if not found.
+    """
+    if not twilio_number:
+        return None
+    db = SessionLocal()
+    try:
+        org = (
+            db.query(Organization)
+            .filter(Organization.twilio_number == twilio_number)
+            .first()
+        )
+        if not org:
+            return None
+        return {"org_id": str(org.id), "org_name": org.name}
+    finally:
+        db.close()
+
+
 def has_permission(user_info: Dict[str, Any], permission: str) -> bool:
     """Check if user has a specific permission."""
     permissions = user_info.get("permissions", [])

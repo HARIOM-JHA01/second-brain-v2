@@ -15,6 +15,35 @@
 
 {% block content %}
 
+<!-- ── Edit Organization Modal ─────────────────────────── -->
+<div id="editModal" class="modal">
+  <div class="modal-content" style="max-width:460px;">
+    <div class="modal-header">
+      <h2>Edit Organization</h2>
+      <button class="modal-close" onclick="closeEdit()">&times;</button>
+    </div>
+    <input type="hidden" id="editOrgId" />
+    <div style="display:flex;flex-direction:column;gap:.85rem;margin-bottom:1.25rem;">
+      <label style="font-size:.82rem;font-weight:600;color:var(--text-muted);">
+        Name
+        <input type="text" id="editOrgName"
+          style="margin-top:.35rem;width:100%;padding:.6rem .75rem;background:var(--input-bg);border:1px solid var(--border);border-radius:9px;color:var(--text);font-size:.875rem;font-family:inherit;outline:none;box-sizing:border-box;" />
+      </label>
+      <label style="font-size:.82rem;font-weight:600;color:var(--text-muted);">
+        Twilio WhatsApp Number
+        <span style="font-weight:400;color:var(--text-muted);font-size:.78rem;"> — format: whatsapp:+14155238886</span>
+        <input type="text" id="editOrgTwilio" placeholder="whatsapp:+14155238886 — leave blank for shared default"
+          style="margin-top:.35rem;width:100%;padding:.6rem .75rem;background:var(--input-bg);border:1px solid var(--border);border-radius:9px;color:var(--text);font-size:.875rem;font-family:inherit;outline:none;box-sizing:border-box;" />
+      </label>
+    </div>
+    <div style="display:flex;gap:.65rem;">
+      <button class="btn btn-secondary" style="flex:1;justify-content:center;" onclick="closeEdit()">Cancel</button>
+      <button class="btn btn-primary" style="flex:1;justify-content:center;" id="editSaveBtn" onclick="saveEdit()">Save</button>
+    </div>
+    <div id="editError" style="color:var(--error);font-size:.82rem;margin-top:.65rem;display:none;"></div>
+  </div>
+</div>
+
 <!-- ── Confirm Delete Modal ─────────────────────────────── -->
 <div id="confirmModal" class="modal">
   <div class="modal-content" style="max-width:400px;">
@@ -63,11 +92,12 @@
           <th data-i18n="sadmin.orgs.col.inactive">Inactive</th>
           <th data-i18n="sadmin.orgs.col.docs">Documents</th>
           <th data-i18n="sadmin.common.created">Created</th>
+          <th>Twilio Number</th>
           <th data-i18n="sadmin.common.actions">Actions</th>
         </tr>
       </thead>
       <tbody id="orgsTable">
-        <tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-muted);" data-i18n="sadmin.common.loading">Loading…</td></tr>
+        <tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--text-muted);" data-i18n="sadmin.common.loading">Loading…</td></tr>
       </tbody>
     </table>
   </div>
@@ -111,11 +141,16 @@ function filterOrgs() {
 function renderOrgs(list) {
   const tbody = document.getElementById('orgsTable');
   if (!list.length) {
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-muted);">${t('sadmin.orgs.empty')}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--text-muted);">${t('sadmin.orgs.empty')}</td></tr>`;
     return;
   }
   tbody.innerHTML = list.map(o => {
     const inactive = o.user_count - o.active_user_count;
+    const twilioDisplay = o.twilio_number
+      ? `<span style="font-family:monospace;font-size:.78rem;color:var(--stat-green);">${o.twilio_number}</span>`
+      : `<span style="color:var(--text-muted);font-size:.8rem;">shared default</span>`;
+    const escapedName = o.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    const escapedTwilio = (o.twilio_number||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
     return `
       <tr>
         <td class="td-main">${o.name}</td>
@@ -125,10 +160,12 @@ function renderOrgs(list) {
         <td><span style="color:${inactive > 0 ? 'var(--stat-red)' : 'var(--text-muted)'};font-weight:${inactive > 0 ? 600 : 400};">${inactive}</span></td>
         <td>${o.document_count}</td>
         <td style="color:var(--text-muted);">${new Date(o.created_at).toLocaleDateString()}</td>
+        <td>${twilioDisplay}</td>
         <td>
           <div style="display:flex;gap:.4rem;">
             <a href="/admin/users?org=${encodeURIComponent(o.name)}" class="btn btn-secondary btn-sm">${t('sadmin.orgs.view_users')}</a>
-            <button class="btn btn-danger btn-sm" onclick="openConfirm('${o.id}','${o.name.replace(/'/g,"\\'")}')">
+            <button class="btn btn-secondary btn-sm" onclick="openEdit('${o.id}','${escapedName}','${escapedTwilio}')">✏️ Edit</button>
+            <button class="btn btn-danger btn-sm" onclick="openConfirm('${o.id}','${escapedName}')">
               🗑 ${t('sadmin.common.delete')}
             </button>
           </div>
@@ -172,6 +209,55 @@ async function confirmDelete() {
     err.style.display = 'block';
     btn.disabled = false;
     btn.textContent = t('sadmin.common.delete');
+  }
+}
+
+function openEdit(orgId, orgName, orgTwilio) {
+  document.getElementById('editOrgId').value = orgId;
+  document.getElementById('editOrgName').value = orgName;
+  document.getElementById('editOrgTwilio').value = orgTwilio;
+  document.getElementById('editError').style.display = 'none';
+  document.getElementById('editSaveBtn').disabled = false;
+  document.getElementById('editSaveBtn').textContent = 'Save';
+  document.getElementById('editModal').classList.add('show');
+}
+
+function closeEdit() {
+  document.getElementById('editModal').classList.remove('show');
+}
+
+async function saveEdit() {
+  const orgId = document.getElementById('editOrgId').value;
+  const name = document.getElementById('editOrgName').value.trim();
+  const twilio_number = document.getElementById('editOrgTwilio').value.trim();
+  const btn = document.getElementById('editSaveBtn');
+  const err = document.getElementById('editError');
+
+  if (!name) {
+    err.textContent = 'Name cannot be empty.';
+    err.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  err.style.display = 'none';
+
+  const res = await fetch(`/admin/api/organizations/${orgId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, twilio_number: twilio_number || null }),
+  });
+
+  if (res.ok) {
+    closeEdit();
+    loadOrgs();
+  } else {
+    const d = await res.json().catch(() => ({}));
+    err.textContent = d.detail || 'Failed to save. Please try again.';
+    err.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Save';
   }
 }
 

@@ -373,10 +373,86 @@ def list_organizations(request: Request, db: Session = Depends(get_db)):
                 "user_count": user_count,
                 "active_user_count": active_count,
                 "document_count": doc_count,
+                "twilio_number": org.twilio_number,
                 "created_at": org.created_at.isoformat(),
             }
         )
     return result
+
+
+class UpdateOrganizationRequest(BaseModel):
+    name: Optional[str] = None
+    twilio_number: Optional[str] = None
+
+
+@router.get("/organizations/{org_id}")
+def get_organization(org_id: str, request: Request, db: Session = Depends(get_db)):
+    require_admin(request)
+
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    owner = (
+        db.query(User).filter(User.id == org.owner_id).first() if org.owner_id else None
+    )
+    return {
+        "id": str(org.id),
+        "name": org.name,
+        "twilio_number": org.twilio_number,
+        "owner_email": owner.email if owner else None,
+        "created_at": org.created_at.isoformat(),
+    }
+
+
+@router.patch("/organizations/{org_id}")
+def update_organization(
+    org_id: str,
+    body: UpdateOrganizationRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    require_admin(request)
+
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    if body.name is not None:
+        if not body.name.strip():
+            raise HTTPException(status_code=400, detail="Name cannot be empty")
+        org.name = body.name.strip()
+
+    if body.twilio_number is not None:
+        cleaned = body.twilio_number.strip()
+        if cleaned and not cleaned.startswith("whatsapp:+"):
+            raise HTTPException(
+                status_code=400,
+                detail="twilio_number must be in format 'whatsapp:+<digits>' or empty to clear",
+            )
+        if cleaned:
+            conflict = (
+                db.query(Organization)
+                .filter(
+                    Organization.twilio_number == cleaned,
+                    Organization.id != org.id,
+                )
+                .first()
+            )
+            if conflict:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"Number already assigned to organization '{conflict.name}'",
+                )
+        org.twilio_number = cleaned or None
+
+    db.commit()
+    db.refresh(org)
+    return {
+        "id": str(org.id),
+        "name": org.name,
+        "twilio_number": org.twilio_number,
+    }
 
 
 # ── Users ─────────────────────────────────────────────────────────────────────

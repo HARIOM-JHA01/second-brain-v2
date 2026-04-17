@@ -22,6 +22,7 @@ class Organization(Base):
     name = Column(String(255), nullable=False)
     owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     settings = Column(JSON, default={})
+    twilio_number = Column(String(50), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     owner = relationship("User", back_populates="owned_organizations")

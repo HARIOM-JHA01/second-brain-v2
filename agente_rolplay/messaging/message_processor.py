@@ -10,6 +10,7 @@ from agente_rolplay.messaging.twilio_client import (
     send_twilio_message,
     download_document_from_twilio,
     get_media_content_length,
+    outbound_number_ctx,
 )
 from agente_rolplay.agent.roleplay_agent import responder_usuario
 from agente_rolplay.messaging.chat_history_manager import (
@@ -1007,6 +1008,12 @@ def process_incoming_messages_functional(form_data, redis_client=r):
         or ""
     ).strip()
 
+    # Resolve outbound number from the org's Twilio number
+    from agente_rolplay.db.whatsapp_auth import lookup_org_by_twilio_number
+    org_from_twilio = lookup_org_by_twilio_number(to_number)
+    org_id_from_twilio = org_from_twilio["org_id"] if org_from_twilio else None
+    outbound_number_ctx.set(_get_org_twilio_number(org_id_from_twilio))
+
     phone_number = extract_phone_from_twilio(from_number)
     print(f"PHONE NUMBER: {phone_number}")
 
@@ -1572,6 +1579,25 @@ def process_incoming_messages_functional(form_data, redis_client=r):
     return "Success"
 
 
+def _get_org_twilio_number(org_id) -> str:
+    """Return the org's dedicated Twilio number, falling back to the global sandbox number."""
+    from agente_rolplay.config import TWILIO_SANDBOX_NUMBER
+    from agente_rolplay.db.database import SessionLocal
+    from agente_rolplay.db.models import Organization
+
+    if org_id:
+        db = SessionLocal()
+        try:
+            org = db.query(Organization).filter(Organization.id == org_id).first()
+            if org and org.twilio_number:
+                return org.twilio_number
+        except Exception as e:
+            print(f"[org_number] Error looking up org number: {e}")
+        finally:
+            db.close()
+    return TWILIO_SANDBOX_NUMBER
+
+
 def process_incoming_messages(form_data, redis_client=r):
     print("TWILIO FORM DATA:", form_data)
     TEMP_DIR = "./temp_uploads"
@@ -1588,6 +1614,15 @@ def process_incoming_messages(form_data, redis_client=r):
         or form_data.get("Filename")
         or ""
     ).strip()
+
+    # Resolve the org from the Twilio 'To' number (the number the user texted).
+    # This sets the outbound number context so all send calls in this request
+    # automatically reply from the correct org-specific number.
+    from agente_rolplay.db.whatsapp_auth import lookup_org_by_twilio_number
+    org_from_twilio = lookup_org_by_twilio_number(to_number)
+    org_id_from_twilio = org_from_twilio["org_id"] if org_from_twilio else None
+    outbound_number_ctx.set(_get_org_twilio_number(org_id_from_twilio))
+    print(f"[org_routing] To={to_number!r} → org={org_from_twilio!r} → outbound={outbound_number_ctx.get()!r}")
 
     phone_number = extract_phone_from_twilio(from_number)
     print(f"PHONE NUMBER: {phone_number}")

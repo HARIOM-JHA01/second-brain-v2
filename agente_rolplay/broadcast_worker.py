@@ -10,6 +10,7 @@ from agente_rolplay.db.models import (
     Group,
     GroupMember,
     MessageTemplate,
+    Organization,
     Profile,
 )
 
@@ -27,6 +28,21 @@ except ImportError:
     pass
 
 _client = None
+
+
+def _get_org_from_number(org_id) -> str:
+    """Return the Twilio from-number for the given org_id, falling back to the global sandbox number."""
+    if org_id:
+        db = SessionLocal()
+        try:
+            org = db.query(Organization).filter(Organization.id == org_id).first()
+            if org and org.twilio_number:
+                return org.twilio_number
+        except Exception as e:
+            print(f"[broadcast] Error looking up org number: {e}")
+        finally:
+            db.close()
+    return TWILIO_SANDBOX_NUMBER
 
 
 def _get_twilio_client():
@@ -63,16 +79,17 @@ def _fill_from_user_data(content: str, profile: Profile, values: Dict[str, str])
     return result
 
 
-async def _send_whatsapp_message(phone_number: str, content: str) -> bool:
+async def _send_whatsapp_message(phone_number: str, content: str, from_number: str = None) -> bool:
     """Send a WhatsApp message via Twilio."""
     client = _get_twilio_client()
     if not client:
         print(f"[broadcast] No Twilio client available")
         return False
 
+    effective_from = from_number or TWILIO_SANDBOX_NUMBER
     try:
         message = client.messages.create(
-            from_=TWILIO_SANDBOX_NUMBER,
+            from_=effective_from,
             body=content,
             to=phone_number,
         )
@@ -85,6 +102,8 @@ async def _send_whatsapp_message(phone_number: str, content: str) -> bool:
 
 async def _process_broadcast(broadcast: BroadcastSchedule, db: Session):
     """Process a single broadcast - send messages to all group members."""
+    org_from_number = _get_org_from_number(broadcast.org_id)
+
     template = (
         db.query(MessageTemplate)
         .filter(MessageTemplate.id == broadcast.template_id)
@@ -128,7 +147,7 @@ async def _process_broadcast(broadcast: BroadcastSchedule, db: Session):
             template.content, profile, broadcast.variable_values or {}
         )
 
-        success = await _send_whatsapp_message(profile.whatsapp_number, message_content)
+        success = await _send_whatsapp_message(profile.whatsapp_number, message_content, from_number=org_from_number)
         if success:
             sent_count += 1
         else:

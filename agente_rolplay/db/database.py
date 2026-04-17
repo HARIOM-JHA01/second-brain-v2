@@ -59,6 +59,7 @@ _MIGRATIONS = [
     "ALTER TABLE documents ADD COLUMN IF NOT EXISTS vector_id VARCHAR(255)",
     "CREATE INDEX IF NOT EXISTS idx_documents_location ON documents(location)",
     "CREATE INDEX IF NOT EXISTS idx_documents_org_location ON documents(org_id, location)",
+    "ALTER TABLE organizations ADD COLUMN IF NOT EXISTS twilio_number VARCHAR(50)",
     # Groups and Broadcast tables
     """
         CREATE TABLE IF NOT EXISTS groups (

@@ -3,10 +3,17 @@ import os
 import requests
 import time
 import re
+from contextvars import ContextVar
+from typing import Optional
 
 from agente_rolplay.config import TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_SANDBOX_NUMBER
 
 twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+
+# Per-request context variable for the org's outbound Twilio number.
+# Set this at the start of each webhook request so all send calls within
+# that request automatically use the correct org number.
+outbound_number_ctx: ContextVar[Optional[str]] = ContextVar("outbound_number", default=None)
 
 
 def get_media_content_length(media_url: str) -> int:
@@ -102,16 +109,17 @@ def _split_message(text: str, limit: int = TWILIO_MAX_CHARS) -> list[str]:
 
 
 def _send_single(phone, text, max_retries=3):
+    effective_from = outbound_number_ctx.get() or TWILIO_SANDBOX_NUMBER
     for attempt in range(max_retries):
         try:
             print(
                 f"Sending message with Twilio (attempt {attempt + 1}/{max_retries}): {text[:50]}..."
             )
-            print(f"From: {TWILIO_SANDBOX_NUMBER}")
+            print(f"From: {effective_from}")
             print(f"To: {phone}")
 
             message = twilio_client.messages.create(
-                from_=TWILIO_SANDBOX_NUMBER,
+                from_=effective_from,
                 body=text,
                 to=phone,
             )
@@ -151,11 +159,12 @@ def send_twilio_message(phone, text, max_retries=3):
 
 
 def send_twilio_document(phone, document_url, caption=""):
+    effective_from = outbound_number_ctx.get() or TWILIO_SANDBOX_NUMBER
     try:
         print(f"Sending document: {document_url}")
 
         message = twilio_client.messages.create(
-            from_=TWILIO_SANDBOX_NUMBER,
+            from_=effective_from,
             body=caption if caption else "Here is your document",
             media_url=[document_url],
             to=phone,
