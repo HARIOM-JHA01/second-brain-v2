@@ -357,17 +357,17 @@
       "broadcasts.error.cancel": "Error al cancelar broadcast",
 
       // Landing page (index.html)
-      "lp.nav.features": "Características",
+      "lp.nav.features": "Capacidades",
       "lp.nav.how": "Cómo funciona",
-      "lp.nav.flow": "Flujo del proceso",
+      "lp.nav.flow": "Proceso",
       "lp.nav.usecases": "Casos de uso",
-      "lp.nav.start": "Comenzar",
-      "lp.hero.badge": "Con IA · Creado por Rolplay",
+      "lp.nav.start": "Probar ahora",
+      "lp.hero.badge": "Impulsado por Rolplay",
       "lp.hero.h1":
         'El conocimiento de tu empresa,<br/><span class="grad-text">en WhatsApp.</span>',
       "lp.hero.sub":
-        "Second Brain es un asistente de IA que vive en WhatsApp. Sube tus documentos, haz preguntas en lenguaje natural y obtén respuestas instantáneas — para todo tu equipo.",
-      "lp.hero.cta.start": "Empieza gratis →",
+        "Second Brain centraliza el conocimiento de tu empresa para que tu equipo pueda hacer preguntas en tiempo real y recibir respuestas claras, rápidas y basadas en tus propios documentos.",
+      "lp.hero.cta.start": "Probar ahora",
       "lp.hero.cta.how": "Ver cómo funciona",
       "lp.hero.phone.status": "● En línea",
       "lp.hero.phone.bot1":
@@ -510,7 +510,7 @@
       "lp.sec.4.title": "Verificación de identidad por WhatsApp",
       "lp.sec.4.desc":
         "Los usuarios son identificados por su número de WhatsApp verificado. Sin contraseñas que gestionar para los usuarios finales.",
-      "lp.nav.privacy": "Privacidad",
+      "lp.nav.privacy": "Seguridad y privacidad",
       "lp.priv.label": "Privacidad de datos",
       "lp.priv.title": "Privacidad por defecto.",
       "lp.priv.sub":
@@ -786,7 +786,7 @@
       // Navbar (base.html)
       "nav.by": "by",
       "nav.logout": "Logout",
-      "nav.login": "Login",
+      "nav.login": "Log in",
       "nav.signup": "Sign Up",
 
       // Sidebar
@@ -1072,17 +1072,17 @@
       "broadcasts.error.cancel": "Error canceling broadcast",
 
       // Landing page (index.html)
-      "lp.nav.features": "Features",
+      "lp.nav.features": "Capabilities",
       "lp.nav.how": "How it works",
-      "lp.nav.flow": "Process flow",
+      "lp.nav.flow": "Process",
       "lp.nav.usecases": "Use cases",
-      "lp.nav.start": "Get Started",
-      "lp.hero.badge": "AI-powered · Built by Rolplay",
+      "lp.nav.start": "Try it now",
+      "lp.hero.badge": "AI Knowledge Assistant · By Rolplay",
       "lp.hero.h1":
-        'Your company\'s knowledge,<br/><span class="grad-text">on WhatsApp.</span>',
+        'Your company\'s knowledge,<br/><span class="grad-text">ready to answer on WhatsApp.</span>',
       "lp.hero.sub":
-        "Second Brain is an AI assistant that lives in WhatsApp. Upload your documents, ask questions in plain language, and get instant answers — for your whole team.",
-      "lp.hero.cta.start": "Start for free →",
+        "Second Brain centralizes your company's knowledge so your team can ask questions in real time and receive clear, fast answers grounded in your own documents.",
+      "lp.hero.cta.start": "Try it now",
       "lp.hero.cta.how": "See how it works",
       "lp.hero.phone.status": "● Online",
       "lp.hero.phone.bot1":
@@ -1223,7 +1223,7 @@
       "lp.sec.4.title": "WhatsApp identity verification",
       "lp.sec.4.desc":
         "Users are matched by their verified WhatsApp number. No passwords to manage for end users.",
-      "lp.nav.privacy": "Privacy",
+      "lp.nav.privacy": "Security & Privacy",
       "lp.priv.label": "Data Privacy",
       "lp.priv.title": "Built with privacy by default.",
       "lp.priv.sub":
