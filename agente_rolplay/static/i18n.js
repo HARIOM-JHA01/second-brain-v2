@@ -542,10 +542,10 @@
       "lp.priv.quote":
         "Las conversaciones son intencionalmente de corta duración, el acceso se verifica antes de cada búsqueda y el conocimiento organizacional permanece restringido a los usuarios autorizados.",
       "lp.cta.h2":
-        '¿Listo para darle a tu equipo un <span class="grad-text">segundo cerebro?</span>',
+        "¿Listo para hacer todo el conocimiento de tu empresa accesible en WhatsApp?",
       "lp.cta.p":
-        "Configura tu organización en minutos. Sin tarjeta de crédito. Tu equipo ya está en WhatsApp — este es el único paso que falta.",
-      "lp.cta.btn": "Crear cuenta gratis →",
+        "Activa Second Brain en minutos y ayuda a tu equipo a encontrar la respuesta correcta sin cambiar su forma de trabajar.",
+      "lp.cta.btn": "Comenzar",
       "lp.footer.by": "un producto de",
       "lp.footer.copy": "© 2026 Rolplay. Todos los derechos reservados.",
 
@@ -1256,10 +1256,10 @@
       "lp.priv.quote":
         "Conversations are intentionally short-lived, access is checked before retrieval, and organizational knowledge remains restricted to authorized users.",
       "lp.cta.h2":
-        'Ready to give your team a <span class="grad-text">second brain?</span>',
+        "Ready to turn your company's knowledge into fast, accurate and effective answers?",
       "lp.cta.p":
-        "Set up your organization in minutes. No credit card required. Your team is already on WhatsApp — this is the only step left.",
-      "lp.cta.btn": "Create free account →",
+        "Set up your organization in minutes and give your team access to clear, grounded answers through WhatsApp.",
+      "lp.cta.btn": "Create your account",
       "lp.footer.by": "a product by",
       "lp.footer.copy": "© 2026 Rolplay. All rights reserved.",
 
