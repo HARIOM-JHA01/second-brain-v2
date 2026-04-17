@@ -430,42 +430,41 @@
       "lp.how.4.title": "Empieza a hacer preguntas",
       "lp.how.4.desc":
         "Tu equipo puede preguntar en lenguaje natural por WhatsApp y recibir respuestas rápidas, claras y sustentadas en tus documentos.",
-      "lp.flow.label": "Arquitectura",
-      "lp.flow.title": "Un paso por mensaje.",
+      "lp.flow.label": "Proceso",
+      "lp.flow.title": "De la pregunta a la respuesta sustentada, paso a paso.",
       "lp.flow.sub":
-        "Ve exactamente cómo Second Brain toma un mensaje de WhatsApp y devuelve una respuesta citada e inteligente en tiempo real.",
+        "Mira cómo Second Brain recibe una pregunta por WhatsApp, verifica accesos, busca en el conocimiento correcto y devuelve una respuesta clara y citada en tiempo real.",
+      "lp.flow.zone1": "Ciclo principal de respuesta",
+      "lp.flow.zone2": "Capa post-respuesta",
+      "lp.flow.bridge": "Después de la respuesta",
+      "lp.flow.optional": "Opcional",
       "lp.flow.1.title": "Tu Equipo",
-      "lp.flow.1.desc": "Hace una pregunta por WhatsApp, en cualquier momento",
+      "lp.flow.1.desc": "Un miembro del equipo envía una pregunta por WhatsApp en cualquier momento.",
       "lp.flow.2.title": "Pregunta Recibida",
-      "lp.flow.2.desc": "Llega en tiempo real, en el momento en que se envía",
+      "lp.flow.2.desc": "El mensaje llega en tiempo real y entra de inmediato al flujo de procesamiento.",
       "lp.flow.3.title": "Acceso Verificado",
-      "lp.flow.3.desc":
-        "Los permisos de rol se verifican antes de iniciar cualquier búsqueda",
-      "lp.flow.4.title": "Docs Buscados",
+      "lp.flow.3.desc": "Los permisos del usuario se validan antes de iniciar cualquier búsqueda.",
+      "lp.flow.4.title": "Búsqueda en base de conocimiento",
       "lp.flow.4.desc":
-        "La base de conocimiento se analiza solo para usuarios autorizados",
+        "Second Brain busca únicamente en las fuentes autorizadas para encontrar la información más relevante.",
       "lp.flow.5.title": "Respuesta Creada",
-      "lp.flow.5.desc": "Se genera una respuesta clara y citada en segundos",
+      "lp.flow.5.desc":
+        "Se genera una respuesta clara a partir del contenido recuperado, con referencias a la fuente cuando aplica.",
       "lp.flow.6.title": "Respuesta Enviada",
-      "lp.flow.6.desc": "La respuesta llega a WhatsApp, ciclo completo",
-      "lp.flowm.1.title": "Tu Equipo Pregunta",
-      "lp.flowm.1.desc":
-        "Cualquier miembro del equipo envía una pregunta, nota de voz o archivo a Second Brain en WhatsApp — sin necesidad de una nueva app.",
-      "lp.flowm.2.title": "Recepción Instantánea",
-      "lp.flowm.2.desc":
-        "La pregunta llega en tiempo real, en el momento en que se envía — sin demoras, sin colas.",
-      "lp.flowm.3.title": "Acceso Verificado",
-      "lp.flowm.3.desc":
-        "Los permisos basados en roles se verifican de inmediato — si el usuario no está autorizado, la solicitud se detiene aquí, ahorrando tiempo y costo.",
-      "lp.flowm.4.title": "Docs Buscados",
-      "lp.flowm.4.desc":
-        "Solo para usuarios autorizados — Second Brain escanea toda tu base de conocimiento para encontrar la información más relevante.",
-      "lp.flowm.5.title": "Respuesta Creada",
-      "lp.flowm.5.desc":
-        "Se genera una respuesta en lenguaje claro en segundos, con fuentes citadas para que tu equipo sepa exactamente de dónde proviene.",
-      "lp.flowm.6.title": "Respuesta Enviada",
-      "lp.flowm.6.desc":
-        "La respuesta llega directamente a WhatsApp — sin inicio de sesión, sin navegador, sin fricción. El ciclo está completo.",
+      "lp.flow.6.desc":
+        "La respuesta se devuelve por WhatsApp y con ello se completa el ciclo principal de consulta.",
+      "lp.flow.7.title": "Interacción Registrada",
+      "lp.flow.7.desc":
+        "La interacción se registra para que los datos de uso, patrones de preguntas y señales de contenido puedan aprovecharse para visibilidad y mejora.",
+      "lp.flow.8.title": "Dashboard y Analíticos Actualizados",
+      "lp.flow.8.desc":
+        "La actividad relevante se refleja en el dashboard para ayudar a los administradores a monitorear uso, necesidades recurrentes y brechas de conocimiento por usuario o equipo.",
+      "lp.flow.9.title": "Mensajes Administrativos por WhatsApp",
+      "lp.flow.9.desc":
+        "Los administradores pueden activar mensajes segmentados o generales por WhatsApp según audiencia, actividad o necesidad de comunicación.",
+      "lp.flow.10.title": "Coach Personalizado",
+      "lp.flow.10.desc":
+        "Cuando se habilita, el historial de interacción y las áreas de oportunidad detectadas pueden transferirse a un coach de IA personalizado para dar un seguimiento más enfocado y personal.",
       "lp.uc.label": "Casos de uso",
       "lp.uc.title": "Creado para equipos reales.",
       "lp.uc.sub":
@@ -1145,40 +1144,41 @@
       "lp.how.4.title": "Start asking questions",
       "lp.how.4.desc":
         "Your team can ask in natural language through WhatsApp and receive fast, clear answers grounded in your documents.",
-      "lp.flow.label": "Architecture",
-      "lp.flow.title": "Every message, every step.",
+      "lp.flow.label": "Process",
+      "lp.flow.title": "From question to grounded answer, step by step.",
       "lp.flow.sub":
-        "See exactly how Second Brain takes a WhatsApp message and returns a cited, intelligent answer in real-time.",
+        "See how Second Brain receives a WhatsApp question, verifies access, searches the right knowledge, and returns a clear, cited answer in real time.",
+      "lp.flow.zone1": "Core answer cycle",
+      "lp.flow.zone2": "Post-response layer",
+      "lp.flow.bridge": "After the answer is delivered",
+      "lp.flow.optional": "Optional",
       "lp.flow.1.title": "Your Team",
-      "lp.flow.1.desc": "Asks a question via WhatsApp, anytime",
+      "lp.flow.1.desc": "A team member sends a question through WhatsApp at any time.",
       "lp.flow.2.title": "Question Received",
-      "lp.flow.2.desc": "Arrives in real time, the moment it's sent",
+      "lp.flow.2.desc": "The message arrives in real time and enters the processing flow instantly.",
       "lp.flow.3.title": "Access Verified",
-      "lp.flow.3.desc": "Role permissions checked before any search begins",
-      "lp.flow.4.title": "Docs Searched",
-      "lp.flow.4.desc": "Knowledge base scanned only for authorised users",
-      "lp.flow.5.title": "Answer Crafted",
-      "lp.flow.5.desc": "A clear, sourced reply is generated in seconds",
-      "lp.flow.6.title": "Reply Delivered",
-      "lp.flow.6.desc": "Answer lands in WhatsApp, loop complete",
-      "lp.flowm.1.title": "Your Team Asks",
-      "lp.flowm.1.desc":
-        "Anyone on the team sends a question, voice note, or file to Second Brain on WhatsApp — no new app needed.",
-      "lp.flowm.2.title": "Instant Receipt",
-      "lp.flowm.2.desc":
-        "The question arrives in real time, the moment it's sent — no delays, no queues.",
-      "lp.flowm.3.title": "Access Verified",
-      "lp.flowm.3.desc":
-        "Role-based permissions are checked immediately — if the user isn't authorised, the request stops here, saving time and cost.",
-      "lp.flowm.4.title": "Docs Searched",
-      "lp.flowm.4.desc":
-        "Only for authorised users — Second Brain scans your entire knowledge base to find the most relevant information.",
-      "lp.flowm.5.title": "Answer Crafted",
-      "lp.flowm.5.desc":
-        "A clear, plain-language answer is generated in seconds, with sources cited so your team knows exactly where it came from.",
-      "lp.flowm.6.title": "Reply Delivered",
-      "lp.flowm.6.desc":
-        "The answer arrives directly in WhatsApp — no login, no browser, no friction. The loop is complete.",
+      "lp.flow.3.desc": "User permissions are checked before any search begins.",
+      "lp.flow.4.title": "Knowledge Searched",
+      "lp.flow.4.desc":
+        "Second Brain searches only the authorized knowledge sources to find the most relevant information.",
+      "lp.flow.5.title": "Answer Created",
+      "lp.flow.5.desc":
+        "A clear answer is generated based on the retrieved content, with source references when available.",
+      "lp.flow.6.title": "Answer Delivered",
+      "lp.flow.6.desc":
+        "The response is sent back through WhatsApp, completing the core answer cycle.",
+      "lp.flow.7.title": "Interaction Logged",
+      "lp.flow.7.desc":
+        "The interaction is recorded so usage data, question patterns, and content signals can be used for visibility and improvement.",
+      "lp.flow.8.title": "Dashboard & Analytics Updated",
+      "lp.flow.8.desc":
+        "Relevant activity is reflected in the dashboard, helping admins monitor usage, recurring needs, and knowledge gaps across users or teams.",
+      "lp.flow.9.title": "Admin Follow-Up Messages",
+      "lp.flow.9.desc":
+        "Admins can trigger segmented or general WhatsApp messages based on audience, activity, or communication needs.",
+      "lp.flow.10.title": "Personalized Coach",
+      "lp.flow.10.desc":
+        "When enabled, interaction history and detected opportunity areas can be passed to a personalized AI Coach for more focused and personal follow-up.",
       "lp.uc.label": "Use cases",
       "lp.uc.title": "Built for real teams.",
       "lp.uc.sub":

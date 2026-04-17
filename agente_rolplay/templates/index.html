@@ -965,126 +965,245 @@
         transition: color 0.3s;
       }
 
-      /* ─── Process Flow ───────────────────────────────── */
+      /* ─── Process Flow (redesigned) ─────────────────── */
       .process-flow-section {
         background: var(--bg-alt);
         transition: background 0.3s;
       }
-      .flow-outer {
-        display: flex;
-        justify-content: center;
+
+      /* Zone tag pill */
+      .flow-zone-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.25rem 0.8rem;
+        border-radius: 99px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        margin-bottom: 1rem;
       }
-      .flow-wrap {
-        position: relative;
-        width: 700px;
-        height: 700px;
+      .flow-zone-tag.primary {
+        background: rgba(220, 38, 38, 0.08);
+        border: 1px solid rgba(220, 38, 38, 0.22);
+        color: #ef4444;
+      }
+      .flow-zone-tag.secondary {
+        background: rgba(129, 140, 248, 0.07);
+        border: 1px solid rgba(129, 140, 248, 0.2);
+        color: #818cf8;
+      }
+      .flow-zone-dot {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: currentColor;
         flex-shrink: 0;
       }
-      .flow-svg {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-      }
 
-      /* Center brain circle */
-      .flow-center-node {
-        position: absolute;
-        width: 130px;
-        height: 130px;
-        left: 285px;
-        top: 285px;
-        border-radius: 50%;
-        background: linear-gradient(
-          135deg,
-          rgba(220, 38, 38, 0.18),
-          rgba(153, 27, 27, 0.18)
-        );
-        border: 2px solid rgba(220, 38, 38, 0.4);
+      /* Pipeline row */
+      .flow-pipeline-wrap {
+        overflow-x: auto;
+        padding-bottom: 0.25rem;
+      }
+      .flow-pipeline {
         display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow:
-          0 0 50px rgba(220, 38, 38, 0.18),
-          inset 0 0 30px rgba(220, 38, 38, 0.06);
-        overflow: visible;
-      }
-      .flow-center-node img {
-        width: 288px;
-        height: 288px;
-        object-fit: contain;
-        position: relative;
-        z-index: 1;
-      }
-
-      /* Node cards */
-      .flow-node {
-        position: absolute;
-        width: 145px;
+        align-items: stretch;
+        min-width: 860px;
         background: var(--surface);
         border: 1px solid var(--border);
-        border-radius: 14px;
-        padding: 1rem 0.9rem 0.85rem;
+        border-radius: 16px;
+        padding: 1.5rem 1rem;
+        transition: background 0.3s, border-color 0.3s;
+      }
+      .flow-pipe-node {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
         text-align: center;
-        transition: all 0.22s;
-        cursor: default;
-        z-index: 2;
+        padding: 0 0.4rem;
       }
-      .flow-node:hover {
-        border-color: rgba(220, 38, 38, 0.5);
-        background: var(--surface-hover);
-        transform: scale(1.07);
-        z-index: 10;
-        box-shadow: 0 12px 35px rgba(220, 38, 38, 0.25);
-      }
-      .flow-node-step {
-        position: absolute;
-        top: -13px;
-        left: 50%;
-        transform: translateX(-50%);
+      .flow-pipe-step {
         width: 26px;
         height: 26px;
-        background: linear-gradient(135deg, var(--indigo), var(--violet));
         border-radius: 50%;
-        font-size: 0.72rem;
+        background: linear-gradient(135deg, var(--indigo), var(--violet));
+        font-size: 0.68rem;
         font-weight: 800;
         color: #fff;
         display: flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 0 3px 10px rgba(220, 38, 38, 0.4);
+        margin-bottom: 0.55rem;
+        box-shadow: 0 3px 10px rgba(220, 38, 38, 0.35);
+        flex-shrink: 0;
       }
-      .flow-node-icon {
-        font-size: 1.9rem;
+      .flow-pipe-icon {
+        font-size: 1.5rem;
         line-height: 1;
-        margin-bottom: 0.35rem;
+        margin-bottom: 0.4rem;
       }
-      .flow-node-title {
-        font-size: 0.82rem;
-        font-weight: 800;
+      .flow-pipe-title {
+        font-size: 0.76rem;
+        font-weight: 700;
         color: var(--text);
-        transition: color 0.3s;
         line-height: 1.25;
         margin-bottom: 0.3rem;
+        transition: color 0.3s;
       }
-      .flow-node-desc {
-        font-size: 0.71rem;
+      .flow-pipe-desc {
+        font-size: 0.68rem;
         color: var(--text-muted);
         line-height: 1.45;
         transition: color 0.3s;
       }
-      .flow-arc {
-        transition:
-          stroke 0.2s,
-          stroke-width 0.2s;
+      .flow-pipe-arrow {
+        flex-shrink: 0;
+        align-self: center;
+        color: rgba(220, 38, 38, 0.4);
+        font-size: 1rem;
+        padding: 0 0.1rem;
+        margin-top: -0.75rem;
       }
 
-      /* Mobile: hide SVG circle, show linear steps */
+      /* Bridge connector */
+      .flow-bridge {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin: 1.75rem 0 1rem;
+      }
+      .flow-bridge-line {
+        flex: 1;
+        height: 1px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(129, 140, 248, 0.28),
+          transparent
+        );
+      }
+      .flow-bridge-text {
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.7px;
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        white-space: nowrap;
+        transition: color 0.3s;
+      }
+      .flow-bridge-arrow {
+        color: rgba(129, 140, 248, 0.65);
+        font-size: 0.9rem;
+      }
+
+      /* Downstream grid */
+      .flow-downstream {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+      }
+      .flow-ds-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 1.4rem 1.5rem;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.3s;
+      }
+      .flow-ds-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(129, 140, 248, 0.45),
+          transparent
+        );
+        opacity: 0;
+        transition: opacity 0.3s;
+      }
+      .flow-ds-card:hover {
+        transform: translateY(-3px);
+        border-color: rgba(129, 140, 248, 0.22);
+        background: var(--surface-hover);
+      }
+      .flow-ds-card:hover::before {
+        opacity: 1;
+      }
+      .flow-ds-card.optional {
+        border-style: dashed;
+      }
+      .flow-ds-header {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        margin-bottom: 0.7rem;
+      }
+      .flow-ds-step {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: rgba(129, 140, 248, 0.12);
+        border: 1px solid rgba(129, 140, 248, 0.28);
+        font-size: 0.65rem;
+        font-weight: 800;
+        color: #818cf8;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      .flow-ds-icon {
+        font-size: 1.3rem;
+        line-height: 1;
+      }
+      .flow-ds-badge {
+        margin-left: auto;
+        font-size: 0.6rem;
+        font-weight: 700;
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+        padding: 0.15rem 0.5rem;
+        border-radius: 99px;
+        background: rgba(129, 140, 248, 0.07);
+        border: 1px solid rgba(129, 140, 248, 0.2);
+        color: #818cf8;
+        flex-shrink: 0;
+      }
+      .flow-ds-title {
+        font-size: 0.88rem;
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 0.35rem;
+        transition: color 0.3s;
+      }
+      .flow-ds-desc {
+        font-size: 0.82rem;
+        color: var(--text-muted);
+        line-height: 1.6;
+        transition: color 0.3s;
+      }
+
+      /* Mobile: hide desktop, show linear list */
       .flow-steps-mobile {
         display: none;
       }
       @media (max-width: 780px) {
-        .flow-wrap {
+        .flow-pipeline-wrap,
+        .flow-bridge,
+        .flow-downstream,
+        .flow-zone-tag {
           display: none;
         }
         .flow-steps-mobile {
@@ -1094,13 +1213,35 @@
           max-width: 520px;
           margin: 0 auto;
         }
+        .flow-mob-zone-label {
+          font-size: 0.68rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.6px;
+          padding: 0.25rem 0.75rem;
+          border-radius: 99px;
+          display: inline-flex;
+          align-items: center;
+          margin: 1.25rem 0 1rem;
+          align-self: flex-start;
+        }
+        .flow-mob-zone-primary {
+          background: rgba(220, 38, 38, 0.08);
+          border: 1px solid rgba(220, 38, 38, 0.22);
+          color: #ef4444;
+        }
+        .flow-mob-zone-secondary {
+          background: rgba(129, 140, 248, 0.07);
+          border: 1px solid rgba(129, 140, 248, 0.2);
+          color: #818cf8;
+        }
         .flow-step-mob {
           display: flex;
           gap: 1rem;
           align-items: flex-start;
           position: relative;
         }
-        .flow-step-mob:not(:last-child)::after {
+        .flow-step-mob:not(.flow-mob-no-line)::after {
           content: "";
           position: absolute;
           left: 19px;
@@ -1109,7 +1250,14 @@
           height: calc(100% + 1px);
           background: linear-gradient(
             to bottom,
-            rgba(220, 38, 38, 0.4),
+            rgba(220, 38, 38, 0.35),
+            transparent
+          );
+        }
+        .flow-step-mob.secondary-step::after {
+          background: linear-gradient(
+            to bottom,
+            rgba(129, 140, 248, 0.35),
             transparent
           );
         }
@@ -1118,16 +1266,28 @@
           height: 40px;
           border-radius: 50%;
           flex-shrink: 0;
-          background: linear-gradient(135deg, var(--indigo), var(--violet));
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 1.1rem;
+          font-size: 0.78rem;
           font-weight: 800;
           color: #fff;
-          box-shadow: 0 4px 12px rgba(220, 38, 38, 0.35);
           position: relative;
           z-index: 1;
+        }
+        .flow-step-mob-num.primary-num {
+          background: linear-gradient(135deg, var(--indigo), var(--violet));
+          box-shadow: 0 4px 12px rgba(220, 38, 38, 0.35);
+        }
+        .flow-step-mob-num.secondary-num {
+          background: linear-gradient(
+            135deg,
+            rgba(129, 140, 248, 0.25),
+            rgba(99, 102, 241, 0.2)
+          );
+          border: 1px solid rgba(129, 140, 248, 0.35);
+          color: #818cf8;
+          box-shadow: none;
         }
         .flow-step-mob-body {
           padding-bottom: 2rem;
@@ -1142,6 +1302,19 @@
           font-size: 0.85rem;
           color: var(--text-muted);
           line-height: 1.55;
+        }
+        .flow-mob-optional {
+          font-size: 0.6rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.3px;
+          padding: 0.1rem 0.4rem;
+          border-radius: 99px;
+          background: rgba(129, 140, 248, 0.07);
+          border: 1px solid rgba(129, 140, 248, 0.2);
+          color: #818cf8;
+          margin-left: 0.4rem;
+          vertical-align: middle;
         }
       }
 
@@ -1650,293 +1823,227 @@
     <section class="process-flow-section section" id="process-flow">
       <div class="max-w">
         <div class="section-header center">
-          <div class="section-label" data-i18n="lp.flow.label">
-            Architecture
-          </div>
+          <div class="section-label" data-i18n="lp.flow.label">Process</div>
           <h2 class="section-title" data-i18n="lp.flow.title">
-            Every message, every step.
+            From question to grounded answer, step by step.
           </h2>
           <p class="section-sub" data-i18n="lp.flow.sub">
-            See exactly how Second Brain takes a WhatsApp message and returns a
-            cited, intelligent answer in real-time.
+            See how Second Brain receives a WhatsApp question, verifies access,
+            searches the right knowledge, and returns a clear, cited answer in
+            real time.
           </p>
         </div>
 
-        <!-- ── Circle diagram (desktop) ── -->
-        <div class="flow-outer">
-          <div class="flow-wrap">
-            <!--
-            Container: 700×700, ring r=200, center=(350,350)
-            Nodes at θ = 0°,60°,120°,180°,240°,300° (clockwise from top)
-            Arc segs: +15° to +45° in each 60° gap
-          -->
-            <svg
-              class="flow-svg"
-              viewBox="0 0 700 700"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <defs>
-                <marker
-                  id="arr"
-                  markerWidth="8"
-                  markerHeight="8"
-                  refX="6"
-                  refY="4"
-                  orient="auto"
-                >
-                  <path d="M 0 0 L 8 4 L 0 8 Z" fill="rgba(220,38,38,0.7)" />
-                </marker>
-                <filter id="glow">
-                  <feGaussianBlur stdDeviation="3.5" result="blur" />
-                  <feMerge>
-                    <feMergeNode in="blur" />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
-              </defs>
+        <!-- ── Zone 1 tag ── -->
+        <div class="flow-zone-tag primary">
+          <span class="flow-zone-dot"></span>
+          <span data-i18n="lp.flow.zone1">Core answer cycle</span>
+        </div>
 
-              <!-- Outer dashed ring -->
-              <circle
-                cx="350"
-                cy="350"
-                r="200"
-                fill="none"
-                stroke="rgba(220,38,38,0.14)"
-                stroke-width="2"
-                stroke-dasharray="7 6"
-              />
-              <!-- Inner halo -->
-              <circle
-                cx="350"
-                cy="350"
-                r="75"
-                fill="rgba(220,38,38,0.05)"
-                stroke="rgba(220,38,38,0.18)"
-                stroke-width="1.5"
-              />
-
-              <!-- Arc 1→2: 15° to 45° on r=200 from (350,350) -->
-              <path
-                class="flow-arc"
-                d="M 401.8 156.8 A 200 200 0 0 1 491.4 208.6"
-                fill="none"
-                stroke="rgba(220,38,38,0.58)"
-                stroke-width="2.5"
-                marker-end="url(#arr)"
-              />
-              <!-- Arc 2→3: 75° to 105° -->
-              <path
-                class="flow-arc"
-                d="M 543.2 298.2 A 200 200 0 0 1 543.2 401.8"
-                fill="none"
-                stroke="rgba(220,38,38,0.58)"
-                stroke-width="2.5"
-                marker-end="url(#arr)"
-              />
-              <!-- Arc 3→4: 135° to 165° -->
-              <path
-                class="flow-arc"
-                d="M 491.4 491.4 A 200 200 0 0 1 401.8 543.2"
-                fill="none"
-                stroke="rgba(220,38,38,0.58)"
-                stroke-width="2.5"
-                marker-end="url(#arr)"
-              />
-              <!-- Arc 4→5: 195° to 225° -->
-              <path
-                class="flow-arc"
-                d="M 298.2 543.2 A 200 200 0 0 1 208.6 491.4"
-                fill="none"
-                stroke="rgba(220,38,38,0.58)"
-                stroke-width="2.5"
-                marker-end="url(#arr)"
-              />
-              <!-- Arc 5→6: 255° to 285° -->
-              <path
-                class="flow-arc"
-                d="M 156.8 401.8 A 200 200 0 0 1 156.8 298.2"
-                fill="none"
-                stroke="rgba(220,38,38,0.58)"
-                stroke-width="2.5"
-                marker-end="url(#arr)"
-              />
-              <!-- Arc 6→1: 315° to 345° -->
-              <path
-                class="flow-arc"
-                d="M 208.6 208.6 A 200 200 0 0 1 298.2 156.8"
-                fill="none"
-                stroke="rgba(220,38,38,0.58)"
-                stroke-width="2.5"
-                marker-end="url(#arr)"
-              />
-
-              <!-- Animated dot on ring -->
-              <circle r="6" fill="#818cf8" opacity="0.9" filter="url(#glow)">
-                <animateMotion
-                  dur="8s"
-                  repeatCount="indefinite"
-                  calcMode="linear"
-                  rotate="auto"
-                >
-                  <mpath href="#ring-track" />
-                </animateMotion>
-              </circle>
-              <path
-                id="ring-track"
-                d="M 350,150 A 200,200 0 0,1 550,350 A 200,200 0 0,1 350,550 A 200,200 0 0,1 150,350 A 200,200 0 0,1 350,150"
-                fill="none"
-              />
-            </svg>
-
-            <!-- Center label -->
-            <div class="flow-center-node">
-              <img src="/static/second-brain-logo.png" alt="Second Brain" />
-            </div>
-
-            <!--
-            Node card size: 145×108px → center offset: -72.5x, -54y
-            Node 1 (top, 0°):         center=(350,150)  → left=277, top=96
-            Node 2 (top-right, 60°):  center=(523,250)  → left=450, top=196
-            Node 3 (bottom-right,120°):center=(523,450) → left=450, top=396
-            Node 4 (bottom, 180°):    center=(350,550)  → left=277, top=496
-            Node 5 (bottom-left,240°):center=(177,450)  → left=104, top=396
-            Node 6 (top-left, 300°):  center=(177,250)  → left=104, top=196
-          -->
-
-            <!-- Node 1: Your Team — top -->
-            <div class="flow-node" style="left: 277px; top: 82px">
-              <div class="flow-node-step">1</div>
-              <div class="flow-node-icon">📱</div>
-              <div class="flow-node-title" data-i18n="lp.flow.1.title">
-                Your Team
-              </div>
-              <div class="flow-node-desc" data-i18n="lp.flow.1.desc">
-                Asks a question via WhatsApp, anytime
+        <!-- ── Pipeline (desktop) ── -->
+        <div class="flow-pipeline-wrap">
+          <div class="flow-pipeline">
+            <div class="flow-pipe-node">
+              <div class="flow-pipe-step">1</div>
+              <div class="flow-pipe-icon">📱</div>
+              <div class="flow-pipe-title" data-i18n="lp.flow.1.title">Your Team</div>
+              <div class="flow-pipe-desc" data-i18n="lp.flow.1.desc">
+                A team member sends a question through WhatsApp at any time.
               </div>
             </div>
-
-            <!-- Node 2: Question Received — top-right -->
-            <div class="flow-node" style="left: 450px; top: 185px">
-              <div class="flow-node-step">2</div>
-              <div class="flow-node-icon">⚡</div>
-              <div class="flow-node-title" data-i18n="lp.flow.2.title">
-                Question Received
-              </div>
-              <div class="flow-node-desc" data-i18n="lp.flow.2.desc">
-                Arrives in real time, the moment it's sent
+            <div class="flow-pipe-arrow">→</div>
+            <div class="flow-pipe-node">
+              <div class="flow-pipe-step">2</div>
+              <div class="flow-pipe-icon">⚡</div>
+              <div class="flow-pipe-title" data-i18n="lp.flow.2.title">Question Received</div>
+              <div class="flow-pipe-desc" data-i18n="lp.flow.2.desc">
+                The message arrives in real time and enters the processing flow instantly.
               </div>
             </div>
-
-            <!-- Node 3: Access Verified — bottom-right -->
-            <div class="flow-node" style="left: 450px; top: 390px">
-              <div class="flow-node-step">3</div>
-              <div class="flow-node-icon">🛡️</div>
-              <div class="flow-node-title" data-i18n="lp.flow.3.title">
-                Access Verified
-              </div>
-              <div class="flow-node-desc" data-i18n="lp.flow.3.desc">
-                Role permissions checked before any search begins
+            <div class="flow-pipe-arrow">→</div>
+            <div class="flow-pipe-node">
+              <div class="flow-pipe-step">3</div>
+              <div class="flow-pipe-icon">🛡️</div>
+              <div class="flow-pipe-title" data-i18n="lp.flow.3.title">Access Verified</div>
+              <div class="flow-pipe-desc" data-i18n="lp.flow.3.desc">
+                User permissions are checked before any search begins.
               </div>
             </div>
-
-            <!-- Node 4: Docs Searched — bottom -->
-            <div class="flow-node" style="left: 277px; top: 490px">
-              <div class="flow-node-step">4</div>
-              <div class="flow-node-icon">📂</div>
-              <div class="flow-node-title" data-i18n="lp.flow.4.title">
-                Docs Searched
-              </div>
-              <div class="flow-node-desc" data-i18n="lp.flow.4.desc">
-                Knowledge base scanned only for authorised users
+            <div class="flow-pipe-arrow">→</div>
+            <div class="flow-pipe-node">
+              <div class="flow-pipe-step">4</div>
+              <div class="flow-pipe-icon">📂</div>
+              <div class="flow-pipe-title" data-i18n="lp.flow.4.title">Knowledge Searched</div>
+              <div class="flow-pipe-desc" data-i18n="lp.flow.4.desc">
+                Second Brain searches only the authorized knowledge sources to find the most relevant information.
               </div>
             </div>
-
-            <!-- Node 5: Answer Crafted — bottom-left -->
-            <div class="flow-node" style="left: 104px; top: 390px">
-              <div class="flow-node-step">5</div>
-              <div class="flow-node-icon">✨</div>
-              <div class="flow-node-title" data-i18n="lp.flow.5.title">
-                Answer Crafted
-              </div>
-              <div class="flow-node-desc" data-i18n="lp.flow.5.desc">
-                A clear, sourced reply is generated in seconds
+            <div class="flow-pipe-arrow">→</div>
+            <div class="flow-pipe-node">
+              <div class="flow-pipe-step">5</div>
+              <div class="flow-pipe-icon">✨</div>
+              <div class="flow-pipe-title" data-i18n="lp.flow.5.title">Answer Created</div>
+              <div class="flow-pipe-desc" data-i18n="lp.flow.5.desc">
+                A clear answer is generated based on the retrieved content, with source references when available.
               </div>
             </div>
-
-            <!-- Node 6: Reply Delivered — top-left -->
-            <div class="flow-node" style="left: 104px; top: 185px">
-              <div class="flow-node-step">6</div>
-              <div class="flow-node-icon">💬</div>
-              <div class="flow-node-title" data-i18n="lp.flow.6.title">
-                Reply Delivered
-              </div>
-              <div class="flow-node-desc" data-i18n="lp.flow.6.desc">
-                Answer lands in WhatsApp, loop complete
+            <div class="flow-pipe-arrow">→</div>
+            <div class="flow-pipe-node">
+              <div class="flow-pipe-step">6</div>
+              <div class="flow-pipe-icon">💬</div>
+              <div class="flow-pipe-title" data-i18n="lp.flow.6.title">Answer Delivered</div>
+              <div class="flow-pipe-desc" data-i18n="lp.flow.6.desc">
+                The response is sent back through WhatsApp, completing the core answer cycle.
               </div>
             </div>
           </div>
         </div>
 
-        <!-- ── Mobile fallback: numbered steps list ── -->
+        <!-- ── Bridge ── -->
+        <div class="flow-bridge">
+          <div class="flow-bridge-line"></div>
+          <span class="flow-bridge-text">
+            <span class="flow-bridge-arrow">↓</span>
+            <span data-i18n="lp.flow.bridge">After the answer is delivered</span>
+            <span class="flow-bridge-arrow">↓</span>
+          </span>
+          <div class="flow-bridge-line"></div>
+        </div>
+
+        <!-- ── Zone 2 tag ── -->
+        <div class="flow-zone-tag secondary">
+          <span class="flow-zone-dot"></span>
+          <span data-i18n="lp.flow.zone2">Post-response layer</span>
+        </div>
+
+        <!-- ── Downstream grid (desktop) ── -->
+        <div class="flow-downstream">
+          <div class="flow-ds-card">
+            <div class="flow-ds-header">
+              <div class="flow-ds-step">7</div>
+              <div class="flow-ds-icon">📋</div>
+            </div>
+            <div class="flow-ds-title" data-i18n="lp.flow.7.title">Interaction Logged</div>
+            <div class="flow-ds-desc" data-i18n="lp.flow.7.desc">
+              The interaction is recorded so usage data, question patterns, and
+              content signals can be used for visibility and improvement.
+            </div>
+          </div>
+          <div class="flow-ds-card">
+            <div class="flow-ds-header">
+              <div class="flow-ds-step">8</div>
+              <div class="flow-ds-icon">📊</div>
+            </div>
+            <div class="flow-ds-title" data-i18n="lp.flow.8.title">Dashboard &amp; Analytics Updated</div>
+            <div class="flow-ds-desc" data-i18n="lp.flow.8.desc">
+              Relevant activity is reflected in the dashboard, helping admins
+              monitor usage, recurring needs, and knowledge gaps across users or
+              teams.
+            </div>
+          </div>
+          <div class="flow-ds-card optional">
+            <div class="flow-ds-header">
+              <div class="flow-ds-step">9</div>
+              <div class="flow-ds-icon">📢</div>
+              <span class="flow-ds-badge" data-i18n="lp.flow.optional">Optional</span>
+            </div>
+            <div class="flow-ds-title" data-i18n="lp.flow.9.title">Admin Follow-Up Messages</div>
+            <div class="flow-ds-desc" data-i18n="lp.flow.9.desc">
+              Admins can trigger segmented or general WhatsApp messages based on
+              audience, activity, or communication needs.
+            </div>
+          </div>
+          <div class="flow-ds-card optional">
+            <div class="flow-ds-header">
+              <div class="flow-ds-step">10</div>
+              <div class="flow-ds-icon">🧠</div>
+              <span class="flow-ds-badge" data-i18n="lp.flow.optional">Optional</span>
+            </div>
+            <div class="flow-ds-title" data-i18n="lp.flow.10.title">Personalized Coach</div>
+            <div class="flow-ds-desc" data-i18n="lp.flow.10.desc">
+              When enabled, interaction history and detected opportunity areas
+              can be passed to a personalized AI Coach for more focused and
+              personal follow-up.
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Mobile fallback: all 10 steps ── -->
         <div class="flow-steps-mobile">
+          <div class="flow-mob-zone-label flow-mob-zone-primary" data-i18n="lp.flow.zone1">
+            Core answer cycle
+          </div>
           <div class="flow-step-mob">
-            <div class="flow-step-mob-num">📱</div>
+            <div class="flow-step-mob-num primary-num">1</div>
             <div class="flow-step-mob-body">
-              <h4 data-i18n="lp.flowm.1.title">Your Team Asks</h4>
-              <p data-i18n="lp.flowm.1.desc">
-                Anyone on the team sends a question, voice note, or file to
-                Second Brain on WhatsApp — no new app needed.
-              </p>
+              <h4 data-i18n="lp.flow.1.title">Your Team</h4>
+              <p data-i18n="lp.flow.1.desc">A team member sends a question through WhatsApp at any time.</p>
             </div>
           </div>
           <div class="flow-step-mob">
-            <div class="flow-step-mob-num">⚡</div>
+            <div class="flow-step-mob-num primary-num">2</div>
             <div class="flow-step-mob-body">
-              <h4 data-i18n="lp.flowm.2.title">Instant Receipt</h4>
-              <p data-i18n="lp.flowm.2.desc">
-                The question arrives in real time, the moment it's sent — no
-                delays, no queues.
-              </p>
+              <h4 data-i18n="lp.flow.2.title">Question Received</h4>
+              <p data-i18n="lp.flow.2.desc">The message arrives in real time and enters the processing flow instantly.</p>
             </div>
           </div>
           <div class="flow-step-mob">
-            <div class="flow-step-mob-num">🛡️</div>
+            <div class="flow-step-mob-num primary-num">3</div>
             <div class="flow-step-mob-body">
-              <h4 data-i18n="lp.flowm.3.title">Access Verified</h4>
-              <p data-i18n="lp.flowm.3.desc">
-                Role-based permissions are checked immediately — if the user
-                isn't authorised, the request stops here, saving time and cost.
-              </p>
+              <h4 data-i18n="lp.flow.3.title">Access Verified</h4>
+              <p data-i18n="lp.flow.3.desc">User permissions are checked before any search begins.</p>
             </div>
           </div>
           <div class="flow-step-mob">
-            <div class="flow-step-mob-num">📂</div>
+            <div class="flow-step-mob-num primary-num">4</div>
             <div class="flow-step-mob-body">
-              <h4 data-i18n="lp.flowm.4.title">Docs Searched</h4>
-              <p data-i18n="lp.flowm.4.desc">
-                Only for authorised users — Second Brain scans your entire
-                knowledge base to find the most relevant information.
-              </p>
+              <h4 data-i18n="lp.flow.4.title">Knowledge Searched</h4>
+              <p data-i18n="lp.flow.4.desc">Second Brain searches only the authorized knowledge sources to find the most relevant information.</p>
             </div>
           </div>
           <div class="flow-step-mob">
-            <div class="flow-step-mob-num">✨</div>
+            <div class="flow-step-mob-num primary-num">5</div>
             <div class="flow-step-mob-body">
-              <h4 data-i18n="lp.flowm.5.title">Answer Crafted</h4>
-              <p data-i18n="lp.flowm.5.desc">
-                A clear, plain-language answer is generated in seconds, with
-                sources cited so your team knows exactly where it came from.
-              </p>
+              <h4 data-i18n="lp.flow.5.title">Answer Created</h4>
+              <p data-i18n="lp.flow.5.desc">A clear answer is generated based on the retrieved content, with source references when available.</p>
             </div>
           </div>
-          <div class="flow-step-mob">
-            <div class="flow-step-mob-num">💬</div>
+          <div class="flow-step-mob flow-mob-no-line">
+            <div class="flow-step-mob-num primary-num">6</div>
             <div class="flow-step-mob-body">
-              <h4 data-i18n="lp.flowm.6.title">Reply Delivered</h4>
-              <p data-i18n="lp.flowm.6.desc">
-                The answer arrives directly in WhatsApp — no login, no browser,
-                no friction. The loop is complete.
-              </p>
+              <h4 data-i18n="lp.flow.6.title">Answer Delivered</h4>
+              <p data-i18n="lp.flow.6.desc">The response is sent back through WhatsApp, completing the core answer cycle.</p>
+            </div>
+          </div>
+          <div class="flow-mob-zone-label flow-mob-zone-secondary" data-i18n="lp.flow.zone2">
+            Post-response layer
+          </div>
+          <div class="flow-step-mob secondary-step">
+            <div class="flow-step-mob-num secondary-num">7</div>
+            <div class="flow-step-mob-body">
+              <h4 data-i18n="lp.flow.7.title">Interaction Logged</h4>
+              <p data-i18n="lp.flow.7.desc">The interaction is recorded so usage data, question patterns, and content signals can be used for visibility and improvement.</p>
+            </div>
+          </div>
+          <div class="flow-step-mob secondary-step">
+            <div class="flow-step-mob-num secondary-num">8</div>
+            <div class="flow-step-mob-body">
+              <h4 data-i18n="lp.flow.8.title">Dashboard &amp; Analytics Updated</h4>
+              <p data-i18n="lp.flow.8.desc">Relevant activity is reflected in the dashboard, helping admins monitor usage, recurring needs, and knowledge gaps across users or teams.</p>
+            </div>
+          </div>
+          <div class="flow-step-mob secondary-step">
+            <div class="flow-step-mob-num secondary-num">9</div>
+            <div class="flow-step-mob-body">
+              <h4 data-i18n="lp.flow.9.title">Admin Follow-Up Messages <span class="flow-mob-optional" data-i18n="lp.flow.optional">Optional</span></h4>
+              <p data-i18n="lp.flow.9.desc">Admins can trigger segmented or general WhatsApp messages based on audience, activity, or communication needs.</p>
+            </div>
+          </div>
+          <div class="flow-step-mob secondary-step flow-mob-no-line">
+            <div class="flow-step-mob-num secondary-num">10</div>
+            <div class="flow-step-mob-body">
+              <h4 data-i18n="lp.flow.10.title">Personalized Coach <span class="flow-mob-optional" data-i18n="lp.flow.optional">Optional</span></h4>
+              <p data-i18n="lp.flow.10.desc">When enabled, interaction history and detected opportunity areas can be passed to a personalized AI Coach for more focused and personal follow-up.</p>
             </div>
           </div>
         </div>
