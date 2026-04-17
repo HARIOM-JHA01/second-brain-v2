@@ -466,33 +466,33 @@
       "lp.flow.10.desc":
         "Cuando se habilita, el historial de interacción y las áreas de oportunidad detectadas pueden transferirse a un coach de IA personalizado para dar un seguimiento más enfocado y personal.",
       "lp.uc.label": "Casos de uso",
-      "lp.uc.title": "Creado para equipos reales.",
+      "lp.uc.title": "Diseñado para equipos que necesitan respuestas rápidas, efectivas y precisas.",
       "lp.uc.sub":
-        "Second Brain se adapta a cómo trabaja tu organización — no al revés.",
-      "lp.uc.1.title": "Base de conocimiento interna",
+        "Desde onboarding y finanzas hasta ventas, operaciones, cumplimiento y soporte, Second Brain se adapta a la forma en que ya trabaja tu organización.",
+      "lp.uc.1.title": "Base de conocimiento",
       "lp.uc.1.desc":
-        "SOPs, políticas de RRHH, documentos de incorporación. Los nuevos empleados obtienen respuestas al instante en lugar de molestar a un colega.",
+        "Da a tu equipo acceso inmediato a SOPs, políticas de RRHH, materiales de onboarding y documentos internos sin depender de que otra persona responda.",
       "lp.uc.2.title": "Equipos financieros",
       "lp.uc.2.desc":
-        "Consulta informes, pronósticos y presupuestos en segundos. El acceso basado en roles mantiene los números sensibles alejados de usuarios no autorizados.",
+        "Encuentra presupuestos, pronósticos, reportes y referencias financieras con rapidez, manteniendo la información sensible protegida por rol.",
       "lp.uc.3.title": "Ventas y marketing",
       "lp.uc.3.desc":
-        "Especificaciones de producto, hojas de precios, tarjetas de batalla competitivas — tu equipo de ventas siempre tiene la respuesta correcta a mano.",
+        "Accede a especificaciones de producto, listas de precios, battlecards y materiales comerciales para que el equipo siempre tenga la respuesta correcta a la mano.",
       "lp.uc.4.title": "Legal y cumplimiento",
       "lp.uc.4.desc":
-        "Busca contratos, normativas y documentos de cumplimiento. Obtén extractos citados en lugar de leer cientos de páginas.",
+        "Busca contratos, políticas, normativas y documentos de cumplimiento con mayor rapidez, con respuestas sustentadas y referencias a la fuente.",
       "lp.uc.5.title": "Operaciones",
       "lp.uc.5.desc":
-        "Manuales técnicos, contactos de proveedores, resúmenes de proyectos. Los equipos de campo obtienen respuestas sin necesitar VPN ni portátil.",
+        "Da a los equipos operativos y de campo acceso a manuales, contactos de proveedores, resúmenes de proyecto y procedimientos técnicos desde WhatsApp.",
       "lp.uc.6.title": "Formación y desarrollo",
       "lp.uc.6.desc":
-        "Materiales de cursos y guías de formación accesibles vía WhatsApp. Los alumnos pueden autoevaluarse y obtener explicaciones bajo demanda.",
+        "Facilita el acceso a materiales de capacitación, guías y contenido de aprendizaje para reforzar conocimiento justo cuando se necesita.",
       "lp.uc.7.title": "Salud y clínicas",
       "lp.uc.7.desc":
-        "Protocolos clínicos, referencias de medicamentos y formularios de ingreso de pacientes accesibles al personal al instante — sin tocar un escritorio.",
+        "Ayuda al personal a consultar protocolos, referencias de medicamentos y documentos operativos con rapidez, sin frenar el trabajo diario.",
       "lp.uc.8.title": "Equipos de soporte al cliente",
       "lp.uc.8.desc":
-        "FAQs de productos, políticas de devolución y guías de solución de problemas al alcance de los agentes. Resoluciones más rápidas, menos escalamientos.",
+        "Da a los agentes acceso rápido a FAQs, políticas de devolución y guías de solución para reducir escalaciones y mejorar tiempos de respuesta.",
       "lp.sec.label": "Seguridad y permisos",
       "lp.sec.title": "Tus datos, tus reglas.",
       "lp.sec.sub":
@@ -1179,34 +1179,34 @@
       "lp.flow.10.title": "Personalized Coach",
       "lp.flow.10.desc":
         "When enabled, interaction history and detected opportunity areas can be passed to a personalized AI Coach for more focused and personal follow-up.",
-      "lp.uc.label": "Use cases",
-      "lp.uc.title": "Built for real teams.",
+      "lp.uc.label": "Use Cases",
+      "lp.uc.title": "Built for the teams that need answers fast.",
       "lp.uc.sub":
-        "Second Brain adapts to how your organization works — not the other way around.",
-      "lp.uc.1.title": "Internal knowledge base",
+        "From onboarding and finance to sales, operations, compliance, and support, Second Brain adapts to how your organization already works.",
+      "lp.uc.1.title": "Internal Knowledge Base",
       "lp.uc.1.desc":
-        "SOPs, HR policies, onboarding docs. New employees get answers instantly instead of pinging a colleague.",
-      "lp.uc.2.title": "Financial teams",
+        "Give your team instant access to SOPs, HR policies, onboarding materials, and internal documents without depending on someone else to answer.",
+      "lp.uc.2.title": "Finance Teams",
       "lp.uc.2.desc":
-        "Query reports, forecasts, and budgets in seconds. Role-based access keeps sensitive numbers away from unauthorized users.",
-      "lp.uc.3.title": "Sales & marketing",
+        "Find budgets, forecasts, reports, and financial references quickly while keeping sensitive information restricted by role.",
+      "lp.uc.3.title": "Sales & Marketing",
       "lp.uc.3.desc":
-        "Product specs, pricing sheets, competitive battlecards — your sales team always has the right answer on hand.",
-      "lp.uc.4.title": "Legal & compliance",
+        "Access product specs, pricing sheets, battlecards, and commercial materials so the team always has the right answer at hand.",
+      "lp.uc.4.title": "Legal & Compliance",
       "lp.uc.4.desc":
-        "Search contracts, regulations, and compliance docs. Get cited excerpts instead of reading through hundreds of pages.",
+        "Search contracts, policies, regulations, and compliance documents faster, with grounded answers and source references.",
       "lp.uc.5.title": "Operations",
       "lp.uc.5.desc":
-        "Technical manuals, vendor contacts, project briefs. Field teams get answers without needing VPN or a laptop.",
-      "lp.uc.6.title": "Training & L&D",
+        "Give field and operational teams access to manuals, vendor contacts, project summaries, and technical procedures from WhatsApp.",
+      "lp.uc.6.title": "Learning & Development",
       "lp.uc.6.desc":
-        "Course materials and training guides accessible via WhatsApp. Learners can quiz themselves and get explanations on demand.",
-      "lp.uc.7.title": "Healthcare & clinics",
+        "Make training materials, guides, and learning content easier to access, so people can reinforce knowledge when they need it.",
+      "lp.uc.7.title": "Healthcare & Clinics",
       "lp.uc.7.desc":
-        "Clinical protocols, drug references, and patient intake forms instantly accessible to staff — without touching a desktop.",
-      "lp.uc.8.title": "Customer support teams",
+        "Help staff consult protocols, medication references, and operational documents quickly, without slowing down daily work.",
+      "lp.uc.8.title": "Customer Support Teams",
       "lp.uc.8.desc":
-        "Product FAQs, return policies, and troubleshooting guides at agents' fingertips. Faster resolutions, fewer escalations.",
+        "Provide agents with fast access to FAQs, return policies, and troubleshooting guides to reduce escalations and improve response times.",
       "lp.sec.label": "Security & permissions",
       "lp.sec.title": "Your data, your rules.",
       "lp.sec.sub":
