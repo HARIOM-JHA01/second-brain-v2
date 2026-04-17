@@ -493,22 +493,22 @@
       "lp.uc.8.title": "Equipos de soporte al cliente",
       "lp.uc.8.desc":
         "Da a los agentes acceso rápido a FAQs, políticas de devolución y guías de solución para reducir escalaciones y mejorar tiempos de respuesta.",
-      "lp.sec.label": "Seguridad y permisos",
-      "lp.sec.title": "Tus datos, tus reglas.",
+      "lp.sec.label": "Seguridad y privacidad",
+      "lp.sec.title": "El acceso se valida antes de generar cualquier respuesta.",
       "lp.sec.sub":
-        "Cada consulta es clasificada y verificada contra el rol del usuario antes de que el asistente responda. La información sensible permanece protegida — automáticamente.",
+        "Cada consulta se evalúa contra los permisos del usuario antes de que Second Brain busque en la base de conocimiento. La información sensible permanece restringida a los roles correctos.",
       "lp.sec.1.title": "Control de acceso basado en roles",
       "lp.sec.1.desc":
-        "Define roles personalizados con indicadores de permisos específicos. Asigna uno o más roles por usuario.",
-      "lp.sec.2.title": "Clasificación de consultas por IA",
+        "Asigna uno o más roles por usuario y define a qué tipo de información puede acceder cada persona.",
+      "lp.sec.2.title": "Clasificación de consultas antes de la búsqueda",
       "lp.sec.2.desc":
-        "Cada mensaje entrante se clasifica como financiero, estratégico o sensible antes de generar cualquier respuesta.",
-      "lp.sec.3.title": "Denegación amigable",
+        "Cada pregunta se clasifica antes de iniciar cualquier búsqueda, para que las consultas sensibles sigan las reglas de acceso correctas desde el inicio.",
+      "lp.sec.3.title": "Denegación clara y segura",
       "lp.sec.3.desc":
-        "Las consultas no autorizadas reciben una negativa clara y amigable — no un error. Los usuarios saben a quién contactar.",
+        "Cuando un usuario no está autorizado, Second Brain responde de forma clara y segura, sin exponer contenido ni fallar sin contexto.",
       "lp.sec.4.title": "Verificación de identidad por WhatsApp",
       "lp.sec.4.desc":
-        "Los usuarios son identificados por su número de WhatsApp verificado. Sin contraseñas que gestionar para los usuarios finales.",
+        "Los usuarios se reconocen mediante su identidad verificada en WhatsApp, reduciendo fricción y manteniendo el acceso vinculado a la persona correcta.",
       "lp.nav.privacy": "Seguridad y privacidad",
       "lp.priv.label": "Privacidad de datos",
       "lp.priv.title": "Privacidad por defecto.",
@@ -1207,22 +1207,22 @@
       "lp.uc.8.title": "Customer Support Teams",
       "lp.uc.8.desc":
         "Provide agents with fast access to FAQs, return policies, and troubleshooting guides to reduce escalations and improve response times.",
-      "lp.sec.label": "Security & permissions",
-      "lp.sec.title": "Your data, your rules.",
+      "lp.sec.label": "Security & Privacy",
+      "lp.sec.title": "Access is checked before any answer is returned.",
       "lp.sec.sub":
-        "Every query is classified and checked against the user's role before the assistant answers. Sensitive information stays protected — automatically.",
-      "lp.sec.1.title": "Role-based access control",
+        "Every request is evaluated against user permissions before Second Brain searches your knowledge base. Sensitive information stays restricted to the right roles.",
+      "lp.sec.1.title": "Role-Based Access Control",
       "lp.sec.1.desc":
-        "Define custom roles with specific permission flags. Assign one or more roles per user.",
-      "lp.sec.2.title": "AI query classification",
+        "Assign one or more roles to each user and define what type of information they are allowed to access.",
+      "lp.sec.2.title": "Request Classification Before Retrieval",
       "lp.sec.2.desc":
-        "Each incoming message is classified as financial, strategic, or sensitive before any answer is generated.",
-      "lp.sec.3.title": "Graceful denial",
+        "Each question is classified before any search begins, so sensitive requests follow the right access rules from the start.",
+      "lp.sec.3.title": "Clear Access Denial",
       "lp.sec.3.desc":
-        "Unauthorized queries get a clear, friendly refusal — not an error. Users know to contact the right person.",
-      "lp.sec.4.title": "WhatsApp identity verification",
+        "When a user is not authorized, Second Brain responds clearly and safely instead of exposing content or failing without context.",
+      "lp.sec.4.title": "WhatsApp Identity Verification",
       "lp.sec.4.desc":
-        "Users are matched by their verified WhatsApp number. No passwords to manage for end users.",
+        "Users are recognized through their verified WhatsApp identity, reducing friction while keeping access tied to the right person.",
       "lp.nav.privacy": "Security & Privacy",
       "lp.priv.label": "Data Privacy",
       "lp.priv.title": "Built with privacy by default.",
