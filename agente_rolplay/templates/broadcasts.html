@@ -199,6 +199,10 @@
       </div>
       <div id="variableFields"></div>
       <div id="templatePreview" class="preview-box" style="display:none;"></div>
+      <div id="templateMediaPreview" style="display:none;margin-top:.6rem;padding:.75rem;background:var(--bg);border:1px solid var(--border);border-radius:10px;">
+        <div style="font-size:.78rem;color:var(--text-muted);margin-bottom:.5rem;">📎 Multimedia adjunto a este template:</div>
+        <div id="templateMediaContent"></div>
+      </div>
       <div class="alert-error" id="createError"></div>
       <div style="display:flex;gap:.75rem;margin-top:1.2rem;">
         <button type="button" class="btn btn-secondary" style="flex:1;" onclick="closeModal('createModal')" data-i18n="common.cancel">Cancel</button>
@@ -308,8 +312,28 @@ function onTemplateChange() {
   const template = allTemplates.find((tmpl) => tmpl.id === templateId);
   const varsDiv = document.getElementById('variableFields');
   const previewDiv = document.getElementById('templatePreview');
+  const mediaPreviewWrap = document.getElementById('templateMediaPreview');
+  const mediaContent = document.getElementById('templateMediaContent');
 
-  if (!template || !template.variables || template.variables.length === 0) {
+  if (!template) {
+    varsDiv.innerHTML = '';
+    previewDiv.style.display = 'none';
+    mediaPreviewWrap.style.display = 'none';
+    return;
+  }
+
+  // Media preview
+  if (template.media_url) {
+    const isVideo = /\.(mp4|mov|webm|avi|3gp)(\?|$)/i.test(template.media_url);
+    mediaContent.innerHTML = isVideo
+      ? `<video src="${template.media_url}" controls style="max-width:100%;max-height:140px;border-radius:8px;display:block;"></video>`
+      : `<img src="${template.media_url}" style="max-width:100%;max-height:140px;border-radius:8px;display:block;" />`;
+    mediaPreviewWrap.style.display = 'block';
+  } else {
+    mediaPreviewWrap.style.display = 'none';
+  }
+
+  if (!template.variables || template.variables.length === 0) {
     varsDiv.innerHTML = '';
     previewDiv.style.display = 'none';
     return;
@@ -375,6 +399,7 @@ function openCreateModal() {
   errEl.textContent = '';
   document.getElementById('variableFields').innerHTML = '';
   document.getElementById('templatePreview').style.display = 'none';
+  document.getElementById('templateMediaPreview').style.display = 'none';
 
   const now = new Date();
   now.setMinutes(now.getMinutes() - now.getTimezoneOffset());

@@ -342,6 +342,9 @@
     <a href="/dashboard" class="{% if request.url.path == '/dashboard' %}active{% endif %}">
       <span class="sidebar-icon">📊</span> <span data-i18n="sidebar.dashboard">Panel</span>
     </a>
+    <a href="/dashboard/insights" class="{% if '/dashboard/insights' in request.url.path %}active{% endif %}">
+      <span class="sidebar-icon">🔍</span> <span data-i18n="sidebar.insights">Insights</span>
+    </a>
     <div class="sidebar-section" data-i18n="sidebar.manage">Gestionar</div>
     <a href="/dashboard/users" class="{% if '/dashboard/users' in request.url.path %}active{% endif %}">
       <span class="sidebar-icon">👥</span> <span data-i18n="sidebar.users">Usuarios</span>

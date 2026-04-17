@@ -32,6 +32,15 @@
 .modal-actions { display: flex; gap: .75rem; margin-top: 1.25rem; }
 .modal-actions button { flex: 1; }
 .alert-error { background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3); color: #ef4444; border-radius: 8px; padding: .6rem .9rem; font-size: .85rem; margin-top: .75rem; display: none; }
+.media-upload-area {
+  border: 2px dashed var(--border); border-radius: 10px;
+  padding: 1rem; text-align: center; cursor: pointer;
+  transition: border-color .15s; color: var(--text-muted); font-size: .85rem;
+}
+.media-upload-area:hover { border-color: var(--accent); }
+.media-preview-wrap { margin-top: .65rem; position: relative; }
+.media-preview-wrap img, .media-preview-wrap video { max-width: 100%; max-height: 160px; border-radius: 8px; display: block; }
+.media-remove-btn { position: absolute; top: .3rem; right: .3rem; background: rgba(0,0,0,.6); color: #fff; border: none; border-radius: 50%; width: 22px; height: 22px; cursor: pointer; font-size: .8rem; line-height: 22px; text-align: center; }
 .template-preview {
   background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
   padding: 1rem; font-size: .85rem; color: var(--text-dim); white-space: pre-wrap; max-height: 200px; overflow-y: auto;
@@ -88,6 +97,15 @@
         <input type="number" id="c_usecase_api_id" placeholder="e.g. 385" min="1" />
         <div style="font-size:.75rem;color:var(--text-muted);margin-top:.25rem;">If set, the coach will fetch the latest session from the Rolplay API instead of using uploaded files.</div>
       </div>
+      <div class="form-field">
+        <label>Multimedia (optional — image or video attached to all broadcasts using this template)</label>
+        <input type="hidden" id="c_media_url" />
+        <div class="media-upload-area" onclick="document.getElementById('c_media_file').click()">
+          📎 Click to upload image or video (max 16 MB)
+        </div>
+        <input type="file" id="c_media_file" accept="image/*,video/*" style="display:none;" onchange="handleMediaUpload(this, 'c')" />
+        <div id="c_media_preview" class="media-preview-wrap" style="display:none;"></div>
+      </div>
       <div style="display:flex;align-items:center;gap:.75rem;margin:1rem 0;">
         <label style="margin:0;font-size:.875rem;font-weight:600;">Active</label>
         <input type="checkbox" id="c_is_active" checked style="width:auto;margin:0;" />
@@ -128,6 +146,15 @@
       <div class="form-field">
         <label>Content *</label>
         <textarea id="e_content" required></textarea>
+      </div>
+      <div class="form-field">
+        <label>Multimedia (optional — image or video attached to all broadcasts using this template)</label>
+        <input type="hidden" id="e_media_url" />
+        <div class="media-upload-area" onclick="document.getElementById('e_media_file').click()">
+          📎 Click to upload image or video (max 16 MB)
+        </div>
+        <input type="file" id="e_media_file" accept="image/*,video/*" style="display:none;" onchange="handleMediaUpload(this, 'e')" />
+        <div id="e_media_preview" class="media-preview-wrap" style="display:none;"></div>
       </div>
       <div class="form-field">
         <label>Organization</label>
@@ -252,10 +279,57 @@ function renderTable(data) {
   `}).join('');
 }
 
+function clearMediaPreview(prefix) {
+  document.getElementById(`${prefix}_media_url`).value = '';
+  document.getElementById(`${prefix}_media_file`).value = '';
+  document.getElementById(`${prefix}_media_preview`).style.display = 'none';
+  document.getElementById(`${prefix}_media_preview`).innerHTML = '';
+}
+
+async function handleMediaUpload(input, prefix) {
+  const file = input.files[0];
+  if (!file) return;
+  const previewEl = document.getElementById(`${prefix}_media_preview`);
+  const urlInput = document.getElementById(`${prefix}_media_url`);
+
+  // Show uploading state
+  previewEl.style.display = 'block';
+  previewEl.innerHTML = '<span style="font-size:.8rem;color:var(--text-muted);">Uploading…</span>';
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const token = localStorage.getItem('access_token');
+  const res = await fetch('/api/users/upload-media', {
+    method: 'POST',
+    headers: token ? { 'Authorization': 'Bearer ' + token } : {},
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    previewEl.innerHTML = `<span style="font-size:.8rem;color:#ef4444;">Upload failed: ${err.detail || 'Unknown error'}</span>`;
+    return;
+  }
+
+  const data = await res.json();
+  urlInput.value = data.url;
+
+  const isVideo = data.resource_type === 'video';
+  const mediaTag = isVideo
+    ? `<video src="${data.url}" controls style="max-width:100%;max-height:160px;border-radius:8px;display:block;"></video>`
+    : `<img src="${data.url}" style="max-width:100%;max-height:160px;border-radius:8px;display:block;" />`;
+  previewEl.innerHTML = `
+    ${mediaTag}
+    <button type="button" class="media-remove-btn" onclick="clearMediaPreview('${prefix}')" title="Remove">✕</button>
+  `;
+}
+
 function openCreateModal() {
   document.getElementById('createForm').reset();
   document.getElementById('createError').style.display = 'none';
   document.getElementById('createPreview').style.display = 'none';
+  clearMediaPreview('c');
   document.getElementById('createModal').classList.add('show');
 }
 
@@ -269,6 +343,20 @@ function openEditModal(id) {
   document.getElementById('e_is_active').checked = t.is_active;
   document.getElementById('editError').style.display = 'none';
   document.getElementById('editPreview').style.display = 'none';
+
+  // Pre-populate media preview if template already has media
+  clearMediaPreview('e');
+  if (t.media_url) {
+    document.getElementById('e_media_url').value = t.media_url;
+    const isVideo = /\.(mp4|mov|webm|avi|3gp)(\?|$)/i.test(t.media_url);
+    const mediaTag = isVideo
+      ? `<video src="${t.media_url}" controls style="max-width:100%;max-height:160px;border-radius:8px;display:block;"></video>`
+      : `<img src="${t.media_url}" style="max-width:100%;max-height:160px;border-radius:8px;display:block;" />`;
+    const previewEl = document.getElementById('e_media_preview');
+    previewEl.style.display = 'block';
+    previewEl.innerHTML = `${mediaTag}<button type="button" class="media-remove-btn" onclick="clearMediaPreview('e')" title="Remove">✕</button>`;
+  }
+
   document.getElementById('editModal').classList.add('show');
 }
 
@@ -289,7 +377,8 @@ document.getElementById('createForm').addEventListener('submit', async (e) => {
   const body = {
     name: document.getElementById('c_name').value.trim(),
     content: document.getElementById('c_content').value,
-    org_id: document.getElementById('c_org').value || null,
+    org_id: document.getElementById('c_org') ? (document.getElementById('c_org').value || null) : null,
+    media_url: document.getElementById('c_media_url').value || null,
   };
   const r = await fetch('/admin/api/templates', {
     method: 'POST',
@@ -317,6 +406,7 @@ document.getElementById('editForm').addEventListener('submit', async (e) => {
     name: document.getElementById('e_name').value.trim(),
     content: document.getElementById('e_content').value,
     is_active: document.getElementById('e_is_active').checked,
+    media_url: document.getElementById('e_media_url').value || null,
   };
   const r = await fetch(`/admin/api/templates/${id}`, {
     method: 'PATCH',

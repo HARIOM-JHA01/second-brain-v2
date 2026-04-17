@@ -1429,6 +1429,116 @@ def process_incoming_messages_functional(form_data, redis_client=r):
         redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
         return "ImageProcessed"
 
+    if message_type in ("video", "media") and (
+        media_content_type or ""
+    ).startswith("video/"):
+        print(f"Video received: {media_url}")
+        redis_client.delete(file_upload_pending_key)
+
+        timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+        _vid_ext_map = {
+            "video/mp4": "mp4",
+            "video/quicktime": "mov",
+            "video/3gpp": "3gp",
+            "video/webm": "webm",
+            "video/avi": "avi",
+        }
+        vid_ext = _vid_ext_map.get(media_content_type, "mp4")
+        base_name = f"video_{phone_number}_{timestamp_str}"
+
+        send_twilio_message(from_number, "⏳ Subiendo video...")
+
+        temp_path = download_document_from_twilio(
+            media_url=media_url, file_name=base_name, file_type=vid_ext
+        )
+
+        if not temp_path:
+            send_twilio_message(
+                from_number, "Sorry, there was an error downloading your video."
+            )
+            redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
+            return "VideoError"
+
+        result = upload_file_to_cloudinary(temp_path, folder="datastore")
+        filename = f"{base_name}.{vid_ext}"
+
+        try:
+            os.remove(temp_path)
+        except Exception:
+            pass
+
+        if result and result.get("success"):
+            try:
+                from agente_rolplay.db.database import get_db
+                from agente_rolplay.db.models import Document, Profile
+                from agente_rolplay.db.whatsapp_auth import normalize_whatsapp_number
+
+                _norm = normalize_whatsapp_number(phone_number)
+                _db = next(get_db())
+                try:
+                    _profile = (
+                        _db.query(Profile)
+                        .filter(Profile.whatsapp_number == _norm)
+                        .first()
+                    )
+                    if _profile:
+                        _db.add(
+                            Document(
+                                org_id=_profile.org_id,
+                                name=filename,
+                                drive_file_id=result.get("public_id"),
+                                location="datastore",
+                                cloudinary_url=result.get("secure_url"),
+                                file_type=vid_ext,
+                                file_size=result.get("bytes"),
+                                resource_type="video",
+                                uploaded_by=phone_number,
+                                upload_source="whatsapp",
+                            )
+                        )
+                        _db.commit()
+                finally:
+                    _db.close()
+            except Exception as _doc_err:
+                print(f"Warning: could not write Document record for video: {_doc_err}")
+
+            log_message_to_db(phone_number, message_type="video")
+
+            if current_lang == "en":
+                confirm_msg = (
+                    f"Video '{filename}' received ✅ — "
+                    "saved to your organization's Data Store. "
+                    "Your admin can review it there."
+                )
+            else:
+                confirm_msg = (
+                    f"Video '{filename}' recibido ✅ — "
+                    "guardado en el Almacén de Datos de tu organización. "
+                    "Tu administrador puede revisarlo allí."
+                )
+            send_twilio_message(from_number, confirm_msg)
+
+            chat_history_id = f"fp-chatHistory:{from_number}"
+            add_to_chat_history(
+                chat_history_id, f"[Sent video: {filename}]", "user", phone_number
+            )
+            log_whatsapp_message_to_db(
+                phone_number, "user", f"[Sent video: {filename}]", "video"
+            )
+            bot_history_msg = f"Video '{filename}' saved to Data Store."
+            add_to_chat_history(
+                chat_history_id, bot_history_msg, "assistant", phone_number
+            )
+            log_whatsapp_message_to_db(
+                phone_number, "assistant", bot_history_msg, "video"
+            )
+        else:
+            error_message = result.get("error", "Unknown") if result else "Unknown"
+            send_twilio_message(from_number, f"Error uploading video: {error_message}")
+
+        redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
+        return "VideoProcessed"
+
     if message_type in ("video", "media"):
         print(f"Unsupported media type received: {media_content_type}")
         send_twilio_message(
@@ -2256,6 +2366,116 @@ def process_incoming_messages(form_data, redis_client=r):
 
         redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
         return "ImageProcessed"
+
+    if message_type in ("video", "media") and (
+        media_content_type or ""
+    ).startswith("video/"):
+        print(f"Video received: {media_url}")
+        redis_client.delete(file_upload_pending_key)
+
+        timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+        _vid_ext_map = {
+            "video/mp4": "mp4",
+            "video/quicktime": "mov",
+            "video/3gpp": "3gp",
+            "video/webm": "webm",
+            "video/avi": "avi",
+        }
+        vid_ext = _vid_ext_map.get(media_content_type, "mp4")
+        base_name = f"video_{phone_number}_{timestamp_str}"
+
+        send_twilio_message(from_number, "⏳ Subiendo video...")
+
+        temp_path = download_document_from_twilio(
+            media_url=media_url, file_name=base_name, file_type=vid_ext
+        )
+
+        if not temp_path:
+            send_twilio_message(
+                from_number, "Sorry, there was an error downloading your video."
+            )
+            redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
+            return "VideoError"
+
+        result = upload_file_to_cloudinary(temp_path, folder="datastore")
+        filename = f"{base_name}.{vid_ext}"
+
+        try:
+            os.remove(temp_path)
+        except Exception:
+            pass
+
+        if result and result.get("success"):
+            try:
+                from agente_rolplay.db.database import get_db
+                from agente_rolplay.db.models import Document, Profile
+                from agente_rolplay.db.whatsapp_auth import normalize_whatsapp_number
+
+                _norm = normalize_whatsapp_number(phone_number)
+                _db = next(get_db())
+                try:
+                    _profile = (
+                        _db.query(Profile)
+                        .filter(Profile.whatsapp_number == _norm)
+                        .first()
+                    )
+                    if _profile:
+                        _db.add(
+                            Document(
+                                org_id=_profile.org_id,
+                                name=filename,
+                                drive_file_id=result.get("public_id"),
+                                location="datastore",
+                                cloudinary_url=result.get("secure_url"),
+                                file_type=vid_ext,
+                                file_size=result.get("bytes"),
+                                resource_type="video",
+                                uploaded_by=phone_number,
+                                upload_source="whatsapp",
+                            )
+                        )
+                        _db.commit()
+                finally:
+                    _db.close()
+            except Exception as _doc_err:
+                print(f"Warning: could not write Document record for video: {_doc_err}")
+
+            log_message_to_db(phone_number, message_type="video")
+
+            if current_lang == "en":
+                confirm_msg = (
+                    f"Video '{filename}' received ✅ — "
+                    "saved to your organization's Data Store. "
+                    "Your admin can review it there."
+                )
+            else:
+                confirm_msg = (
+                    f"Video '{filename}' recibido ✅ — "
+                    "guardado en el Almacén de Datos de tu organización. "
+                    "Tu administrador puede revisarlo allí."
+                )
+            send_twilio_message(from_number, confirm_msg)
+
+            chat_history_id = f"fp-chatHistory:{from_number}"
+            add_to_chat_history(
+                chat_history_id, f"[Sent video: {filename}]", "user", phone_number
+            )
+            log_whatsapp_message_to_db(
+                phone_number, "user", f"[Sent video: {filename}]", "video"
+            )
+            bot_history_msg = f"Video '{filename}' saved to Data Store."
+            add_to_chat_history(
+                chat_history_id, bot_history_msg, "assistant", phone_number
+            )
+            log_whatsapp_message_to_db(
+                phone_number, "assistant", bot_history_msg, "video"
+            )
+        else:
+            error_message = result.get("error", "Unknown") if result else "Unknown"
+            send_twilio_message(from_number, f"Error uploading video: {error_message}")
+
+        redis_client.set(dedup_key, "exists", ex=DEDUP_KEY_TTL)
+        return "VideoProcessed"
 
     if message_type in ("video", "media"):
         print(f"Unsupported media type received: {media_content_type}")

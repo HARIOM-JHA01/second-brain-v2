@@ -220,6 +220,14 @@ def admin_templates_page(request: Request):
     return templates.TemplateResponse("admin_templates.html", {"request": request})
 
 
+@router.get("/dashboard/insights", tags=["pages"])
+def insights_page(request: Request):
+    redirect = _require_auth(request)
+    if redirect:
+        return redirect
+    return templates.TemplateResponse("insights.html", {"request": request})
+
+
 @router.get("/dashboard/groups", tags=["pages"])
 def groups_page(request: Request):
     redirect = _require_auth(request)

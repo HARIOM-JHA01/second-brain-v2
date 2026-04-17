@@ -79,8 +79,10 @@ def _fill_from_user_data(content: str, profile: Profile, values: Dict[str, str])
     return result
 
 
-async def _send_whatsapp_message(phone_number: str, content: str, from_number: str = None) -> bool:
-    """Send a WhatsApp message via Twilio."""
+async def _send_whatsapp_message(
+    phone_number: str, content: str, from_number: str = None, media_url: str = None
+) -> bool:
+    """Send a WhatsApp message via Twilio, with optional media attachment."""
     client = _get_twilio_client()
     if not client:
         print(f"[broadcast] No Twilio client available")
@@ -88,11 +90,14 @@ async def _send_whatsapp_message(phone_number: str, content: str, from_number: s
 
     effective_from = from_number or TWILIO_SANDBOX_NUMBER
     try:
-        message = client.messages.create(
-            from_=effective_from,
-            body=content,
-            to=phone_number,
-        )
+        create_kwargs: Dict[str, Any] = {
+            "from_": effective_from,
+            "body": content,
+            "to": phone_number,
+        }
+        if media_url:
+            create_kwargs["media_url"] = [media_url]
+        message = client.messages.create(**create_kwargs)
         print(f"[broadcast] Sent message SID: {message.sid}")
         return True
     except Exception as e:
@@ -147,7 +152,12 @@ async def _process_broadcast(broadcast: BroadcastSchedule, db: Session):
             template.content, profile, broadcast.variable_values or {}
         )
 
-        success = await _send_whatsapp_message(profile.whatsapp_number, message_content, from_number=org_from_number)
+        success = await _send_whatsapp_message(
+            profile.whatsapp_number,
+            message_content,
+            from_number=org_from_number,
+            media_url=template.media_url or None,
+        )
         if success:
             sent_count += 1
         else:

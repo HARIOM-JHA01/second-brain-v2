@@ -1,0 +1,303 @@
+{% extends "dashboard.html" %}
+
+{% block dashboard_content %}
+<div class="page-header">
+  <div>
+    <h1 data-i18n="insights.title">Insights de Preguntas</h1>
+    <div class="page-header-sub" data-i18n="insights.subtitle">Análisis de los temas más consultados por tu equipo</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:.65rem;flex-wrap:wrap;">
+    <select id="periodSelect" onchange="onPeriodChange()" style="padding:.5rem .85rem;background:var(--input-bg);border:1px solid var(--border);border-radius:9px;color:var(--text);font-size:.85rem;font-family:inherit;outline:none;cursor:pointer;">
+      <option value="7">Últimos 7 días</option>
+      <option value="30" selected>Últimos 30 días</option>
+      <option value="90">Últimos 90 días</option>
+    </select>
+    <select id="roleSelect" onchange="onRoleChange()" style="padding:.5rem .85rem;background:var(--input-bg);border:1px solid var(--border);border-radius:9px;color:var(--text);font-size:.85rem;font-family:inherit;outline:none;cursor:pointer;">
+      <option value="">Todos los roles</option>
+    </select>
+    <button id="refreshBtn" onclick="refreshInsights()" class="btn btn-secondary" style="gap:.4rem;">
+      ↻ <span>Actualizar</span>
+    </button>
+  </div>
+</div>
+
+<!-- Summary card -->
+<div class="section-card" id="summaryCard" style="margin-bottom:1.25rem;">
+  <div id="summaryContent">
+    <div class="skel-line" style="width:70%;height:13px;border-radius:6px;margin-bottom:.6rem;"></div>
+    <div class="skel-line" style="width:55%;height:13px;border-radius:6px;"></div>
+  </div>
+</div>
+
+<!-- Charts + Gaps row -->
+<div class="two-col" style="margin-bottom:1.25rem;">
+
+  <!-- Topic frequency bar chart -->
+  <div class="chart-card">
+    <div class="chart-card-header">
+      <div>
+        <div class="chart-card-title" data-i18n="insights.chart.topics">Temas más frecuentes</div>
+        <div class="chart-card-sub" data-i18n="insights.chart.topics_sub">Por número de consultas</div>
+      </div>
+    </div>
+    <div class="chart-canvas-wrap" style="max-height:320px;">
+      <canvas id="topicsChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Info gaps -->
+  <div class="chart-card">
+    <div class="chart-card-header">
+      <div>
+        <div class="chart-card-title" data-i18n="insights.gaps.title">Posibles brechas de información</div>
+        <div class="chart-card-sub" data-i18n="insights.gaps.sub">Temas consultados sin cobertura en la base de conocimiento</div>
+      </div>
+    </div>
+    <div id="gapsContent">
+      <div class="skel-line" style="width:80%;height:13px;border-radius:6px;margin-bottom:.75rem;"></div>
+      <div class="skel-line" style="width:65%;height:13px;border-radius:6px;margin-bottom:.75rem;"></div>
+      <div class="skel-line" style="width:72%;height:13px;border-radius:6px;"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Topics detail table -->
+<div class="section-card" style="margin-bottom:1.25rem;">
+  <div class="section-card-header">
+    <div class="section-card-title" data-i18n="insights.table.title">Detalle de temas</div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th data-i18n="insights.col.topic">Tema</th>
+          <th data-i18n="insights.col.count">Consultas</th>
+          <th data-i18n="insights.col.pct">% del total</th>
+          <th data-i18n="insights.col.examples">Ejemplos</th>
+        </tr>
+      </thead>
+      <tbody id="topicsTable">
+        {% for _ in range(5) %}
+        <tr class="skel-row">
+          {% for w in ['35%','10%','10%','45%'] %}
+          <td style="padding:.85rem 1rem;"><div class="skel-line" style="width:{{ w }};height:11px;border-radius:5px;"></div></td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Footer metadata -->
+<div id="insightsMeta" style="font-size:.78rem;color:var(--text-muted);text-align:center;padding:.5rem 0 1.5rem;"></div>
+
+<script>
+let _topicsChart = null;
+const token = () => localStorage.getItem('access_token');
+const authFetch = (url, opts = {}) => fetch(url, {
+  ...opts, headers: { 'Authorization': 'Bearer ' + token(), ...(opts.headers || {}) }
+});
+
+async function loadRoles() {
+  const r = await authFetch('/api/roles');
+  if (!r.ok) return;
+  const roles = await r.json();
+  const sel = document.getElementById('roleSelect');
+  roles.forEach(role => {
+    const o = document.createElement('option');
+    o.value = role.id;
+    o.textContent = role.name;
+    sel.appendChild(o);
+  });
+}
+
+function getPeriod() { return parseInt(document.getElementById('periodSelect').value) || 30; }
+function getRoleId() { return document.getElementById('roleSelect').value || ''; }
+
+function onPeriodChange() { loadInsights(getPeriod(), getRoleId()); }
+function onRoleChange()   { loadInsights(getPeriod(), getRoleId()); }
+
+function refreshInsights() {
+  const btn = document.getElementById('refreshBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="btn-spinner" aria-hidden="true"></span>';
+  loadInsights(getPeriod(), getRoleId(), 1).finally(() => {
+    btn.disabled = false;
+    btn.innerHTML = '↻ <span>Actualizar</span>';
+  });
+}
+
+async function loadInsights(period, roleId, refresh = 0) {
+  showSkeletons();
+  let url = `/api/users/faq-analytics?period=${period}&refresh=${refresh}`;
+  if (roleId) url += `&role_id=${encodeURIComponent(roleId)}`;
+
+  let data;
+  try {
+    const res = await authFetch(url);
+    if (res.status === 401) { window.location.href = '/login'; return; }
+    data = await res.json();
+  } catch (e) {
+    showError();
+    return;
+  }
+
+  renderSummary(data);
+  renderChart(data.topics || []);
+  renderGaps(data.info_gaps || []);
+  renderTable(data.topics || []);
+  renderMeta(data);
+}
+
+function showSkeletons() {
+  document.getElementById('summaryContent').innerHTML = `
+    <div class="skel-line" style="width:70%;height:13px;border-radius:6px;margin-bottom:.6rem;"></div>
+    <div class="skel-line" style="width:55%;height:13px;border-radius:6px;"></div>`;
+  document.getElementById('gapsContent').innerHTML = `
+    <div class="skel-line" style="width:80%;height:13px;border-radius:6px;margin-bottom:.75rem;"></div>
+    <div class="skel-line" style="width:65%;height:13px;border-radius:6px;margin-bottom:.75rem;"></div>
+    <div class="skel-line" style="width:72%;height:13px;border-radius:6px;"></div>`;
+  document.getElementById('topicsTable').innerHTML = Array(5).fill(`
+    <tr class="skel-row">${['35%','10%','10%','45%'].map(w => `
+      <td style="padding:.85rem 1rem;"><div class="skel-line" style="width:${w};height:11px;border-radius:5px;"></div></td>`).join('')}
+    </tr>`).join('');
+  document.getElementById('insightsMeta').textContent = '';
+  if (_topicsChart) { _topicsChart.destroy(); _topicsChart = null; }
+}
+
+function showError() {
+  document.getElementById('summaryContent').innerHTML =
+    `<p style="color:var(--text-muted);font-size:.875rem;">Error al cargar los insights. Intenta de nuevo.</p>`;
+}
+
+function renderSummary(data) {
+  const el = document.getElementById('summaryContent');
+  if (!data.summary) {
+    el.innerHTML = `<p style="color:var(--text-muted);font-size:.875rem;text-align:center;padding:.5rem 0;">
+      ${data.total_messages === 0 ? 'No hay mensajes en este período para analizar.' : 'No se pudo generar el resumen.'}
+    </p>`;
+    return;
+  }
+  el.innerHTML = `<p style="font-size:.9rem;line-height:1.65;color:var(--text-dim);">${data.summary}</p>`;
+}
+
+function renderChart(topics) {
+  const ctx = document.getElementById('topicsChart');
+  if (_topicsChart) { _topicsChart.destroy(); _topicsChart = null; }
+
+  if (!topics.length) {
+    ctx.parentElement.innerHTML = `<p style="color:var(--text-muted);font-size:.85rem;text-align:center;padding:2rem 0;">Sin datos</p>`;
+    return;
+  }
+
+  const top10 = topics.slice(0, 10);
+  const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+  const textColor = isDark ? 'rgba(241,241,245,.65)' : 'rgba(30,30,50,.65)';
+  const gridColor = isDark ? 'rgba(255,255,255,.07)' : 'rgba(0,0,0,.07)';
+
+  _topicsChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: top10.map(t => t.label),
+      datasets: [{
+        label: 'Consultas',
+        data: top10.map(t => t.count),
+        backgroundColor: 'rgba(96,165,250,.75)',
+        borderColor: 'rgba(96,165,250,1)',
+        borderWidth: 1,
+        borderRadius: 5,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.raw} consultas`,
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: gridColor },
+          ticks: { color: textColor, font: { size: 11 } },
+        },
+        y: {
+          grid: { display: false },
+          ticks: { color: textColor, font: { size: 11 } },
+        }
+      }
+    }
+  });
+}
+
+function renderGaps(gaps) {
+  const el = document.getElementById('gapsContent');
+  if (!gaps.length) {
+    el.innerHTML = `<p style="color:var(--text-muted);font-size:.85rem;text-align:center;padding:1rem 0;">
+      No se identificaron brechas de información.
+    </p>`;
+    return;
+  }
+  el.innerHTML = gaps.map(g => `
+    <div style="padding:.8rem 1rem;border:1px solid var(--border);border-radius:10px;margin-bottom:.65rem;background:rgba(251,191,36,.05);">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.35rem;">
+        <span style="font-weight:700;font-size:.85rem;color:var(--text);">${g.topic}</span>
+        <span style="font-size:.78rem;font-weight:600;color:var(--stat-orange);background:rgba(251,146,60,.12);padding:.15rem .5rem;border-radius:20px;">
+          ~${g.count} consultas
+        </span>
+      </div>
+      <p style="font-size:.8rem;color:var(--text-muted);line-height:1.5;margin:0;">💡 ${g.suggestion}</p>
+    </div>
+  `).join('');
+}
+
+function renderTable(topics) {
+  const tbody = document.getElementById('topicsTable');
+  if (!topics.length) {
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text-muted);">No hay temas para mostrar.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = topics.map((t, i) => {
+    const examples = (t.examples || []).map(e => `<span style="display:block;font-size:.78rem;color:var(--text-muted);margin-top:.2rem;">"${e}"</span>`).join('');
+    const barWidth = Math.max(4, t.percentage || 0);
+    return `
+      <tr>
+        <td class="td-main">
+          <span style="font-size:.7rem;font-weight:700;color:var(--text-muted);margin-right:.4rem;">#${i + 1}</span>
+          ${t.label}
+        </td>
+        <td><span style="font-weight:700;color:var(--stat-blue);">${t.count}</span></td>
+        <td>
+          <div style="display:flex;align-items:center;gap:.5rem;">
+            <div style="width:60px;height:6px;background:var(--border);border-radius:3px;overflow:hidden;">
+              <div style="width:${Math.min(barWidth, 100)}%;height:100%;background:var(--stat-blue);border-radius:3px;"></div>
+            </div>
+            <span style="font-size:.8rem;color:var(--text-dim);">${t.percentage}%</span>
+          </div>
+        </td>
+        <td>${examples || '<span style="color:var(--text-muted);font-size:.8rem;">—</span>'}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function renderMeta(data) {
+  const el = document.getElementById('insightsMeta');
+  if (!data.generated_at) { el.textContent = ''; return; }
+  const when = new Date(data.generated_at).toLocaleString();
+  const roleLabel = data.role_filter_name ? ` · Rol: ${data.role_filter_name}` : '';
+  el.textContent = `Generado: ${when} · Mensajes analizados: ${data.total_messages}${roleLabel}`;
+}
+
+document.addEventListener('langchange', () => loadInsights(getPeriod(), getRoleId()));
+
+loadRoles();
+loadInsights(30, '');
+</script>
+{% endblock %}

@@ -269,6 +269,7 @@ class MessageTemplate(Base):
     name = Column(String(255), nullable=False)
     content = Column(Text, nullable=False)
     variables = Column(JSON, default=list)  # ["1", "2", "3"...] extracted from content
+    media_url = Column(Text, nullable=True)  # optional image/video URL for Twilio media_url
     is_active = Column(Boolean, default=True)
     created_by_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)

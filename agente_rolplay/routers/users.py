@@ -10,7 +10,7 @@ from fastapi import APIRouter, Body, Depends, File, HTTPException, Response, Upl
 from sqlalchemy import func, distinct
 from sqlalchemy.orm import Session
 from uuid import UUID
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from agente_rolplay.db.auth import get_current_user, get_password_hash
 from agente_rolplay.db.database import get_db
@@ -466,6 +466,166 @@ def get_conversation_insights(
     }
 
     r.set(cache_key, json.dumps(result), ex=3600)
+    return result
+
+
+@router.get("/faq-analytics", tags=["dashboard"])
+def get_faq_analytics(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    period: int = 30,
+    role_id: Optional[str] = None,
+    refresh: int = 0,
+):
+    """
+    Returns AI-generated FAQ topic clusters and information gaps for the org.
+    Cached in Redis for 2 hours per (org, period, role) combination.
+    Pass ?refresh=1 to invalidate and regenerate.
+    """
+    # Clamp period to supported values
+    if period not in (7, 30, 90):
+        period = 30
+
+    org = get_org_for_user(db, current_user.id)
+    org_id = org.id
+
+    role_key = role_id or "all"
+    cache_key = f"faq:{org_id}:{period}:{role_key}"
+
+    r = redis_lib.Redis(**redis_connection_kwargs())
+    if refresh:
+        r.delete(cache_key)
+    else:
+        cached = r.get(cache_key)
+        if cached:
+            return json.loads(cached)
+
+    cutoff = datetime.utcnow() - timedelta(days=period)
+
+    # Optionally filter by role
+    phone_filter = None
+    role_filter_name = None
+    if role_id:
+        try:
+            role_uuid = UUID(role_id)
+            phones = [
+                p.whatsapp_number
+                for p in db.query(Profile.whatsapp_number)
+                .filter(Profile.org_id == org_id, Profile.role_id == role_uuid)
+                .all()
+                if p.whatsapp_number
+            ]
+            phone_filter = phones if phones else []
+            role_obj = db.query(Role).filter(Role.id == role_uuid).first()
+            role_filter_name = role_obj.name if role_obj else None
+        except (ValueError, Exception):
+            pass
+
+    msg_query = (
+        db.query(WhatsAppMessage)
+        .filter(
+            WhatsAppMessage.org_id == org_id,
+            WhatsAppMessage.role == "user",
+            WhatsAppMessage.created_at >= cutoff,
+        )
+        .order_by(WhatsAppMessage.created_at.desc())
+    )
+    if phone_filter is not None:
+        if not phone_filter:
+            # Role exists but has no members — return empty
+            return {
+                "generated_at": datetime.utcnow().isoformat(),
+                "period_days": period,
+                "total_messages": 0,
+                "role_filter_name": role_filter_name,
+                "summary": None,
+                "topics": [],
+                "info_gaps": [],
+            }
+        msg_query = msg_query.filter(WhatsAppMessage.phone_number.in_(phone_filter))
+
+    messages = msg_query.limit(300).all()
+
+    if not messages:
+        return {
+            "generated_at": datetime.utcnow().isoformat(),
+            "period_days": period,
+            "total_messages": 0,
+            "role_filter_name": role_filter_name,
+            "summary": None,
+            "topics": [],
+            "info_gaps": [],
+        }
+
+    # Compute RAG query rate as context for the model
+    rag_count = (
+        db.query(func.count(MessageLog.id))
+        .filter(
+            MessageLog.org_id == org_id,
+            MessageLog.is_rag_query == True,
+            MessageLog.created_at >= cutoff,
+        )
+        .scalar()
+        or 0
+    )
+    total_logs = (
+        db.query(func.count(MessageLog.id))
+        .filter(MessageLog.org_id == org_id, MessageLog.created_at >= cutoff)
+        .scalar()
+        or 1
+    )
+    rag_pct = round(rag_count / total_logs * 100)
+
+    messages_text = "\n".join(f"- {m.content[:200]}" for m in messages)
+
+    prompt = (
+        f"You are analyzing WhatsApp messages sent by employees to a Second Brain AI knowledge assistant.\n"
+        f"Analyze the {len(messages)} messages below (last {period} days). "
+        f"The KB assistant handled {rag_pct}% of these as knowledge-base lookups.\n\n"
+        "Return ONLY valid JSON with this exact structure (no markdown, no extra text):\n"
+        '{"summary": "<2-3 sentence overview of what users ask about most>", '
+        '"topics": [{"label": "<topic max 5 words>", "count": <int>, "examples": ["<msg1 max 80 chars>", "<msg2 max 80 chars>"]}], '
+        '"info_gaps": [{"topic": "<topic name>", "count": <int>, "suggestion": "<1 sentence: what content would fill this gap>"}]}\n\n'
+        "Rules:\n"
+        "- topics: top 10-15 clusters sorted by count descending; merge paraphrases and synonyms\n"
+        "- info_gaps: 3-5 topics the KB likely lacks documentation for\n"
+        "- All counts are approximate\n\n"
+        f"Messages:\n{messages_text}"
+    )
+
+    try:
+        raw = create_message(
+            provider="anthropic",
+            model=HAIKU_MODEL_NAME,
+            system="You are a data analyst. Return only valid JSON, no markdown code blocks.",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=1200,
+        )
+        clean = raw.strip()
+        if clean.startswith("```"):
+            clean = clean.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+        parsed = json.loads(clean)
+    except Exception as e:
+        print(f"[faq-analytics] AI call failed: {e!r}")
+        parsed = {"summary": None, "topics": [], "info_gaps": []}
+
+    total = len(messages)
+    topics = parsed.get("topics", [])
+    for t in topics:
+        count = t.get("count", 0)
+        t["percentage"] = round(count / total * 100, 1) if total else 0
+
+    result = {
+        "generated_at": datetime.utcnow().isoformat(),
+        "period_days": period,
+        "total_messages": total,
+        "role_filter_name": role_filter_name,
+        "summary": parsed.get("summary"),
+        "topics": topics,
+        "info_gaps": parsed.get("info_gaps", []),
+    }
+
+    r.set(cache_key, json.dumps(result), ex=7200)
     return result
 
 
@@ -1284,9 +1444,63 @@ def list_org_templates(
             "name": t.name,
             "content": t.content,
             "variables": t.variables or [],
+            "media_url": t.media_url,
         }
         for t in templates
     ]
+
+
+_ALLOWED_MEDIA_MIME_PREFIXES = ("image/", "video/")
+_MAX_MEDIA_UPLOAD_BYTES = 16 * 1024 * 1024  # 16 MB — Twilio max for video
+
+
+@router.post("/upload-media", tags=["dashboard"])
+async def upload_template_media(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Upload an image or video for use as a broadcast template attachment."""
+    import tempfile
+    import os
+    from agente_rolplay.storage.cloudinary_storage import upload_to_cloudinary
+
+    content_type = file.content_type or ""
+    if not any(content_type.startswith(p) for p in _ALLOWED_MEDIA_MIME_PREFIXES):
+        raise HTTPException(
+            status_code=400,
+            detail="Only image/* and video/* files are accepted.",
+        )
+
+    data = await file.read()
+    if len(data) > _MAX_MEDIA_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=400,
+            detail="File exceeds the 16 MB limit.",
+        )
+
+    suffix = os.path.splitext(file.filename or "")[1] or (
+        ".jpg" if content_type.startswith("image/") else ".mp4"
+    )
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        tmp.write(data)
+        tmp_path = tmp.name
+
+    try:
+        result = upload_to_cloudinary(tmp_path, folder="broadcast_media", resource_type="auto")
+    finally:
+        try:
+            os.remove(tmp_path)
+        except Exception:
+            pass
+
+    if not result.get("success"):
+        raise HTTPException(status_code=500, detail=f"Upload failed: {result.get('error')}")
+
+    return {
+        "url": result["secure_url"],
+        "resource_type": result["resource_type"],
+    }
 
 
 # ── Broadcast Schedules ────────────────────────────────────────────────────

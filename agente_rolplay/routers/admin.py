@@ -931,6 +931,7 @@ class CreateTemplateRequest(BaseModel):
     name: str
     content: str
     org_id: Optional[str] = None
+    media_url: Optional[str] = None
 
 
 @router.get("/templates")
@@ -952,6 +953,7 @@ def list_templates(request: Request, db: Session = Depends(get_db)):
                 "name": t.name,
                 "content": t.content,
                 "variables": t.variables or [],
+                "media_url": t.media_url,
                 "is_active": t.is_active,
                 "org_id": str(t.org_id) if t.org_id else None,
                 "org_name": org.name if org else None,
@@ -980,6 +982,7 @@ def create_template(
         content=body.content,
         variables=variables,
         org_id=body.org_id,
+        media_url=body.media_url,
     )
     db.add(template)
     db.commit()
@@ -989,6 +992,7 @@ def create_template(
         "name": template.name,
         "content": template.content,
         "variables": template.variables or [],
+        "media_url": template.media_url,
         "is_active": template.is_active,
         "org_id": str(template.org_id) if template.org_id else None,
         "created_at": template.created_at.isoformat() if template.created_at else None,
@@ -1017,6 +1021,8 @@ async def update_template(
         template.variables = _extract_template_variables(body["content"])
     if "is_active" in body:
         template.is_active = body["is_active"]
+    if "media_url" in body:
+        template.media_url = body["media_url"]  # accepts null to clear
 
     db.commit()
     db.refresh(template)
@@ -1025,6 +1031,7 @@ async def update_template(
         "name": template.name,
         "content": template.content,
         "variables": template.variables or [],
+        "media_url": template.media_url,
         "is_active": template.is_active,
     }
 
