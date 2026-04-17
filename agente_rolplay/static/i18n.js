@@ -383,19 +383,19 @@
       "lp.stat.3.lbl": "Bilingüe",
       "lp.stat.4.val": "Por roles",
       "lp.stat.4.lbl": "Control de acceso",
-      "lp.feat.label": "Características",
-      "lp.feat.title": "Todo lo que tu equipo necesita,<br/>en un chat.",
+      "lp.feat.label": "Capacidades",
+      "lp.feat.title": "Todo lo que tu equipo necesita para encontrar respuestas más rápido.",
       "lp.feat.sub":
-        "Sin nuevas apps que aprender. Si tu equipo usa WhatsApp, ya están listos.",
-      "lp.feat.1.title": "Inteligencia de IA avanzada",
+        "Sin nuevas herramientas que aprender. Si tu equipo ya usa WhatsApp, puede empezar a hacer preguntas y recibir respuestas sustentadas desde el primer día.",
+      "lp.feat.1.title": "Respuestas con IA",
       "lp.feat.1.desc":
-        "Impulsado por modelos de lenguaje de última generación. Comprende matices, contexto y consultas complejas en lenguaje natural.",
-      "lp.feat.2.title": "Base de conocimiento documental",
+        "Entiende preguntas en lenguaje natural y entrega respuestas claras y relevantes basadas en el conocimiento de tu empresa.",
+      "lp.feat.2.title": "Base de Conocimiento",
       "lp.feat.2.desc":
-        "Sube PDFs, documentos Word, PowerPoints, hojas de cálculo e imágenes directamente en WhatsApp. Se indexan y buscan de forma instantánea.",
-      "lp.feat.3.title": "Búsqueda semántica (RAG)",
+        "Sube PDFs, archivos de Word, PowerPoints, hojas de cálculo e imágenes para crear una base de conocimiento consultable por tu equipo.",
+      "lp.feat.3.title": "Búsqueda con citas y fuentes",
       "lp.feat.3.desc":
-        "La Generación Aumentada por Recuperación encuentra el fragmento correcto en tus documentos y lo cita — para que siempre sepas de dónde viene la respuesta.",
+        "Encuentra la información correcta dentro de tus documentos y muestra la fuente, para que cada respuesta pueda verificarse.",
       "lp.feat.4.title": "Gestión de equipo y roles",
       "lp.feat.4.desc":
         "Invita a miembros del equipo por número de WhatsApp. Asigna roles con permisos granulares para que cada persona vea solo lo que debe.",
@@ -1098,19 +1098,19 @@
       "lp.stat.3.lbl": "Bilingual",
       "lp.stat.4.val": "Role-based",
       "lp.stat.4.lbl": "Access control",
-      "lp.feat.label": "Features",
-      "lp.feat.title": "Everything your team needs,<br/>in a chat.",
+      "lp.feat.label": "Capabilities",
+      "lp.feat.title": "Everything your team needs to find answers faster.",
       "lp.feat.sub":
-        "No new apps to learn. If your team uses WhatsApp, they're already ready.",
-      "lp.feat.1.title": "Advanced AI intelligence",
+        "No new tools to learn. If your team already uses WhatsApp, they can start asking questions and getting grounded answers right away.",
+      "lp.feat.1.title": "AI-Powered Answers",
       "lp.feat.1.desc":
-        "Powered by state-of-the-art language models. Understands nuance, context, and complex queries in plain, natural language.",
-      "lp.feat.2.title": "Document knowledge base",
+        "Understands natural-language questions and delivers clear, relevant answers based on your company's knowledge.",
+      "lp.feat.2.title": "Document Knowledge Base",
       "lp.feat.2.desc":
-        "Upload PDFs, Word docs, PowerPoints, spreadsheets, and images directly in WhatsApp. They're instantly indexed and searchable.",
-      "lp.feat.3.title": "Semantic search (RAG)",
+        "Upload PDFs, Word files, PowerPoints, spreadsheets, and images to build a searchable knowledge base for your team.",
+      "lp.feat.3.title": "Grounded Search with Citations",
       "lp.feat.3.desc":
-        "Retrieval-Augmented Generation finds the right passage in your documents and cites it — so you always know where the answer comes from.",
+        "Finds the right information inside your documents and points back to the source, so users can verify where each answer comes from.",
       "lp.feat.4.title": "Team & role management",
       "lp.feat.4.desc":
         "Invite team members by WhatsApp number. Assign roles with granular permissions so each person sees only what they should.",
