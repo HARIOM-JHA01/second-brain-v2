@@ -1,14 +1,18 @@
+import csv
+import io
 import json
 import re
+import secrets
 from datetime import datetime, timedelta
 
 import redis as redis_lib
-from fastapi import APIRouter, Body, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, File, HTTPException, Response, UploadFile, status
 from sqlalchemy import func, distinct
 from sqlalchemy.orm import Session
 from uuid import UUID
 from typing import Any, Dict, List
 
+from agente_rolplay.db.auth import get_current_user, get_password_hash
 from agente_rolplay.db.database import get_db
 from agente_rolplay.db.models import (
     BroadcastSchedule,
@@ -32,7 +36,7 @@ from agente_rolplay.db.schemas import (
     RoleResponse,
     UserResponse,
 )
-from agente_rolplay.db.auth import get_current_user
+from agente_rolplay.db.whatsapp_auth import normalize_whatsapp_number
 from agente_rolplay.agent.provider_adapter import create_message
 from agente_rolplay.config import redis_connection_kwargs, HAIKU_MODEL_NAME
 
@@ -550,16 +554,161 @@ def list_users(
     return result
 
 
+@router.get("/import-template")
+def download_import_template(current_user: User = Depends(get_current_user)):
+    """Return a downloadable CSV template with the expected column headers."""
+    content = "whatsapp_number,full_name,username,job_title,role_name\n"
+    return Response(
+        content=content,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=users_import_template.csv"},
+    )
+
+
+@router.post("/import")
+def import_users_csv(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Bulk-import users from a CSV file.
+
+    Required column: whatsapp_number
+    Optional columns: full_name, username, job_title, role_name
+
+    Returns a per-row summary of created / skipped / failed rows.
+    """
+    if not (
+        (file.content_type or "").startswith("text/csv")
+        or (file.filename or "").lower().endswith(".csv")
+    ):
+        raise HTTPException(status_code=400, detail="File must be a CSV (.csv)")
+
+    raw = file.file.read()
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        text = raw.decode("latin-1")
+
+    reader = csv.DictReader(io.StringIO(text))
+    if reader.fieldnames is None or "whatsapp_number" not in [
+        f.strip() for f in reader.fieldnames
+    ]:
+        raise HTTPException(
+            status_code=400,
+            detail="CSV must contain a 'whatsapp_number' column header",
+        )
+
+    org = get_org_for_user(db, current_user.id)
+
+    # Pre-load org roles for fast name → id lookup
+    org_roles = db.query(Role).filter(Role.org_id == org.id).all()
+    role_map = {r.name.lower(): r.id for r in org_roles}
+
+    # Pre-load existing phone numbers in this org to detect DB duplicates
+    existing_phones = {
+        p.whatsapp_number
+        for p in db.query(Profile.whatsapp_number).filter(Profile.org_id == org.id).all()
+        if p.whatsapp_number
+    }
+
+    results = []
+    seen_in_batch: set = set()
+    created_count = skipped_count = failed_count = 0
+
+    # Normalize fieldnames to strip surrounding whitespace
+    rows = list(reader)
+
+    for row_num, row in enumerate(rows, start=2):  # row 1 is the header
+        raw_phone = (row.get("whatsapp_number") or "").strip()
+
+        if not raw_phone:
+            results.append(
+                {"row": row_num, "status": "failed", "whatsapp_number": "", "reason": "whatsapp_number is required"}
+            )
+            failed_count += 1
+            continue
+
+        normalized = normalize_whatsapp_number(raw_phone)
+
+        if normalized in seen_in_batch:
+            results.append(
+                {"row": row_num, "status": "failed", "whatsapp_number": raw_phone, "reason": "Duplicate in this file"}
+            )
+            failed_count += 1
+            continue
+
+        if normalized in existing_phones:
+            results.append(
+                {"row": row_num, "status": "skipped", "whatsapp_number": raw_phone, "reason": "Already exists in organization"}
+            )
+            skipped_count += 1
+            seen_in_batch.add(normalized)
+            continue
+
+        seen_in_batch.add(normalized)
+
+        # Resolve role by name (case-insensitive)
+        role_name_raw = (row.get("role_name") or "").strip()
+        role_id = role_map.get(role_name_raw.lower()) if role_name_raw else None
+
+        phone_clean = normalized.lstrip("+").replace(" ", "")
+        placeholder_email = f"wa_{phone_clean}@{org.id}.internal"
+
+        try:
+            savepoint = db.begin_nested()
+            new_user = db.query(User).filter(User.email == placeholder_email).first()
+            if not new_user:
+                new_user = User(
+                    email=placeholder_email,
+                    password_hash=get_password_hash(secrets.token_urlsafe(32)),
+                )
+                db.add(new_user)
+                db.flush()
+
+            profile = Profile(
+                user_id=new_user.id,
+                org_id=org.id,
+                username=(row.get("username") or "").strip() or None,
+                full_name=(row.get("full_name") or "").strip() or None,
+                job_title=(row.get("job_title") or "").strip() or None,
+                whatsapp_number=normalized,
+                role_id=role_id,
+                is_active=True,
+            )
+            db.add(profile)
+            db.flush()
+            savepoint.commit()
+
+            existing_phones.add(normalized)
+            results.append({"row": row_num, "status": "created", "whatsapp_number": raw_phone})
+            created_count += 1
+
+        except Exception as exc:
+            savepoint.rollback()
+            results.append(
+                {"row": row_num, "status": "failed", "whatsapp_number": raw_phone, "reason": str(exc)}
+            )
+            failed_count += 1
+            continue
+
+    db.commit()
+
+    return {
+        "total": len(rows),
+        "created": created_count,
+        "skipped": skipped_count,
+        "failed": failed_count,
+        "results": results,
+    }
+
+
 @router.post("", response_model=ProfileResponse)
 def create_user(
     user_data: ProfileCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    import secrets
-    from agente_rolplay.db.auth import get_password_hash
-    from agente_rolplay.db.whatsapp_auth import normalize_whatsapp_number
-
     org = get_org_for_user(db, current_user.id)
 
     normalized_number = (
