@@ -717,7 +717,7 @@ def list_users(
 @router.get("/import-template")
 def download_import_template(current_user: User = Depends(get_current_user)):
     """Return a downloadable CSV template with the expected column headers."""
-    content = "whatsapp_number,full_name,username,job_title,role_name\n"
+    content = "whatsapp_number,full_name,job_title,role_name\n"
     return Response(
         content=content,
         media_type="text/csv",

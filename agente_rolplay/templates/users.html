@@ -4,7 +4,7 @@
 <div class="page-header">
   <h1 data-i18n="users.title">Usuarios</h1>
   <div style="display:flex;gap:.6rem;">
-    <button class="btn btn-secondary" onclick="openImportModal()">↑ Importar CSV</button>
+    <button class="btn btn-secondary" onclick="openImportModal()" data-i18n="users.import.btn">↑ Importar CSV</button>
     <button class="btn btn-primary" onclick="document.getElementById('addUserModal').classList.add('show')" data-i18n="users.add_btn">
       + Agregar usuario
     </button>
@@ -41,22 +41,17 @@
 <div id="importModal" class="modal">
   <div class="modal-content" style="max-width:520px;">
     <div class="modal-header">
-      <h2>Importar usuarios desde CSV</h2>
+      <h2 data-i18n="users.import.modal_title">Importar usuarios desde CSV</h2>
       <button class="modal-close" onclick="closeImportModal()">&times;</button>
     </div>
-    <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:.5rem;line-height:1.6;">
-      El CSV debe tener las columnas: <code>whatsapp_number</code>, <code>full_name</code>, <code>username</code>, <code>job_title</code>, <code>role_name</code>.<br>
-      Solo <strong>whatsapp_number</strong> es obligatorio.
-    </p>
-    <a href="/api/users/import-template" download style="font-size:.82rem;color:var(--stat-blue);text-decoration:none;display:inline-block;margin-bottom:1rem;">
-      ⬇ Descargar plantilla CSV
-    </a>
+    <p id="importDescription" style="font-size:.85rem;color:var(--text-muted);margin-bottom:.5rem;line-height:1.6;"></p>
+    <a id="importTemplateLink" href="#" onclick="event.preventDefault();downloadImportTemplate();" style="font-size:.82rem;color:var(--stat-blue);text-decoration:none;display:inline-block;margin-bottom:1rem;" data-i18n="users.import.download_template">⬇ Descargar plantilla CSV</a>
     <div style="margin-bottom:1rem;">
       <input type="file" id="csvFileInput" accept=".csv" style="font-size:.875rem;color:var(--text);" />
     </div>
     <div style="display:flex;gap:.65rem;margin-bottom:.75rem;">
-      <button class="btn btn-secondary" style="flex:1;justify-content:center;" onclick="closeImportModal()">Cancelar</button>
-      <button class="btn btn-primary" style="flex:1;justify-content:center;" id="importSubmitBtn" onclick="submitImport()">Importar</button>
+      <button class="btn btn-secondary" style="flex:1;justify-content:center;" onclick="closeImportModal()" data-i18n="users.import.cancel">Cancelar</button>
+      <button class="btn btn-primary" style="flex:1;justify-content:center;" id="importSubmitBtn" onclick="submitImport()" data-i18n="users.import.submit">Importar</button>
     </div>
     <div id="importResults" style="display:none;"></div>
   </div>
@@ -353,12 +348,25 @@ function openImportModal() {
   document.getElementById('importResults').style.display = 'none';
   document.getElementById('importResults').innerHTML = '';
   document.getElementById('importSubmitBtn').disabled = false;
-  document.getElementById('importSubmitBtn').textContent = 'Importar';
+  document.getElementById('importSubmitBtn').textContent = t('users.import.submit');
+  document.getElementById('importDescription').innerHTML = t('users.import.description');
   document.getElementById('importModal').classList.add('show');
 }
 
 function closeImportModal() {
   document.getElementById('importModal').classList.remove('show');
+}
+
+async function downloadImportTemplate() {
+  const res = await authFetch('/api/users/import-template');
+  if (!res.ok) return;
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'users_import_template.csv';
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 async function submitImport() {
@@ -367,7 +375,7 @@ async function submitImport() {
   const resultsDiv = document.getElementById('importResults');
 
   if (!fileInput.files.length) {
-    alert('Selecciona un archivo CSV.');
+    alert(t('users.import.select_file'));
     return;
   }
 
@@ -375,7 +383,7 @@ async function submitImport() {
   formData.append('file', fileInput.files[0]);
 
   btn.disabled = true;
-  btn.textContent = 'Importando…';
+  btn.textContent = t('users.import.submitting');
   resultsDiv.style.display = 'none';
 
   let data;
@@ -383,29 +391,29 @@ async function submitImport() {
     const res = await authFetch('/api/users/import', { method: 'POST', body: formData });
     data = await res.json();
     if (!res.ok) {
-      resultsDiv.innerHTML = `<div style="color:var(--stat-red);font-size:.85rem;">${data.detail || 'Error al importar el archivo.'}</div>`;
+      resultsDiv.innerHTML = `<div style="color:var(--stat-red);font-size:.85rem;">${data.detail || t('users.import.error_generic')}</div>`;
       resultsDiv.style.display = 'block';
       btn.disabled = false;
-      btn.textContent = 'Importar';
+      btn.textContent = t('users.import.submit');
       return;
     }
   } catch (e) {
-    resultsDiv.innerHTML = `<div style="color:var(--stat-red);font-size:.85rem;">Error de red. Intenta de nuevo.</div>`;
+    resultsDiv.innerHTML = `<div style="color:var(--stat-red);font-size:.85rem;">${t('users.import.error_network')}</div>`;
     resultsDiv.style.display = 'block';
     btn.disabled = false;
-    btn.textContent = 'Importar';
+    btn.textContent = t('users.import.submit');
     return;
   }
 
   btn.disabled = false;
-  btn.textContent = 'Importar';
+  btn.textContent = t('users.import.submit');
 
   let html = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1rem;font-size:.85rem;">
     <div style="display:flex;gap:1.5rem;margin-bottom:.75rem;font-weight:600;flex-wrap:wrap;">
-      <span style="color:var(--stat-green);">✓ Creados: ${data.created}</span>
-      <span style="color:var(--text-muted);">⟳ Omitidos: ${data.skipped}</span>
-      <span style="color:var(--stat-red);">✗ Errores: ${data.failed}</span>
-      <span style="color:var(--text-dim);">Total: ${data.total}</span>
+      <span style="color:var(--stat-green);">${t('users.import.summary.created')}: ${data.created}</span>
+      <span style="color:var(--text-muted);">${t('users.import.summary.skipped')}: ${data.skipped}</span>
+      <span style="color:var(--stat-red);">${t('users.import.summary.failed')}: ${data.failed}</span>
+      <span style="color:var(--text-dim);">${t('users.import.summary.total')}: ${data.total}</span>
     </div>`;
 
   const nonCreated = (data.results || []).filter(r => r.status !== 'created');
@@ -413,10 +421,10 @@ async function submitImport() {
     html += `<div style="max-height:180px;overflow-y:auto;">
       <table style="width:100%;font-size:.8rem;border-collapse:collapse;">
         <thead><tr style="color:var(--text-muted);">
-          <th style="text-align:left;padding:.25rem .4rem;">Fila</th>
-          <th style="text-align:left;padding:.25rem .4rem;">WhatsApp</th>
-          <th style="text-align:left;padding:.25rem .4rem;">Estado</th>
-          <th style="text-align:left;padding:.25rem .4rem;">Razón</th>
+          <th style="text-align:left;padding:.25rem .4rem;">${t('users.import.col.row')}</th>
+          <th style="text-align:left;padding:.25rem .4rem;">${t('users.import.col.whatsapp')}</th>
+          <th style="text-align:left;padding:.25rem .4rem;">${t('users.import.col.status')}</th>
+          <th style="text-align:left;padding:.25rem .4rem;">${t('users.import.col.reason')}</th>
         </tr></thead><tbody>`;
     nonCreated.forEach(r => {
       const color = r.status === 'skipped' ? 'var(--text-muted)' : 'var(--stat-red)';
@@ -437,7 +445,11 @@ async function submitImport() {
   if (data.created > 0) loadUsers();
 }
 
-document.addEventListener('langchange', () => { loadUsers(); loadRoles(); });
+document.addEventListener('langchange', () => {
+  loadUsers();
+  loadRoles();
+  document.getElementById('importDescription').innerHTML = t('users.import.description');
+});
 
 loadUsers();
 loadRoles();
