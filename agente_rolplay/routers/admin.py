@@ -16,7 +16,7 @@ from pydantic import BaseModel
 from sqlalchemy import func, distinct
 from sqlalchemy.orm import Session
 
-from agente_rolplay.config import ADMIN_EMAIL, ADMIN_PASSWORD
+from agente_rolplay.config import ADMIN_EMAIL, ADMIN_PASSWORD, INTERNAL_API_TOKEN
 from agente_rolplay.db.auth import get_password_hash
 from agente_rolplay.db.database import get_db
 from agente_rolplay.db.models import (
@@ -33,6 +33,7 @@ from agente_rolplay.db.models import (
     Profile,
     Role,
     User,
+    WhatsAppMessage,
 )
 from agente_rolplay.storage.file_processor import (
     SUPPORTED_TYPES,
@@ -142,6 +143,13 @@ async def _extract_reference_file(upload_file) -> tuple[str, str]:
 def require_admin(request: Request):
     if not request.session.get("is_admin"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+
+
+def require_internal_token(request: Request):
+    auth = request.headers.get("Authorization", "")
+    token = auth.removeprefix("Bearer ").strip()
+    if not INTERNAL_API_TOKEN or token != INTERNAL_API_TOKEN:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
 
 
 # ── Login / Logout ────────────────────────────────────────────────────────────
@@ -383,6 +391,400 @@ def list_organizations(request: Request, db: Session = Depends(get_db)):
 class UpdateOrganizationRequest(BaseModel):
     name: Optional[str] = None
     twilio_number: Optional[str] = None
+
+
+@router.get("/organizations/full-profile")
+def get_org_full_profile(
+    admin_email: str,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    require_internal_token(request)
+
+    user = db.query(User).filter(User.email == admin_email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found with that email")
+
+    # Prefer the profile where the user has an Admin role; fall back to first profile
+    profiles_for_user = db.query(Profile).filter(Profile.user_id == user.id).all()
+    if not profiles_for_user:
+        raise HTTPException(status_code=404, detail="No organization found for this user")
+
+    target_profile = None
+    for p in profiles_for_user:
+        if p.role_id:
+            role = db.query(Role).filter(Role.id == p.role_id).first()
+            if role and role.name.lower() == "admin":
+                target_profile = p
+                break
+    if target_profile is None:
+        target_profile = profiles_for_user[0]
+
+    org = db.query(Organization).filter(Organization.id == target_profile.org_id).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    org_id = org.id
+
+    # ── Members ──────────────────────────────────────────────────────────────
+    all_profiles = db.query(Profile).filter(Profile.org_id == org_id).all()
+    members = []
+    for p in all_profiles:
+        u = db.query(User).filter(User.id == p.user_id).first()
+        role = db.query(Role).filter(Role.id == p.role_id).first() if p.role_id else None
+        members.append(
+            {
+                "profile_id": str(p.id),
+                "user_id": str(p.user_id),
+                "email": u.email if u else None,
+                "username": p.username,
+                "full_name": p.full_name,
+                "job_title": p.job_title,
+                "whatsapp_number": p.whatsapp_number,
+                "role_name": role.name if role else None,
+                "permissions": role.permissions if role else [],
+                "is_active": p.is_active,
+                "settings": p.settings,
+                "created_at": p.created_at.isoformat() if p.created_at else None,
+            }
+        )
+
+    # ── Roles ─────────────────────────────────────────────────────────────────
+    all_roles = db.query(Role).filter(Role.org_id == org_id).all()
+    roles = []
+    for r in all_roles:
+        member_count = (
+            db.query(func.count(Profile.id))
+            .filter(Profile.role_id == r.id)
+            .scalar()
+        )
+        roles.append(
+            {
+                "id": str(r.id),
+                "name": r.name,
+                "permissions": r.permissions,
+                "member_count": member_count,
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+            }
+        )
+
+    # ── Documents ─────────────────────────────────────────────────────────────
+    all_docs = db.query(Document).filter(Document.org_id == org_id).all()
+    documents = [
+        {
+            "id": str(d.id),
+            "name": d.name,
+            "location": d.location,
+            "file_type": d.file_type,
+            "file_size": d.file_size,
+            "cloudinary_url": d.cloudinary_url,
+            "vector_id": d.vector_id,
+            "uploaded_by": d.uploaded_by,
+            "upload_source": d.upload_source,
+            "drive_file_id": d.drive_file_id,
+            "resource_type": d.resource_type,
+            "created_at": d.created_at.isoformat() if d.created_at else None,
+        }
+        for d in all_docs
+    ]
+
+    # ── Knowledge Base Summary ────────────────────────────────────────────────
+    kb_docs = [d for d in all_docs if d.location == "knowledgebase"]
+    kb_total_size = sum(d.file_size or 0 for d in kb_docs)
+    _kb_known_types = {"pdf", "docx", "pptx", "xlsx"}
+    kb_by_type: dict = {}
+    for d in kb_docs:
+        ft = (d.file_type or "").lower()
+        bucket = ft if ft in _kb_known_types else "other"
+        kb_by_type[bucket] = kb_by_type.get(bucket, 0) + 1
+
+    kb_uploads_by_day_rows = (
+        db.query(
+            func.date(Document.created_at).label("day"),
+            func.count(Document.id).label("count"),
+        )
+        .filter(Document.org_id == org_id, Document.location == "knowledgebase")
+        .group_by(func.date(Document.created_at))
+        .order_by(func.date(Document.created_at))
+        .all()
+    )
+    kb_uploads_over_time = [
+        {"date": str(r.day), "count": r.count} for r in kb_uploads_by_day_rows
+    ]
+
+    knowledge_base_summary = {
+        "total_count": len(kb_docs),
+        "total_size_bytes": kb_total_size,
+        "by_file_type": kb_by_type,
+        "uploads_over_time": kb_uploads_over_time,
+    }
+
+    # ── Coaching Scenarios ────────────────────────────────────────────────────
+    all_scenarios = (
+        db.query(CoachingScenario).filter(CoachingScenario.org_id == org_id).all()
+    )
+    coaching_scenarios = []
+    for s in all_scenarios:
+        session_count = (
+            db.query(func.count(CoachingSession.id))
+            .filter(CoachingSession.scenario_id == s.id)
+            .scalar()
+            or 0
+        )
+        ref_files = (
+            db.query(CoachingScenarioReferenceFile)
+            .filter(CoachingScenarioReferenceFile.scenario_id == s.id)
+            .all()
+        )
+        coaching_scenarios.append(
+            {
+                "id": str(s.id),
+                "name": s.name,
+                "description": getattr(s, "description", None),
+                "system_prompt": s.system_prompt,
+                "is_active": s.is_active,
+                "usecase_api_id": s.usecase_api_id,
+                "session_count": session_count,
+                "created_at": s.created_at.isoformat() if s.created_at else None,
+                "reference_files": [
+                    {"id": str(f.id), "file_name": f.file_name} for f in ref_files
+                ],
+            }
+        )
+
+    # ── Coaching Sessions ─────────────────────────────────────────────────────
+    all_sessions = (
+        db.query(CoachingSession).filter(CoachingSession.org_id == org_id).all()
+    )
+    coaching_sessions = [
+        {
+            "id": str(s.id),
+            "phone_number": s.phone_number,
+            "scenario_name": s.scenario_name,
+            "started_at": s.started_at.isoformat() if s.started_at else None,
+            "ended_at": s.ended_at.isoformat() if s.ended_at else None,
+            "report_text": s.report_text,
+            "created_at": s.created_at.isoformat() if s.created_at else None,
+        }
+        for s in all_sessions
+    ]
+
+    # ── Groups ────────────────────────────────────────────────────────────────
+    all_groups = db.query(Group).filter(Group.org_id == org_id).all()
+    groups = []
+    for g in all_groups:
+        member_count = (
+            db.query(func.count(GroupMember.id))
+            .filter(GroupMember.group_id == g.id)
+            .scalar()
+        )
+        groups.append(
+            {
+                "id": str(g.id),
+                "name": g.name,
+                "member_count": member_count,
+                "created_by_id": str(g.created_by_id) if g.created_by_id else None,
+                "created_at": g.created_at.isoformat() if g.created_at else None,
+            }
+        )
+
+    # ── Message Templates ─────────────────────────────────────────────────────
+    all_templates = (
+        db.query(MessageTemplate).filter(MessageTemplate.org_id == org_id).all()
+    )
+    message_templates = [
+        {
+            "id": str(t.id),
+            "name": t.name,
+            "content": t.content,
+            "variables": t.variables,
+            "media_url": t.media_url,
+            "is_active": t.is_active,
+            "created_at": t.created_at.isoformat() if t.created_at else None,
+        }
+        for t in all_templates
+    ]
+
+    # ── Broadcast Schedules ───────────────────────────────────────────────────
+    all_broadcasts = (
+        db.query(BroadcastSchedule).filter(BroadcastSchedule.org_id == org_id).all()
+    )
+    broadcast_schedules = []
+    for b in all_broadcasts:
+        tmpl = (
+            db.query(MessageTemplate).filter(MessageTemplate.id == b.template_id).first()
+            if b.template_id
+            else None
+        )
+        grp = (
+            db.query(Group).filter(Group.id == b.group_id).first()
+            if b.group_id
+            else None
+        )
+        broadcast_schedules.append(
+            {
+                "id": str(b.id),
+                "template_name": tmpl.name if tmpl else None,
+                "group_name": grp.name if grp else None,
+                "scheduled_at": b.scheduled_at.isoformat() if b.scheduled_at else None,
+                "status": b.status,
+                "sent_count": b.sent_count,
+                "failed_count": b.failed_count,
+                "sent_at": b.sent_at.isoformat() if b.sent_at else None,
+                "created_at": b.created_at.isoformat() if b.created_at else None,
+            }
+        )
+
+    # ── Message Logs (aggregates) ─────────────────────────────────────────────
+    now = datetime.utcnow()
+    thirty_days_ago = now - timedelta(days=30)
+
+    ml_total = (
+        db.query(func.count(MessageLog.id)).filter(MessageLog.org_id == org_id).scalar()
+    )
+    ml_recent = (
+        db.query(func.count(MessageLog.id))
+        .filter(MessageLog.org_id == org_id, MessageLog.created_at >= thirty_days_ago)
+        .scalar()
+    )
+    ml_rag = (
+        db.query(func.count(MessageLog.id))
+        .filter(MessageLog.org_id == org_id, MessageLog.is_rag_query == True)
+        .scalar()
+    )
+    ml_errors = (
+        db.query(func.count(MessageLog.id))
+        .filter(MessageLog.org_id == org_id, MessageLog.is_error == True)
+        .scalar()
+    )
+    ml_type_rows = (
+        db.query(MessageLog.message_type, func.count(MessageLog.id).label("cnt"))
+        .filter(MessageLog.org_id == org_id)
+        .group_by(MessageLog.message_type)
+        .all()
+    )
+    ml_by_type = {r.message_type: r.cnt for r in ml_type_rows}
+
+    message_logs = {
+        "total": ml_total,
+        "recent_30_days": ml_recent,
+        "rag_queries": ml_rag,
+        "errors": ml_errors,
+        "by_type": ml_by_type,
+    }
+
+    # ── WhatsApp Messages (aggregates + sample) ───────────────────────────────
+    wm_total = (
+        db.query(func.count(WhatsAppMessage.id))
+        .filter(WhatsAppMessage.org_id == org_id)
+        .scalar()
+    )
+    wm_role_rows = (
+        db.query(WhatsAppMessage.role, func.count(WhatsAppMessage.id).label("cnt"))
+        .filter(WhatsAppMessage.org_id == org_id)
+        .group_by(WhatsAppMessage.role)
+        .all()
+    )
+    wm_by_role = {r.role: r.cnt for r in wm_role_rows}
+    wm_recent = (
+        db.query(WhatsAppMessage)
+        .filter(WhatsAppMessage.org_id == org_id)
+        .order_by(WhatsAppMessage.created_at.desc())
+        .limit(5)
+        .all()
+    )
+    wm_sample = [
+        {
+            "phone_number": m.phone_number,
+            "role": m.role,
+            "content_preview": m.content[:200] if m.content else None,
+            "created_at": m.created_at.isoformat() if m.created_at else None,
+        }
+        for m in wm_recent
+    ]
+
+    whatsapp_messages = {
+        "total": wm_total,
+        "by_role": wm_by_role,
+        "sample_recent": wm_sample,
+    }
+
+    # ── Redis State (per member) ──────────────────────────────────────────────
+    redis_members = []
+    phone_numbers = [p["whatsapp_number"] for p in members if p["whatsapp_number"]]
+    if phone_numbers:
+        r = _get_redis()
+        pipe = r.pipeline(transaction=False)
+        for phone in phone_numbers:
+            pipe.llen(f"fp-chatHistory:{phone}")
+            pipe.get(f"session_facts:{phone}")
+            pipe.get(f"user:lang:{phone}")
+            pipe.exists(f"coaching:session:{phone}")
+            pipe.get(f"rate_limit:{phone}")
+        results = pipe.execute()
+        for i, phone in enumerate(phone_numbers):
+            base = i * 5
+            raw_facts = results[base + 1]
+            try:
+                facts = _json.loads(raw_facts) if raw_facts else []
+            except Exception:
+                facts = []
+            redis_members.append(
+                {
+                    "whatsapp_number": phone,
+                    "chat_history_length": results[base] or 0,
+                    "session_facts": facts,
+                    "language_preference": (results[base + 2] or b"").decode() or None,
+                    "has_active_coaching_session": bool(results[base + 3]),
+                    "rate_limit_count": int(results[base + 4]) if results[base + 4] else 0,
+                }
+            )
+
+    redis_state = {"members": redis_members}
+
+    # ── Stats Summary ─────────────────────────────────────────────────────────
+    stats = {
+        "total_members": len(all_profiles),
+        "active_members": sum(1 for p in all_profiles if p.is_active),
+        "total_documents": len(all_docs),
+        "knowledgebase_docs": len(kb_docs),
+        "datastore_docs": len([d for d in all_docs if d.location == "datastore"]),
+        "total_roles": len(all_roles),
+        "total_groups": len(all_groups),
+        "total_coaching_scenarios": len(all_scenarios),
+        "total_coaching_sessions": len(all_sessions),
+        "total_message_logs": ml_total,
+        "total_whatsapp_messages": wm_total,
+        "total_broadcasts": len(all_broadcasts),
+    }
+
+    owner_user = (
+        db.query(User).filter(User.id == org.owner_id).first() if org.owner_id else None
+    )
+
+    return {
+        "organization": {
+            "id": str(org.id),
+            "name": org.name,
+            "owner_email": owner_user.email if owner_user else None,
+            "twilio_number": org.twilio_number,
+            "settings": org.settings,
+            "created_at": org.created_at.isoformat() if org.created_at else None,
+        },
+        "stats": stats,
+        "members": members,
+        "roles": roles,
+        "documents": documents,
+        "knowledge_base_summary": knowledge_base_summary,
+        "coaching_scenarios": coaching_scenarios,
+        "coaching_sessions": coaching_sessions,
+        "groups": groups,
+        "message_templates": message_templates,
+        "broadcast_schedules": broadcast_schedules,
+        "message_logs": message_logs,
+        "whatsapp_messages": whatsapp_messages,
+        "redis_state": redis_state,
+    }
 
 
 @router.get("/organizations/{org_id}")

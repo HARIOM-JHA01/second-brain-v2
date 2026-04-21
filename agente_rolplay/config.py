@@ -29,6 +29,7 @@ REDIS_SSL = os.getenv("REDIS_SSL", "false").lower() == "true"
 # Parse REDIS_URL if provided (e.g. Upstash rediss://default:pass@host:port)
 if _REDIS_URL:
     from urllib.parse import urlparse as _urlparse  # noqa: PLC0415
+
     _parsed = _urlparse(_REDIS_URL)
     REDIS_HOST = _parsed.hostname
     REDIS_PORT = _parsed.port or 6379
@@ -61,6 +62,7 @@ def redis_connection_kwargs() -> dict:
         kwargs["password"] = REDIS_PASSWORD
     return kwargs
 
+
 # --- Pinecone ---
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 PINECONE_ENV = os.getenv("PINECONE_ENV", "us-east-1")
@@ -87,6 +89,7 @@ SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
 # --- Rolplay Admin ---
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "admin@rolplay.ai")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "change-me-in-production")
+INTERNAL_API_TOKEN = os.getenv("INTERNAL_API_TOKEN", "123456")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
 
@@ -102,7 +105,7 @@ ANALYTICS_LOG_DIR = os.getenv("ANALYTICS_LOG_DIR", "./logs")
 ANALYTICS_LOG_FILE = os.getenv("ANALYTICS_LOG_FILE", "chat_analytics.jsonl")
 
 # --- Chat History ---
-CHAT_HISTORY_TTL = int(os.getenv("CHAT_HISTORY_TTL", 86400))        # 24 hours
+CHAT_HISTORY_TTL = int(os.getenv("CHAT_HISTORY_TTL", 86400))  # 24 hours
 MAX_MESSAGES_IN_MEMORY = int(os.getenv("MAX_MESSAGES_IN_MEMORY", 12))
 
 # --- Rate Limiting ---
@@ -114,12 +117,12 @@ MAX_FILE_SIZE_MB = int(os.getenv("MAX_FILE_SIZE_MB", 50))
 MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
 
 # --- Redis TTLs ---
-DEDUP_KEY_TTL = int(os.getenv("DEDUP_KEY_TTL", 600))               # 10 min
-USER_SESSION_TTL = int(os.getenv("USER_SESSION_TTL", 600))          # 10 min
-USER_LANG_TTL = int(os.getenv("USER_LANG_TTL", 86400))              # 24 hours
-LAST_UPLOADED_FILE_TTL = int(os.getenv("LAST_UPLOADED_FILE_TTL", 86400 * 7))   # 7 days
-FILE_METADATA_TTL = int(os.getenv("FILE_METADATA_TTL", 86400 * 30)) # 30 days
-ACRONYM_PENDING_TTL = int(os.getenv("ACRONYM_PENDING_TTL", 300))    # 5 min
+DEDUP_KEY_TTL = int(os.getenv("DEDUP_KEY_TTL", 600))  # 10 min
+USER_SESSION_TTL = int(os.getenv("USER_SESSION_TTL", 600))  # 10 min
+USER_LANG_TTL = int(os.getenv("USER_LANG_TTL", 86400))  # 24 hours
+LAST_UPLOADED_FILE_TTL = int(os.getenv("LAST_UPLOADED_FILE_TTL", 86400 * 7))  # 7 days
+FILE_METADATA_TTL = int(os.getenv("FILE_METADATA_TTL", 86400 * 30))  # 30 days
+ACRONYM_PENDING_TTL = int(os.getenv("ACRONYM_PENDING_TTL", 300))  # 5 min
 
 # --- Agent ---
 AGENT_MAX_TOKENS = int(os.getenv("AGENT_MAX_TOKENS", 4096))
@@ -135,4 +138,6 @@ CHUNK_OVERLAP_TOKENS = int(os.getenv("CHUNK_OVERLAP_TOKENS", 400))
 # --- Banco Poller ---
 BANCO_POLL_PHONE = os.getenv("BANCO_POLL_PHONE", "+919523566969")
 BANCO_POLL_INTERVAL = int(os.getenv("BANCO_POLL_INTERVAL", "30"))
-BANCO_API_URL = os.getenv("BANCO_API_URL", "https://rolplay.pro/banco/get-sessions-list.php")
+BANCO_API_URL = os.getenv(
+    "BANCO_API_URL", "https://rolplay.pro/banco/get-sessions-list.php"
+)
