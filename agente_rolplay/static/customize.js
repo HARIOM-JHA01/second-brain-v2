@@ -166,6 +166,19 @@
     return { ...current };
   }
 
+  function persistLanguage(lang) {
+    const updated = normalize({ ...current, language: lang });
+    current = updated;
+    localStorage.setItem(CACHE_KEY, JSON.stringify(updated));
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (!token) return;
+    fetch('/api/users/customization', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify(updated),
+    }).catch(() => {});
+  }
+
   async function loadCustomization() {
     const token = localStorage.getItem(TOKEN_KEY);
     if (!token) {
@@ -201,6 +214,7 @@
     getCurrent,
     applyCustomization,
     loadCustomization,
+    persistLanguage,
   };
 
   function init() {

@@ -8,15 +8,15 @@
   </div>
   <div style="display:flex;align-items:center;gap:.65rem;flex-wrap:wrap;">
     <select id="periodSelect" onchange="onPeriodChange()" style="padding:.5rem .85rem;background:var(--input-bg);border:1px solid var(--border);border-radius:9px;color:var(--text);font-size:.85rem;font-family:inherit;outline:none;cursor:pointer;">
-      <option value="7">Últimos 7 días</option>
-      <option value="30" selected>Últimos 30 días</option>
-      <option value="90">Últimos 90 días</option>
+      <option value="7" data-i18n="insights.period.7">Últimos 7 días</option>
+      <option value="30" selected data-i18n="insights.period.30">Últimos 30 días</option>
+      <option value="90" data-i18n="insights.period.90">Últimos 90 días</option>
     </select>
     <select id="roleSelect" onchange="onRoleChange()" style="padding:.5rem .85rem;background:var(--input-bg);border:1px solid var(--border);border-radius:9px;color:var(--text);font-size:.85rem;font-family:inherit;outline:none;cursor:pointer;">
-      <option value="">Todos los roles</option>
+      <option value="" data-i18n="insights.all_roles">Todos los roles</option>
     </select>
     <button id="refreshBtn" onclick="refreshInsights()" class="btn btn-secondary" style="gap:.4rem;">
-      ↻ <span>Actualizar</span>
+      ↻ <span data-i18n="insights.refresh">Actualizar</span>
     </button>
   </div>
 </div>
@@ -33,14 +33,14 @@
 <div class="two-col" style="margin-bottom:1.25rem;">
 
   <!-- Topic frequency bar chart -->
-  <div class="chart-card">
+  <div class="chart-card" style="display:flex;flex-direction:column;">
     <div class="chart-card-header">
       <div>
         <div class="chart-card-title" data-i18n="insights.chart.topics">Temas más frecuentes</div>
         <div class="chart-card-sub" data-i18n="insights.chart.topics_sub">Por número de consultas</div>
       </div>
     </div>
-    <div class="chart-canvas-wrap" style="max-height:320px;">
+    <div class="chart-canvas-wrap" style="flex:1;min-height:200px;position:relative;">
       <canvas id="topicsChart"></canvas>
     </div>
   </div>
@@ -169,14 +169,14 @@ function showSkeletons() {
 
 function showError() {
   document.getElementById('summaryContent').innerHTML =
-    `<p style="color:var(--text-muted);font-size:.875rem;">Error al cargar los insights. Intenta de nuevo.</p>`;
+    `<p style="color:var(--text-muted);font-size:.875rem;">${t('insights.error')}</p>`;
 }
 
 function renderSummary(data) {
   const el = document.getElementById('summaryContent');
   if (!data.summary) {
     el.innerHTML = `<p style="color:var(--text-muted);font-size:.875rem;text-align:center;padding:.5rem 0;">
-      ${data.total_messages === 0 ? 'No hay mensajes en este período para analizar.' : 'No se pudo generar el resumen.'}
+      ${data.total_messages === 0 ? t('insights.no_messages') : t('insights.no_summary')}
     </p>`;
     return;
   }
@@ -188,7 +188,7 @@ function renderChart(topics) {
   if (_topicsChart) { _topicsChart.destroy(); _topicsChart = null; }
 
   if (!topics.length) {
-    ctx.parentElement.innerHTML = `<p style="color:var(--text-muted);font-size:.85rem;text-align:center;padding:2rem 0;">Sin datos</p>`;
+    ctx.parentElement.innerHTML = `<p style="color:var(--text-muted);font-size:.85rem;text-align:center;padding:2rem 0;">${t('insights.no_data')}</p>`;
     return;
   }
 
@@ -200,10 +200,10 @@ function renderChart(topics) {
   _topicsChart = new Chart(ctx, {
     type: 'bar',
     data: {
-      labels: top10.map(t => t.label),
+      labels: top10.map(item => item.label),
       datasets: [{
-        label: 'Consultas',
-        data: top10.map(t => t.count),
+        label: t('insights.chart_label'),
+        data: top10.map(item => item.count),
         backgroundColor: 'rgba(96,165,250,.75)',
         borderColor: 'rgba(96,165,250,1)',
         borderWidth: 1,
@@ -218,7 +218,7 @@ function renderChart(topics) {
         legend: { display: false },
         tooltip: {
           callbacks: {
-            label: ctx => ` ${ctx.raw} consultas`,
+            label: ctx => ` ${ctx.raw} ${t('insights.queries')}`,
           }
         }
       },
@@ -240,7 +240,7 @@ function renderGaps(gaps) {
   const el = document.getElementById('gapsContent');
   if (!gaps.length) {
     el.innerHTML = `<p style="color:var(--text-muted);font-size:.85rem;text-align:center;padding:1rem 0;">
-      No se identificaron brechas de información.
+      ${t('insights.no_gaps')}
     </p>`;
     return;
   }
@@ -249,7 +249,7 @@ function renderGaps(gaps) {
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.35rem;">
         <span style="font-weight:700;font-size:.85rem;color:var(--text);">${g.topic}</span>
         <span style="font-size:.78rem;font-weight:600;color:var(--stat-orange);background:rgba(251,146,60,.12);padding:.15rem .5rem;border-radius:20px;">
-          ~${g.count} consultas
+          ~${g.count} ${t('insights.queries')}
         </span>
       </div>
       <p style="font-size:.8rem;color:var(--text-muted);line-height:1.5;margin:0;">💡 ${g.suggestion}</p>
@@ -260,25 +260,25 @@ function renderGaps(gaps) {
 function renderTable(topics) {
   const tbody = document.getElementById('topicsTable');
   if (!topics.length) {
-    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text-muted);">No hay temas para mostrar.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text-muted);">${t('insights.no_topics')}</td></tr>`;
     return;
   }
-  tbody.innerHTML = topics.map((t, i) => {
-    const examples = (t.examples || []).map(e => `<span style="display:block;font-size:.78rem;color:var(--text-muted);margin-top:.2rem;">"${e}"</span>`).join('');
-    const barWidth = Math.max(4, t.percentage || 0);
+  tbody.innerHTML = topics.map((topic, i) => {
+    const examples = (topic.examples || []).map(e => `<span style="display:block;font-size:.78rem;color:var(--text-muted);margin-top:.2rem;">"${e}"</span>`).join('');
+    const barWidth = Math.max(4, topic.percentage || 0);
     return `
       <tr>
         <td class="td-main">
           <span style="font-size:.7rem;font-weight:700;color:var(--text-muted);margin-right:.4rem;">#${i + 1}</span>
-          ${t.label}
+          ${topic.label}
         </td>
-        <td><span style="font-weight:700;color:var(--stat-blue);">${t.count}</span></td>
+        <td><span style="font-weight:700;color:var(--stat-blue);">${topic.count}</span></td>
         <td>
           <div style="display:flex;align-items:center;gap:.5rem;">
             <div style="width:60px;height:6px;background:var(--border);border-radius:3px;overflow:hidden;">
               <div style="width:${Math.min(barWidth, 100)}%;height:100%;background:var(--stat-blue);border-radius:3px;"></div>
             </div>
-            <span style="font-size:.8rem;color:var(--text-dim);">${t.percentage}%</span>
+            <span style="font-size:.8rem;color:var(--text-dim);">${topic.percentage}%</span>
           </div>
         </td>
         <td>${examples || '<span style="color:var(--text-muted);font-size:.8rem;">—</span>'}</td>
@@ -290,9 +290,10 @@ function renderTable(topics) {
 function renderMeta(data) {
   const el = document.getElementById('insightsMeta');
   if (!data.generated_at) { el.textContent = ''; return; }
-  const when = new Date(data.generated_at).toLocaleString();
-  const roleLabel = data.role_filter_name ? ` · Rol: ${data.role_filter_name}` : '';
-  el.textContent = `Generado: ${when} · Mensajes analizados: ${data.total_messages}${roleLabel}`;
+  const locale = getLang() === 'es' ? 'es-ES' : 'en-US';
+  const when = new Date(data.generated_at).toLocaleString(locale);
+  const roleLabel = data.role_filter_name ? t('insights.meta_role', { role: data.role_filter_name }) : '';
+  el.textContent = t('insights.meta', { when, count: data.total_messages }) + roleLabel;
 }
 
 document.addEventListener('langchange', () => loadInsights(getPeriod(), getRoleId()));
