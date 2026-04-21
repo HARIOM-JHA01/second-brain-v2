@@ -85,6 +85,9 @@
         --shadow: 0 4px 24px rgba(0,0,0,.1);
       }
 
+      [data-theme="dark"] img[src*="rolplay-logo"] {
+        filter: invert(1) hue-rotate(180deg);
+      }
       html { scroll-behavior: smooth; }
       body {
         font-family: var(--app-font-family);
