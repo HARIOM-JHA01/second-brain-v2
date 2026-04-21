@@ -337,18 +337,67 @@ class ChatQueryRequest(BaseModel):
     history: list = []  # [{"role": "user"|"assistant", "content": "..."}]
 
 
+class ChatTitleRequest(BaseModel):
+    question: str
+    answer: str
+
+
+@router.post("/api/chat/title")
+def generate_chat_title(
+    body: ChatTitleRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """Generate a short descriptive title for a chat session from the first exchange."""
+    from agente_rolplay.agent.provider_adapter import _get_anthropic
+    from agente_rolplay.config import HAIKU_MODEL_NAME
+
+    prompt = (
+        f"User asked: {body.question}\n\n"
+        f"Assistant answered: {body.answer[:300]}\n\n"
+        "Write a short title (4-7 words) that captures the core topic of this conversation. "
+        "No quotes, no punctuation at the end, just the title."
+    )
+    try:
+        client = _get_anthropic()
+        resp = client.messages.create(
+            model=HAIKU_MODEL_NAME,
+            system="You generate short, clear chat titles. Reply with only the title, nothing else.",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=20,
+        )
+        title = resp.content[0].text.strip().strip('"').strip("'")
+        return {"title": title}
+    except Exception:
+        return {"title": None}
+
+
 @router.post("/api/chat/query")
 def chat_query(
     body: ChatQueryRequest,
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Query the Knowledge Base via chat (RAG + Claude)."""
     from agente_rolplay.agent.provider_adapter import create_message
     from agente_rolplay.config import HAIKU_MODEL_NAME
     from agente_rolplay.storage.pinecone_client import search_knowledge_base
+    from agente_rolplay.messaging.message_processor import is_knowledge_base_inventory_query
 
     if not body.question or not body.question.strip():
         raise HTTPException(status_code=400, detail="Question cannot be empty")
+
+    # Short-circuit inventory queries — count from DB, not RAG chunks
+    if is_knowledge_base_inventory_query(body.question.strip()):
+        org_id = _get_org_id(current_user, db)
+        count = (
+            db.query(Document)
+            .filter(Document.org_id == org_id, Document.location == "knowledgebase")
+            .count()
+        )
+        return {
+            "answer": f"There are currently {count} file(s) in your Knowledge Base.",
+            "sources": [],
+        }
 
     chunks = search_knowledge_base(body.question.strip(), top_k=15)
 
@@ -402,3 +451,86 @@ def chat_query(
         "answer": answer,
         "sources": sources[:5],
     }
+
+
+@router.post("/api/chat/stream")
+async def chat_stream(
+    body: ChatQueryRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Streaming SSE version of chat_query."""
+    import json
+    from fastapi.responses import StreamingResponse
+    from agente_rolplay.storage.pinecone_client import search_knowledge_base
+    from agente_rolplay.messaging.message_processor import is_knowledge_base_inventory_query
+    from agente_rolplay.config import HAIKU_MODEL_NAME
+
+    if not body.question or not body.question.strip():
+        raise HTTPException(status_code=400, detail="Question cannot be empty")
+
+    # Inventory short-circuit
+    if is_knowledge_base_inventory_query(body.question.strip()):
+        org_id = _get_org_id(current_user, db)
+        count = (
+            db.query(Document)
+            .filter(Document.org_id == org_id, Document.location == "knowledgebase")
+            .count()
+        )
+        answer = f"There are currently **{count}** file(s) in your Knowledge Base."
+
+        def _inventory():
+            yield f"data: {json.dumps({'type': 'sources', 'sources': []})}\n\n"
+            yield f"data: {json.dumps({'type': 'text', 'text': answer})}\n\n"
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+
+        return StreamingResponse(_inventory(), media_type="text/event-stream")
+
+    chunks = search_knowledge_base(body.question.strip(), top_k=15)
+
+    sources = []
+    context_parts = []
+    seen_files: set = set()
+    for chunk in chunks:
+        fname = chunk.get("filename", "")
+        score = chunk.get("score", 0)
+        page_range = chunk.get("page_range", "")
+        text_preview = chunk.get("text_preview", "")
+        if fname not in seen_files:
+            seen_files.add(fname)
+            sources.append({"filename": fname, "score": round(score, 3), "page_range": page_range})
+        label = fname + (f" ({page_range})" if page_range else "")
+        context_parts.append(f"[{label}]\n{text_preview}")
+
+    context_text = "\n\n---\n\n".join(context_parts) if context_parts else ""
+    system_prompt = (
+        "You are a helpful assistant for an organization. "
+        "Answer questions using ONLY the knowledge base context provided below. "
+        "If the answer is not found in the context, say so clearly. "
+        "Be concise and accurate. Use markdown formatting where helpful.\n\n"
+        "Knowledge Base Context:\n"
+        f"{context_text}"
+    )
+
+    messages = list(body.history)
+    messages.append({"role": "user", "content": body.question.strip()})
+    sources_top5 = sources[:5]
+
+    def _generate():
+        from agente_rolplay.agent.provider_adapter import _get_anthropic
+        yield f"data: {json.dumps({'type': 'sources', 'sources': sources_top5})}\n\n"
+        try:
+            client = _get_anthropic()
+            with client.messages.stream(
+                model=HAIKU_MODEL_NAME,
+                system=system_prompt,
+                messages=messages,
+                max_tokens=1500,
+            ) as stream:
+                for text in stream.text_stream:
+                    yield f"data: {json.dumps({'type': 'text', 'text': text})}\n\n"
+        except Exception as exc:
+            yield f"data: {json.dumps({'type': 'error', 'message': str(exc)})}\n\n"
+        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+
+    return StreamingResponse(_generate(), media_type="text/event-stream")

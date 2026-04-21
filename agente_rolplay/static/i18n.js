@@ -182,11 +182,15 @@
         "Sin archivos indexados. Mueve archivos desde el Almacén.",
       "docs.promoting": "Indexando…",
       "docs.demoting": "Desindexando…",
-      "chat.title": "Chat con KB",
+      "chat.title": "KB Chat",
       "chat.placeholder": "Pregunta sobre tu Knowledge Base…",
       "chat.send": "Enviar",
       "chat.sources": "Fuentes",
       "chat.empty": "Haz una pregunta para comenzar.",
+      "chat.new_chat": "+ Nuevo chat",
+      "chat.history_empty": "Sin chats anteriores",
+      "chat.history_title": "Chats anteriores",
+      "chat.delete_confirm": "¿Eliminar este chat?",
 
       // Settings
       "settings.title": "Configuración",
@@ -920,6 +924,10 @@
       "chat.send": "Send",
       "chat.sources": "Sources",
       "chat.empty": "Ask a question to get started.",
+      "chat.new_chat": "+ New Chat",
+      "chat.history_empty": "No previous chats",
+      "chat.history_title": "Previous chats",
+      "chat.delete_confirm": "Delete this chat?",
 
       // Settings
       "settings.title": "Settings",
