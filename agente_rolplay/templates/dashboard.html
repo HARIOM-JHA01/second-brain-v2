@@ -16,21 +16,24 @@
     border-right: 1px solid var(--border);
     padding: 1.25rem 0;
     display: flex; flex-direction: column;
-    transition: background .3s, border-color .3s;
+    overflow: hidden;
+    transition: width .25s ease, background .3s, border-color .3s;
   }
+  .sidebar.collapsed { width: 60px; }
   .sidebar-section {
     padding: .6rem 1.1rem .25rem;
     font-size: .65rem; font-weight: 700; text-transform: uppercase;
     letter-spacing: 1px; color: var(--text-muted); margin-top: .5rem;
-    transition: color .3s;
+    transition: color .3s; white-space: nowrap;
   }
+  .sidebar.collapsed .sidebar-section { display: none; }
   .sidebar a {
     display: flex; align-items: center; gap: .65rem;
     padding: .58rem 1.25rem; margin: .05rem .5rem;
     color: var(--text-dim); text-decoration: none;
     font-size: .875rem; font-weight: 500;
     border-radius: 8px; border: 1px solid transparent;
-    transition: all .18s;
+    transition: all .18s; white-space: nowrap;
   }
   .sidebar a:hover { background: var(--surface-hover); color: var(--text); }
   .sidebar a.active {
@@ -40,6 +43,17 @@
   }
   .sidebar a.active .sidebar-icon { filter: none; }
   .sidebar-icon { font-size: 1rem; width: 18px; text-align: center; flex-shrink: 0; }
+  .sidebar.collapsed a { justify-content: center; padding: .58rem 0; gap: 0; margin: .05rem .4rem; }
+  .sidebar.collapsed a span:not(.sidebar-icon) { display: none; }
+  .sidebar-toggle-wrap { display: flex; justify-content: flex-end; padding: 0 .75rem .35rem; }
+  .sidebar.collapsed .sidebar-toggle-wrap { justify-content: center; padding: .1rem 0 .35rem; }
+  .sidebar-toggle {
+    background: none; border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text-muted); cursor: pointer; font-size: .8rem;
+    width: 24px; height: 22px; display: flex; align-items: center; justify-content: center;
+    transition: all .18s; line-height: 1; flex-shrink: 0;
+  }
+  .sidebar-toggle:hover { background: var(--surface-hover); color: var(--text); }
 
   /* ── Main area ──────────────────────────────── */
   .main {
@@ -326,7 +340,7 @@
   .empty-icon { font-size: 2rem; margin-bottom: .5rem; display: block; }
 
   @media (max-width: 900px) {
-    .sidebar { width: 180px; }
+    .sidebar:not(.collapsed) { width: 180px; }
   }
   @media (max-width: 640px) {
     .sidebar { display: none; }
@@ -337,7 +351,10 @@
 
 {% block content %}
 <div class="app-layout">
-  <nav class="sidebar">
+  <nav class="sidebar" id="appSidebar">
+    <div class="sidebar-toggle-wrap">
+      <button class="sidebar-toggle" id="sidebarToggleBtn" onclick="toggleSidebar()" title="Toggle sidebar">‹</button>
+    </div>
     <div class="sidebar-section" data-i18n="sidebar.main">Principal</div>
     <a href="/dashboard" class="{% if request.url.path == '/dashboard' %}active{% endif %}">
       <span class="sidebar-icon">📊</span> <span data-i18n="sidebar.dashboard">Panel</span>
@@ -1053,6 +1070,22 @@
     });
     loadDashboard();
     loadInsights();
+
+    function toggleSidebar() {
+      const sidebar = document.getElementById('appSidebar');
+      const isCollapsed = sidebar.classList.toggle('collapsed');
+      const btn = document.getElementById('sidebarToggleBtn');
+      btn.textContent = isCollapsed ? '›' : '‹';
+      localStorage.setItem('sb-sidebar-collapsed', isCollapsed ? '1' : '0');
+    }
+    (function initSidebar() {
+      if (localStorage.getItem('sb-sidebar-collapsed') === '1') {
+        const sidebar = document.getElementById('appSidebar');
+        if (sidebar) sidebar.classList.add('collapsed');
+        const btn = document.getElementById('sidebarToggleBtn');
+        if (btn) btn.textContent = '›';
+      }
+    })();
     </script>
 
     {% endblock %}
