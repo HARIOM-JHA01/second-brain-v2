@@ -1019,9 +1019,10 @@
       btn.textContent = '…';
 
       try {
+        const lang = getLang() === 'en' ? 'en' : 'es';
         const url = forceRefresh
-          ? '/api/users/conversation-insights?refresh=1'
-          : '/api/users/conversation-insights';
+          ? `/api/users/conversation-insights?refresh=1&lang=${encodeURIComponent(lang)}`
+          : `/api/users/conversation-insights?lang=${encodeURIComponent(lang)}`;
         const res = await authFetch(url);
         if (!res.ok) throw new Error('fetch failed');
         const data = await res.json();
@@ -1067,6 +1068,7 @@
 
     document.addEventListener('langchange', () => {
       if (_stats) renderDashboard(_stats, _users);
+      loadInsights();
     });
     loadDashboard();
     loadInsights();

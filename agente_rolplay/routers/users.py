@@ -139,6 +139,21 @@ def get_org_for_user(db: Session, user_id: UUID) -> Organization:
     return org
 
 
+def _resolve_report_language(profile: Optional[Profile], lang: Optional[str]) -> str:
+    candidate = (lang or "").strip().lower()
+    if candidate in _ALLOWED_LANGUAGES:
+        return candidate
+
+    settings = profile.settings if profile and isinstance(profile.settings, dict) else {}
+    customize = settings.get("customize", {}) if isinstance(settings, dict) else {}
+    if isinstance(customize, dict):
+        saved_lang = str(customize.get("language", "")).strip().lower()
+        if saved_lang in _ALLOWED_LANGUAGES:
+            return saved_lang
+
+    return _CUSTOMIZE_DEFAULTS["language"]
+
+
 # ── Literal routes MUST come before /{user_id} ───────────────────────────────
 
 
@@ -382,6 +397,7 @@ def get_conversation_insights(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     refresh: int = 0,
+    lang: Optional[str] = None,
 ):
     """
     Returns AI-generated summary of what org WhatsApp users are discussing,
@@ -392,10 +408,12 @@ def get_conversation_insights(
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
     org_id = profile.org_id
+    report_lang = _resolve_report_language(profile, lang)
+    report_lang_name = "Spanish" if report_lang == "es" else "English"
 
     # Cache check
     r = redis_lib.Redis(**redis_connection_kwargs())
-    cache_key = f"insights:{org_id}"
+    cache_key = f"insights:{org_id}:{report_lang}"
     if refresh:
         r.delete(cache_key)
     else:
@@ -430,6 +448,7 @@ def get_conversation_insights(
     prompt = (
         "You are analyzing WhatsApp messages sent by employees to an AI assistant.\n\n"
         f"Messages (most recent first, last 7 days):\n{messages_text}\n\n"
+        f"Write all output strings in {report_lang_name}.\n"
         "Respond in JSON with exactly this structure:\n"
         '{"summary": "<2-3 sentence summary of main topics>", '
         '"top_messages": ["<msg1>", "<msg2>", "<msg3>", "<msg4>", "<msg5>"]}\n'
@@ -476,6 +495,7 @@ def get_faq_analytics(
     period: int = 30,
     role_id: Optional[str] = None,
     refresh: int = 0,
+    lang: Optional[str] = None,
 ):
     """
     Returns AI-generated FAQ topic clusters and information gaps for the org.
@@ -486,11 +506,15 @@ def get_faq_analytics(
     if period not in (7, 30, 90):
         period = 30
 
-    org = get_org_for_user(db, current_user.id)
-    org_id = org.id
+    profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    org_id = profile.org_id
+    report_lang = _resolve_report_language(profile, lang)
+    report_lang_name = "Spanish" if report_lang == "es" else "English"
 
     role_key = role_id or "all"
-    cache_key = f"faq:{org_id}:{period}:{role_key}"
+    cache_key = f"faq:{org_id}:{period}:{role_key}:{report_lang}"
 
     r = redis_lib.Redis(**redis_connection_kwargs())
     if refresh:
@@ -582,6 +606,7 @@ def get_faq_analytics(
         f"You are analyzing WhatsApp messages sent by employees to a Second Brain AI knowledge assistant.\n"
         f"Analyze the {len(messages)} messages below (last {period} days). "
         f"The KB assistant handled {rag_pct}% of these as knowledge-base lookups.\n\n"
+        f"Write all output strings in {report_lang_name}.\n"
         "Return ONLY valid JSON with this exact structure (no markdown, no extra text):\n"
         '{"summary": "<2-3 sentence overview of what users ask about most>", '
         '"topics": [{"label": "<topic max 5 words>", "count": <int>, "examples": ["<msg1 max 80 chars>", "<msg2 max 80 chars>"]}], '

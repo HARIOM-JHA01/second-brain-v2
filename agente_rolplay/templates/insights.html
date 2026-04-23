@@ -125,13 +125,14 @@ function refreshInsights() {
   btn.innerHTML = '<span class="btn-spinner" aria-hidden="true"></span>';
   loadInsights(getPeriod(), getRoleId(), 1).finally(() => {
     btn.disabled = false;
-    btn.innerHTML = '↻ <span>Actualizar</span>';
+    btn.innerHTML = `↻ <span>${t('insights.refresh')}</span>`;
   });
 }
 
 async function loadInsights(period, roleId, refresh = 0) {
   showSkeletons();
-  let url = `/api/users/faq-analytics?period=${period}&refresh=${refresh}`;
+  const lang = getLang() === 'en' ? 'en' : 'es';
+  let url = `/api/users/faq-analytics?period=${period}&refresh=${refresh}&lang=${encodeURIComponent(lang)}`;
   if (roleId) url += `&role_id=${encodeURIComponent(roleId)}`;
 
   let data;
