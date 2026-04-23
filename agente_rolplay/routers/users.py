@@ -56,6 +56,98 @@ _CUSTOMIZE_DEFAULTS = {
     "theme_mode": "dark",
     "language": "es",
 }
+_INSIGHT_BLOCK_IDS = ("A", "B", "C", "D")
+_INSIGHT_BLOCK_LABELS = {
+    "es": {
+        "A": "BLOQUE A — ROTACIÓN / NUEVOS INGRESOS",
+        "B": "BLOQUE B — COMUNICACIÓN",
+        "C": "BLOQUE C — DESEMPEÑO",
+        "D": "BLOQUE D — VARIABLES EXTERNAS / RIESGOS",
+    },
+    "en": {
+        "A": "BLOCK A — TURNOVER / NEW HIRES",
+        "B": "BLOCK B — COMMUNICATION",
+        "C": "BLOCK C — PERFORMANCE",
+        "D": "BLOCK D — EXTERNAL VARIABLES / RISKS",
+    },
+}
+
+_BLOCK_KEYWORDS = {
+    "A": [
+        "rotación",
+        "rotacion",
+        "turnover",
+        "attrition",
+        "renuncia",
+        "renuncio",
+        "nuevo ingreso",
+        "new joiner",
+        "new hire",
+        "hiring",
+        "contrat",
+        "vacante",
+        "onboarding",
+        "headcount",
+        "reemplazo",
+    ],
+    "B": [
+        "comunicación",
+        "comunicacion",
+        "communication",
+        "mensaje",
+        "mensajes",
+        "announcement",
+        "anuncio",
+        "broadcast",
+        "canal",
+        "channel",
+        "email",
+        "correo",
+        "notificar",
+        "informar",
+        "meeting",
+        "reunión",
+        "reunion",
+    ],
+    "C": [
+        "desempeño",
+        "desempeno",
+        "performance",
+        "feedback",
+        "evaluación",
+        "evaluacion",
+        "review",
+        "kpi",
+        "objetivo",
+        "meta",
+        "productividad",
+        "rendimiento",
+        "assessment",
+        "score",
+    ],
+    "D": [
+        "riesgo",
+        "risk",
+        "extern",
+        "mercado",
+        "market",
+        "cliente",
+        "customer",
+        "competencia",
+        "competition",
+        "legal",
+        "regulator",
+        "econom",
+        "budget",
+        "presupuesto",
+        "proveedor",
+        "supplier",
+        "incidente",
+        "crisis",
+        "compliance",
+        "auditor",
+    ],
+}
 
 
 def _normalize_customize_payload(payload: Dict[str, Any]) -> Dict[str, str]:
@@ -152,6 +244,176 @@ def _resolve_report_language(profile: Optional[Profile], lang: Optional[str]) ->
             return saved_lang
 
     return _CUSTOMIZE_DEFAULTS["language"]
+
+
+def _build_block_segments_from_messages(messages: List[WhatsAppMessage]) -> List[Dict[str, Any]]:
+    total = len(messages)
+    counts = {"A": 0, "B": 0, "C": 0, "D": 0}
+    examples = {"A": [], "B": [], "C": [], "D": []}
+
+    for m in messages:
+        content = (m.content or "").strip()
+        text = content.lower()
+        block_id = "D"
+        for candidate in ("A", "B", "C", "D"):
+            if any(k in text for k in _BLOCK_KEYWORDS[candidate]):
+                block_id = candidate
+                break
+
+        counts[block_id] += 1
+        if content and len(examples[block_id]) < 2:
+            examples[block_id].append(content[:80])
+
+    segments = []
+    for block_id in _INSIGHT_BLOCK_IDS:
+        count = counts[block_id]
+        segments.append(
+            {
+                "block_id": block_id,
+                "label": _INSIGHT_BLOCK_LABELS["en"][block_id],
+                "count": count,
+                "percentage": round(count / total * 100, 1) if total else 0,
+                "examples": examples[block_id],
+            }
+        )
+    return segments
+
+
+def _localize_block_labels(
+    block_segments: List[Dict[str, Any]], report_lang: str
+) -> List[Dict[str, Any]]:
+    labels = _INSIGHT_BLOCK_LABELS.get(report_lang, _INSIGHT_BLOCK_LABELS["es"])
+    localized = []
+    for b in block_segments:
+        item = dict(b)
+        block_id = str(item.get("block_id", "")).strip().upper()
+        item["label"] = labels.get(block_id, item.get("label"))
+        localized.append(item)
+    return localized
+
+
+def _translate_faq_text_fields(
+    payload: Dict[str, Any], report_lang: str
+) -> Dict[str, Any]:
+    if report_lang == "en":
+        result = dict(payload)
+        result["block_segments"] = _localize_block_labels(
+            payload.get("block_segments", []), report_lang
+        )
+        return result
+
+    target_name = "Spanish" if report_lang == "es" else "English"
+    topics = payload.get("topics", [])
+    gaps = payload.get("info_gaps", [])
+    blocks = payload.get("block_segments", [])
+
+    translation_source = {
+        "summary": payload.get("summary"),
+        "topics": [
+            {
+                "label": t.get("label"),
+                "examples": t.get("examples", []),
+            }
+            for t in topics
+            if isinstance(t, dict)
+        ],
+        "info_gaps": [
+            {
+                "topic": g.get("topic"),
+                "suggestion": g.get("suggestion"),
+            }
+            for g in gaps
+            if isinstance(g, dict)
+        ],
+        "block_segments": [
+            {
+                "block_id": b.get("block_id"),
+                "examples": b.get("examples", []),
+            }
+            for b in blocks
+            if isinstance(b, dict)
+        ],
+    }
+
+    prompt = (
+        f"Translate the following JSON string fields to {target_name}.\n"
+        "Keep JSON structure exactly the same.\n"
+        "Do not change array lengths, ordering, IDs, numbers, or null values.\n"
+        "Return only valid JSON.\n\n"
+        f"JSON:\n{json.dumps(translation_source, ensure_ascii=False)}"
+    )
+
+    translated = translation_source
+    try:
+        raw = create_message(
+            provider="anthropic",
+            model=HAIKU_MODEL_NAME,
+            system="You are a translator. Return only valid JSON, no markdown.",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=1200,
+        )
+        clean = raw.strip()
+        if clean.startswith("```"):
+            clean = clean.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+        parsed = json.loads(clean)
+        if isinstance(parsed, dict):
+            translated = parsed
+    except Exception as e:
+        print(f"[faq-analytics] translation failed: {e!r}")
+
+    result = dict(payload)
+    result["summary"] = translated.get("summary", payload.get("summary"))
+
+    translated_topics = translated.get("topics", [])
+    merged_topics = []
+    for i, topic in enumerate(topics):
+        if not isinstance(topic, dict):
+            continue
+        t_out = dict(topic)
+        tr_topic = translated_topics[i] if i < len(translated_topics) else {}
+        if isinstance(tr_topic, dict):
+            t_out["label"] = tr_topic.get("label", topic.get("label"))
+            tr_examples = tr_topic.get("examples", topic.get("examples", []))
+            if isinstance(tr_examples, list):
+                t_out["examples"] = [str(x) for x in tr_examples][:2]
+        merged_topics.append(t_out)
+    result["topics"] = merged_topics
+
+    translated_gaps = translated.get("info_gaps", [])
+    merged_gaps = []
+    for i, gap in enumerate(gaps):
+        if not isinstance(gap, dict):
+            continue
+        g_out = dict(gap)
+        tr_gap = translated_gaps[i] if i < len(translated_gaps) else {}
+        if isinstance(tr_gap, dict):
+            g_out["topic"] = tr_gap.get("topic", gap.get("topic"))
+            g_out["suggestion"] = tr_gap.get("suggestion", gap.get("suggestion"))
+        merged_gaps.append(g_out)
+    result["info_gaps"] = merged_gaps
+
+    translated_blocks = translated.get("block_segments", [])
+    translated_block_examples: Dict[str, List[str]] = {}
+    for b in translated_blocks if isinstance(translated_blocks, list) else []:
+        if not isinstance(b, dict):
+            continue
+        block_id = str(b.get("block_id", "")).strip().upper()
+        ex = b.get("examples", [])
+        if block_id in _INSIGHT_BLOCK_IDS and isinstance(ex, list):
+            translated_block_examples[block_id] = [str(x) for x in ex][:2]
+
+    merged_blocks = []
+    for b in blocks:
+        if not isinstance(b, dict):
+            continue
+        b_out = dict(b)
+        block_id = str(b_out.get("block_id", "")).strip().upper()
+        if block_id in translated_block_examples:
+            b_out["examples"] = translated_block_examples[block_id]
+        merged_blocks.append(b_out)
+
+    result["block_segments"] = _localize_block_labels(merged_blocks, report_lang)
+    return result
 
 
 # ── Literal routes MUST come before /{user_id} ───────────────────────────────
@@ -511,16 +773,19 @@ def get_faq_analytics(
         raise HTTPException(status_code=404, detail="Profile not found")
     org_id = profile.org_id
     report_lang = _resolve_report_language(profile, lang)
-    report_lang_name = "Spanish" if report_lang == "es" else "English"
+    canonical_lang = "en"
 
     role_key = role_id or "all"
-    cache_key = f"faq:{org_id}:{period}:{role_key}:{report_lang}"
+    canonical_cache_key = f"faq:v3:{org_id}:{period}:{role_key}"
+    localized_cache_key = f"faq:v3loc:{org_id}:{period}:{role_key}:{report_lang}"
 
     r = redis_lib.Redis(**redis_connection_kwargs())
     if refresh:
-        r.delete(cache_key)
+        r.delete(canonical_cache_key)
+        r.delete(f"faq:v3loc:{org_id}:{period}:{role_key}:es")
+        r.delete(f"faq:v3loc:{org_id}:{period}:{role_key}:en")
     else:
-        cached = r.get(cache_key)
+        cached = r.get(localized_cache_key)
         if cached:
             return json.loads(cached)
 
@@ -565,6 +830,7 @@ def get_faq_analytics(
                 "summary": None,
                 "topics": [],
                 "info_gaps": [],
+                "block_segments": [],
             }
         msg_query = msg_query.filter(WhatsAppMessage.phone_number.in_(phone_filter))
 
@@ -579,79 +845,141 @@ def get_faq_analytics(
             "summary": None,
             "topics": [],
             "info_gaps": [],
+            "block_segments": [],
         }
 
-    # Compute RAG query rate as context for the model
-    rag_count = (
-        db.query(func.count(MessageLog.id))
-        .filter(
-            MessageLog.org_id == org_id,
-            MessageLog.is_rag_query == True,
-            MessageLog.created_at >= cutoff,
+    canonical_result = None
+    cached_canonical = r.get(canonical_cache_key)
+    if cached_canonical and not refresh:
+        canonical_result = json.loads(cached_canonical)
+    else:
+        # Compute RAG query rate as context for the model
+        rag_count = (
+            db.query(func.count(MessageLog.id))
+            .filter(
+                MessageLog.org_id == org_id,
+                MessageLog.is_rag_query == True,
+                MessageLog.created_at >= cutoff,
+            )
+            .scalar()
+            or 0
         )
-        .scalar()
-        or 0
-    )
-    total_logs = (
-        db.query(func.count(MessageLog.id))
-        .filter(MessageLog.org_id == org_id, MessageLog.created_at >= cutoff)
-        .scalar()
-        or 1
-    )
-    rag_pct = round(rag_count / total_logs * 100)
-
-    messages_text = "\n".join(f"- {m.content[:200]}" for m in messages)
-
-    prompt = (
-        f"You are analyzing WhatsApp messages sent by employees to a Second Brain AI knowledge assistant.\n"
-        f"Analyze the {len(messages)} messages below (last {period} days). "
-        f"The KB assistant handled {rag_pct}% of these as knowledge-base lookups.\n\n"
-        f"Write all output strings in {report_lang_name}.\n"
-        "Return ONLY valid JSON with this exact structure (no markdown, no extra text):\n"
-        '{"summary": "<2-3 sentence overview of what users ask about most>", '
-        '"topics": [{"label": "<topic max 5 words>", "count": <int>, "examples": ["<msg1 max 80 chars>", "<msg2 max 80 chars>"]}], '
-        '"info_gaps": [{"topic": "<topic name>", "count": <int>, "suggestion": "<1 sentence: what content would fill this gap>"}]}\n\n'
-        "Rules:\n"
-        "- topics: top 10-15 clusters sorted by count descending; merge paraphrases and synonyms\n"
-        "- info_gaps: 3-5 topics the KB likely lacks documentation for\n"
-        "- All counts are approximate\n\n"
-        f"Messages:\n{messages_text}"
-    )
-
-    try:
-        raw = create_message(
-            provider="anthropic",
-            model=HAIKU_MODEL_NAME,
-            system="You are a data analyst. Return only valid JSON, no markdown code blocks.",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=1200,
+        total_logs = (
+            db.query(func.count(MessageLog.id))
+            .filter(MessageLog.org_id == org_id, MessageLog.created_at >= cutoff)
+            .scalar()
+            or 1
         )
-        clean = raw.strip()
-        if clean.startswith("```"):
-            clean = clean.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
-        parsed = json.loads(clean)
-    except Exception as e:
-        print(f"[faq-analytics] AI call failed: {e!r}")
-        parsed = {"summary": None, "topics": [], "info_gaps": []}
+        rag_pct = round(rag_count / total_logs * 100)
 
-    total = len(messages)
-    topics = parsed.get("topics", [])
-    for t in topics:
-        count = t.get("count", 0)
-        t["percentage"] = round(count / total * 100, 1) if total else 0
+        messages_text = "\n".join(f"- {m.content[:200]}" for m in messages)
 
-    result = {
-        "generated_at": datetime.utcnow().isoformat(),
-        "period_days": period,
-        "total_messages": total,
-        "role_filter_name": role_filter_name,
-        "summary": parsed.get("summary"),
-        "topics": topics,
-        "info_gaps": parsed.get("info_gaps", []),
-    }
+        prompt = (
+            "You are analyzing WhatsApp messages sent by employees to a Second Brain AI knowledge assistant.\n"
+            f"Analyze the {len(messages)} messages below (last {period} days). "
+            f"The KB assistant handled {rag_pct}% of these as knowledge-base lookups.\n\n"
+            "Write all output strings in English.\n"
+            "Return ONLY valid JSON with this exact structure (no markdown, no extra text):\n"
+            '{"summary": "<2-3 sentence overview of what users ask about most>", '
+            '"topics": [{"label": "<topic max 5 words>", "count": <int>, "examples": ["<msg1 max 80 chars>", "<msg2 max 80 chars>"]}], '
+            '"info_gaps": [{"topic": "<topic name>", "count": <int>, "suggestion": "<1 sentence: what content would fill this gap>"}], '
+            '"block_segments": [{"block_id":"<A|B|C|D>", "label":"<exact block label>", "count": <int>, "examples": ["<msg1 max 80 chars>", "<msg2 max 80 chars>"]}]}\n\n'
+            "Rules:\n"
+            "- topics: top 10-15 clusters sorted by count descending; merge paraphrases and synonyms\n"
+            "- info_gaps: 3-5 topics the KB likely lacks documentation for\n"
+            "- Classify every single message into exactly one block, no overlaps and no omissions\n"
+            '- block labels must be exactly these: "BLOCK A — TURNOVER / NEW HIRES", "BLOCK B — COMMUNICATION", "BLOCK C — PERFORMANCE", "BLOCK D — EXTERNAL VARIABLES / RISKS"\n'
+            "- Return all 4 block_segments entries even if count is 0, and make sure the sum of block count equals total messages analyzed\n"
+            "- All counts are approximate\n\n"
+            f"Messages:\n{messages_text}"
+        )
 
-    r.set(cache_key, json.dumps(result), ex=7200)
-    return result
+        try:
+            raw = create_message(
+                provider="anthropic",
+                model=HAIKU_MODEL_NAME,
+                system="You are a data analyst. Return only valid JSON, no markdown code blocks.",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=1200,
+            )
+            clean = raw.strip()
+            if clean.startswith("```"):
+                clean = clean.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+            parsed = json.loads(clean)
+        except Exception as e:
+            print(f"[faq-analytics] AI call failed: {e!r}")
+            parsed = {"summary": None, "topics": [], "info_gaps": []}
+
+        total = len(messages)
+        topics = parsed.get("topics", [])
+        for t in topics:
+            count = t.get("count", 0)
+            t["percentage"] = round(count / total * 100, 1) if total else 0
+
+        parsed_blocks = parsed.get("block_segments", [])
+        raw_blocks_map: Dict[str, Dict[str, Any]] = {}
+        for b in parsed_blocks if isinstance(parsed_blocks, list) else []:
+            if not isinstance(b, dict):
+                continue
+            block_id = str(b.get("block_id", "")).strip().upper()
+            if block_id in _INSIGHT_BLOCK_IDS:
+                raw_blocks_map[block_id] = b
+
+        if not raw_blocks_map:
+            block_segments = _build_block_segments_from_messages(messages)
+        else:
+            block_segments = []
+            for block_id in _INSIGHT_BLOCK_IDS:
+                raw = raw_blocks_map.get(block_id, {})
+                count = raw.get("count", 0)
+                try:
+                    count = int(count)
+                except (ValueError, TypeError):
+                    count = 0
+                if count < 0:
+                    count = 0
+                examples = raw.get("examples", [])
+                if not isinstance(examples, list):
+                    examples = []
+                examples = [str(e)[:80] for e in examples if str(e).strip()][:2]
+                block_segments.append(
+                    {
+                        "block_id": block_id,
+                        "label": _INSIGHT_BLOCK_LABELS[canonical_lang][block_id],
+                        "count": count,
+                        "percentage": round(count / total * 100, 1) if total else 0,
+                        "examples": examples,
+                    }
+                )
+
+            assigned_total = sum(b["count"] for b in block_segments)
+            if total > 0 and assigned_total != total:
+                delta = total - assigned_total
+                if block_segments:
+                    block_segments[0]["count"] = max(0, block_segments[0]["count"] + delta)
+                    for b in block_segments:
+                        b["percentage"] = round(b["count"] / total * 100, 1)
+
+        canonical_result = {
+            "generated_at": datetime.utcnow().isoformat(),
+            "period_days": period,
+            "total_messages": total,
+            "role_filter_name": role_filter_name,
+            "summary": parsed.get("summary"),
+            "topics": topics,
+            "info_gaps": parsed.get("info_gaps", []),
+            "block_segments": block_segments,
+        }
+        r.set(canonical_cache_key, json.dumps(canonical_result), ex=7200)
+
+    localized_result = _translate_faq_text_fields(canonical_result, report_lang)
+    localized_result["generated_at"] = canonical_result.get("generated_at")
+    localized_result["period_days"] = canonical_result.get("period_days")
+    localized_result["total_messages"] = canonical_result.get("total_messages")
+    localized_result["role_filter_name"] = canonical_result.get("role_filter_name")
+
+    r.set(localized_cache_key, json.dumps(localized_result), ex=7200)
+    return localized_result
 
 
 @router.get("/documents", tags=["documents"])
