@@ -1455,3 +1455,190 @@ def delete_template(
     db.delete(template)
     db.commit()
     return {"deleted": template_id}
+
+
+# ── Admin Assistant (read-only AI chat) ──────────────────────────────────────
+
+
+class AssistantMessage(BaseModel):
+    role: str  # "user" or "assistant"
+    content: str
+
+
+class AssistantChatRequest(BaseModel):
+    message: str
+    page: str = ""
+    history: list[AssistantMessage] = []
+
+
+def _gather_platform_snapshot(db: Session) -> dict:
+    """Collect a lightweight read-only snapshot of platform data for the AI context."""
+    from datetime import datetime, timedelta
+    from sqlalchemy import func, distinct
+
+    now = datetime.utcnow()
+    week_ago = now - timedelta(days=7)
+    month_ago = now - timedelta(days=30)
+
+    total_orgs = db.query(func.count(Organization.id)).scalar() or 0
+    total_users = db.query(func.count(Profile.id)).scalar() or 0
+    active_users = (
+        db.query(func.count(Profile.id)).filter(Profile.is_active == True).scalar() or 0
+    )
+    new_users_7d = (
+        db.query(func.count(Profile.id)).filter(Profile.created_at >= week_ago).scalar() or 0
+    )
+    new_orgs_7d = (
+        db.query(func.count(Organization.id)).filter(Organization.created_at >= week_ago).scalar() or 0
+    )
+    total_documents = db.query(func.count(Document.id)).scalar() or 0
+    docs_7d = (
+        db.query(func.count(Document.id)).filter(Document.created_at >= week_ago).scalar() or 0
+    )
+    messages_7d = (
+        db.query(func.count(MessageLog.id)).filter(MessageLog.created_at >= week_ago).scalar() or 0
+    )
+    messages_30d = (
+        db.query(func.count(MessageLog.id)).filter(MessageLog.created_at >= month_ago).scalar() or 0
+    )
+    rag_queries_7d = (
+        db.query(func.count(MessageLog.id))
+        .filter(MessageLog.created_at >= week_ago, MessageLog.is_rag_query == True)
+        .scalar() or 0
+    )
+    voice_notes_7d = (
+        db.query(func.count(MessageLog.id))
+        .filter(MessageLog.created_at >= week_ago, MessageLog.is_voice_note == True)
+        .scalar() or 0
+    )
+    errors_7d = (
+        db.query(func.count(MessageLog.id))
+        .filter(MessageLog.created_at >= week_ago, MessageLog.is_error == True)
+        .scalar() or 0
+    )
+    avg_ms_row = (
+        db.query(func.avg(MessageLog.response_time_ms))
+        .filter(
+            MessageLog.created_at >= month_ago,
+            MessageLog.response_time_ms.isnot(None),
+            MessageLog.is_error == False,
+        )
+        .scalar()
+    )
+    avg_response_ms = int(avg_ms_row) if avg_ms_row else None
+    truly_active_7d = (
+        db.query(func.count(distinct(MessageLog.phone_number)))
+        .filter(MessageLog.created_at >= week_ago)
+        .scalar() or 0
+    )
+    total_roles = db.query(func.count(Role.id)).scalar() or 0
+    total_scenarios = db.query(func.count(CoachingScenario.id)).scalar() or 0
+    total_templates = db.query(func.count(MessageTemplate.id)).scalar() or 0
+
+    top_orgs = (
+        db.query(Organization.name, func.count(Profile.id).label("users"))
+        .outerjoin(Profile, Profile.org_id == Organization.id)
+        .group_by(Organization.id)
+        .order_by(func.count(Profile.id).desc())
+        .limit(5)
+        .all()
+    )
+
+    return {
+        "snapshot_utc": now.strftime("%Y-%m-%d %H:%M"),
+        "organizations": {"total": total_orgs, "new_last_7d": new_orgs_7d},
+        "users": {
+            "total": total_users,
+            "active": active_users,
+            "inactive": total_users - active_users,
+            "new_last_7d": new_users_7d,
+            "truly_active_last_7d": truly_active_7d,
+        },
+        "messages": {
+            "last_7d": messages_7d,
+            "last_30d": messages_30d,
+            "rag_queries_7d": rag_queries_7d,
+            "voice_notes_7d": voice_notes_7d,
+            "errors_7d": errors_7d,
+            "avg_response_ms": avg_response_ms,
+        },
+        "documents": {"total": total_documents, "uploaded_last_7d": docs_7d},
+        "platform": {
+            "total_roles": total_roles,
+            "total_scenarios": total_scenarios,
+            "total_templates": total_templates,
+        },
+        "top_organizations_by_users": [
+            {"name": r.name, "user_count": r.users} for r in top_orgs
+        ],
+    }
+
+
+_ASSISTANT_SYSTEM = """\
+You are the Rolplay Admin Assistant — a read-only AI helper embedded in the Rolplay Second Brain admin panel.
+
+Your role:
+1. Answer questions about platform analytics and dashboard metrics using the live data snapshot provided.
+2. Provide general guidance about the admin panel (how to add users, upload documents, manage scenarios, etc.).
+3. Politely refuse any request that would require writing, modifying, or deleting data.
+
+Rules:
+- NEVER offer to create, edit, or delete anything. You are strictly read-only.
+- If asked to perform an action, explain that you can only read data and direct the admin to the relevant panel section.
+- Be concise and direct. Use numbers from the snapshot when answering analytics questions.
+- If data is not in the snapshot, say so honestly.
+- Do not reveal that you receive a JSON snapshot; speak naturally about "platform data" or "current metrics".
+- Respond in the same language the admin uses (Spanish or English).
+
+Admin panel sections for guidance:
+- /admin → Dashboard (KPI overview, charts)
+- /admin/organizations → Manage organizations
+- /admin/users → Manage all users
+- /admin/scenarios → Coaching scenarios
+- /admin/templates → WhatsApp message templates
+- /admin/settings → Platform configuration (AI provider, menu visibility)
+"""
+
+
+@router.post("/assistant/chat")
+async def admin_assistant_chat(
+    body: AssistantChatRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    require_admin(request)
+
+    import anthropic as _anthropic
+    from agente_rolplay.config import ANTHROPIC_API_KEY, ANTHROPIC_MODEL_NAME
+
+    snapshot = _gather_platform_snapshot(db)
+    import json as _json_inner
+
+    context_block = (
+        f"Current admin panel page: {body.page or 'unknown'}\n\n"
+        f"Live platform snapshot (UTC {snapshot['snapshot_utc']}):\n"
+        + _json_inner.dumps(snapshot, indent=2)
+    )
+
+    messages = []
+    # Inject snapshot as the first user turn so it stays in cache
+    messages.append({"role": "user", "content": context_block})
+    messages.append({"role": "assistant", "content": "Understood. I have the current platform data loaded and I'm ready to help."})
+
+    for h in body.history[-10:]:  # limit history window
+        messages.append({"role": h.role, "content": h.content})
+
+    messages.append({"role": "user", "content": body.message})
+
+    _client = _anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    model = ANTHROPIC_MODEL_NAME or "claude-3-5-sonnet-20241022"
+
+    resp = _client.messages.create(
+        model=model,
+        max_tokens=1024,
+        system=_ASSISTANT_SYSTEM,
+        messages=messages,
+    )
+
+    reply = resp.content[0].text if resp.content else "Sorry, I couldn't generate a response."
+    return {"reply": reply}

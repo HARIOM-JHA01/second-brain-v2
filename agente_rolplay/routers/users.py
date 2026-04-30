@@ -6,7 +6,17 @@ import secrets
 from datetime import datetime, timedelta
 
 import redis as redis_lib
-from fastapi import APIRouter, Body, Depends, File, HTTPException, Response, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Body,
+    Depends,
+    File,
+    HTTPException,
+    Request,
+    Response,
+    UploadFile,
+    status,
+)
 from sqlalchemy import func, distinct
 from sqlalchemy.orm import Session
 from uuid import UUID
@@ -236,7 +246,9 @@ def _resolve_report_language(profile: Optional[Profile], lang: Optional[str]) ->
     if candidate in _ALLOWED_LANGUAGES:
         return candidate
 
-    settings = profile.settings if profile and isinstance(profile.settings, dict) else {}
+    settings = (
+        profile.settings if profile and isinstance(profile.settings, dict) else {}
+    )
     customize = settings.get("customize", {}) if isinstance(settings, dict) else {}
     if isinstance(customize, dict):
         saved_lang = str(customize.get("language", "")).strip().lower()
@@ -246,7 +258,9 @@ def _resolve_report_language(profile: Optional[Profile], lang: Optional[str]) ->
     return _CUSTOMIZE_DEFAULTS["language"]
 
 
-def _build_block_segments_from_messages(messages: List[WhatsAppMessage]) -> List[Dict[str, Any]]:
+def _build_block_segments_from_messages(
+    messages: List[WhatsAppMessage],
+) -> List[Dict[str, Any]]:
     total = len(messages)
     counts = {"A": 0, "B": 0, "C": 0, "D": 0}
     examples = {"A": [], "B": [], "C": [], "D": []}
@@ -956,7 +970,9 @@ def get_faq_analytics(
             if total > 0 and assigned_total != total:
                 delta = total - assigned_total
                 if block_segments:
-                    block_segments[0]["count"] = max(0, block_segments[0]["count"] + delta)
+                    block_segments[0]["count"] = max(
+                        0, block_segments[0]["count"] + delta
+                    )
                     for b in block_segments:
                         b["percentage"] = round(b["count"] / total * 100, 1)
 
@@ -1074,7 +1090,9 @@ def download_import_template(current_user: User = Depends(get_current_user)):
     return Response(
         content=content,
         media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=users_import_template.csv"},
+        headers={
+            "Content-Disposition": "attachment; filename=users_import_template.csv"
+        },
     )
 
 
@@ -1121,7 +1139,9 @@ def import_users_csv(
     # Pre-load existing phone numbers in this org to detect DB duplicates
     existing_phones = {
         p.whatsapp_number
-        for p in db.query(Profile.whatsapp_number).filter(Profile.org_id == org.id).all()
+        for p in db.query(Profile.whatsapp_number)
+        .filter(Profile.org_id == org.id)
+        .all()
         if p.whatsapp_number
     }
 
@@ -1137,7 +1157,12 @@ def import_users_csv(
 
         if not raw_phone:
             results.append(
-                {"row": row_num, "status": "failed", "whatsapp_number": "", "reason": "whatsapp_number is required"}
+                {
+                    "row": row_num,
+                    "status": "failed",
+                    "whatsapp_number": "",
+                    "reason": "whatsapp_number is required",
+                }
             )
             failed_count += 1
             continue
@@ -1146,14 +1171,24 @@ def import_users_csv(
 
         if normalized in seen_in_batch:
             results.append(
-                {"row": row_num, "status": "failed", "whatsapp_number": raw_phone, "reason": "Duplicate in this file"}
+                {
+                    "row": row_num,
+                    "status": "failed",
+                    "whatsapp_number": raw_phone,
+                    "reason": "Duplicate in this file",
+                }
             )
             failed_count += 1
             continue
 
         if normalized in existing_phones:
             results.append(
-                {"row": row_num, "status": "skipped", "whatsapp_number": raw_phone, "reason": "Already exists in organization"}
+                {
+                    "row": row_num,
+                    "status": "skipped",
+                    "whatsapp_number": raw_phone,
+                    "reason": "Already exists in organization",
+                }
             )
             skipped_count += 1
             seen_in_batch.add(normalized)
@@ -1194,13 +1229,20 @@ def import_users_csv(
             savepoint.commit()
 
             existing_phones.add(normalized)
-            results.append({"row": row_num, "status": "created", "whatsapp_number": raw_phone})
+            results.append(
+                {"row": row_num, "status": "created", "whatsapp_number": raw_phone}
+            )
             created_count += 1
 
         except Exception as exc:
             savepoint.rollback()
             results.append(
-                {"row": row_num, "status": "failed", "whatsapp_number": raw_phone, "reason": str(exc)}
+                {
+                    "row": row_num,
+                    "status": "failed",
+                    "whatsapp_number": raw_phone,
+                    "reason": str(exc),
+                }
             )
             failed_count += 1
             continue
@@ -1609,7 +1651,9 @@ def delete_group(
         raise HTTPException(status_code=404, detail="Group not found")
 
     if group.created_by_id and group.created_by_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Only the group creator can delete this group")
+        raise HTTPException(
+            status_code=403, detail="Only the group creator can delete this group"
+        )
 
     db.delete(group)
     db.commit()
@@ -1677,7 +1721,9 @@ def add_group_members(
         raise HTTPException(status_code=404, detail="Group not found")
 
     if group.created_by_id and group.created_by_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Only the group creator can manage members")
+        raise HTTPException(
+            status_code=403, detail="Only the group creator can manage members"
+        )
 
     added = []
     for pid in profile_ids:
@@ -1726,7 +1772,9 @@ def remove_group_member(
         raise HTTPException(status_code=404, detail="Group not found")
 
     if group.created_by_id and group.created_by_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Only the group creator can manage members")
+        raise HTTPException(
+            status_code=403, detail="Only the group creator can manage members"
+        )
 
     member = (
         db.query(GroupMember)
@@ -1840,7 +1888,9 @@ async def upload_template_media(
         tmp_path = tmp.name
 
     try:
-        result = upload_to_cloudinary(tmp_path, folder="broadcast_media", resource_type="auto")
+        result = upload_to_cloudinary(
+            tmp_path, folder="broadcast_media", resource_type="auto"
+        )
     finally:
         try:
             os.remove(tmp_path)
@@ -1848,7 +1898,9 @@ async def upload_template_media(
             pass
 
     if not result.get("success"):
-        raise HTTPException(status_code=500, detail=f"Upload failed: {result.get('error')}")
+        raise HTTPException(
+            status_code=500, detail=f"Upload failed: {result.get('error')}"
+        )
 
     return {
         "url": result["secure_url"],
@@ -2002,3 +2054,276 @@ def cancel_broadcast(
     db.delete(broadcast)
     db.commit()
     return {"deleted": broadcast_id}
+
+
+# ── User Dashboard Assistant (read-only AI chat) ─────────────────────────────
+
+from pydantic import BaseModel as _BaseModel
+
+
+class _AssistantMessage(_BaseModel):
+    role: str
+    content: str
+
+
+class _AssistantChatRequest(_BaseModel):
+    message: str
+    page: str = ""
+    history: list[_AssistantMessage] = []
+
+
+def _gather_org_snapshot(db: Session, org_id: UUID) -> dict:
+    now = datetime.utcnow()
+    week_ago = now - timedelta(days=7)
+    month_ago = now - timedelta(days=30)
+
+    total_users = (
+        db.query(func.count(Profile.id)).filter(Profile.org_id == org_id).scalar() or 0
+    )
+    active_users = (
+        db.query(func.count(Profile.id))
+        .filter(Profile.org_id == org_id, Profile.is_active == True)
+        .scalar()
+        or 0
+    )
+    new_users_7d = (
+        db.query(func.count(Profile.id))
+        .filter(Profile.org_id == org_id, Profile.created_at >= week_ago)
+        .scalar()
+        or 0
+    )
+    new_users_30d = (
+        db.query(func.count(Profile.id))
+        .filter(Profile.org_id == org_id, Profile.created_at >= month_ago)
+        .scalar()
+        or 0
+    )
+    total_roles = (
+        db.query(func.count(Role.id)).filter(Role.org_id == org_id).scalar() or 0
+    )
+    total_docs = (
+        db.query(func.count(Document.id)).filter(Document.org_id == org_id).scalar()
+        or 0
+    )
+    docs_7d = (
+        db.query(func.count(Document.id))
+        .filter(Document.org_id == org_id, Document.created_at >= week_ago)
+        .scalar()
+        or 0
+    )
+    docs_30d = (
+        db.query(func.count(Document.id))
+        .filter(Document.org_id == org_id, Document.created_at >= month_ago)
+        .scalar()
+        or 0
+    )
+
+    total_scenarios = (
+        db.query(func.count(CoachingScenario.id))
+        .filter(CoachingScenario.org_id == org_id)
+        .scalar()
+        or 0
+    )
+    total_templates = (
+        db.query(func.count(MessageTemplate.id))
+        .filter(MessageTemplate.org_id == org_id)
+        .scalar()
+        or 0
+    )
+    total_groups = (
+        db.query(func.count(Group.id)).filter(Group.org_id == org_id).scalar() or 0
+    )
+
+    _raw_phones = [
+        p
+        for (p,) in db.query(Profile.whatsapp_number)
+        .filter(Profile.org_id == org_id, Profile.whatsapp_number.isnot(None))
+        .all()
+    ]
+    org_phones = list({p for raw in _raw_phones for p in (raw, raw.lstrip("+"))})
+
+    messages_7d = 0
+    messages_30d = 0
+    voice_notes_7d = 0
+    truly_active_7d = 0
+    avg_response_ms = None
+    message_types = {"text": 0, "audio": 0, "image": 0, "document": 0}
+
+    if org_phones:
+        messages_7d = (
+            db.query(func.count(MessageLog.id))
+            .filter(
+                MessageLog.created_at >= week_ago,
+                MessageLog.phone_number.in_(org_phones),
+            )
+            .scalar()
+            or 0
+        )
+        messages_30d = (
+            db.query(func.count(MessageLog.id))
+            .filter(
+                MessageLog.created_at >= month_ago,
+                MessageLog.phone_number.in_(org_phones),
+            )
+            .scalar()
+            or 0
+        )
+        voice_notes_7d = (
+            db.query(func.count(MessageLog.id))
+            .filter(
+                MessageLog.created_at >= week_ago,
+                MessageLog.is_voice_note == True,
+                MessageLog.phone_number.in_(org_phones),
+            )
+            .scalar()
+            or 0
+        )
+        truly_active_7d = (
+            db.query(func.count(distinct(MessageLog.phone_number)))
+            .filter(
+                MessageLog.created_at >= week_ago,
+                MessageLog.phone_number.in_(org_phones),
+            )
+            .scalar()
+            or 0
+        )
+        avg_ms_row = (
+            db.query(func.avg(MessageLog.response_time_ms))
+            .filter(
+                MessageLog.created_at >= month_ago,
+                MessageLog.phone_number.in_(org_phones),
+                MessageLog.response_time_ms.isnot(None),
+                MessageLog.is_error == False,
+            )
+            .scalar()
+        )
+        avg_response_ms = int(avg_ms_row) if avg_ms_row else None
+        for mt in ("text", "audio", "image", "document"):
+            message_types[mt] = (
+                db.query(func.count(MessageLog.id))
+                .filter(
+                    MessageLog.created_at >= month_ago,
+                    MessageLog.phone_number.in_(org_phones),
+                    MessageLog.message_type == mt,
+                )
+                .scalar()
+                or 0
+            )
+
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+
+    return {
+        "snapshot_utc": now.strftime("%Y-%m-%d %H:%M"),
+        "organization": org.name if org else None,
+        "users": {
+            "total": total_users,
+            "active": active_users,
+            "inactive": total_users - active_users,
+            "new_last_7d": new_users_7d,
+            "new_last_30d": new_users_30d,
+            "truly_active_last_7d": truly_active_7d,
+        },
+        "messages": {
+            "last_7d": messages_7d,
+            "last_30d": messages_30d,
+            "voice_notes_7d": voice_notes_7d,
+            "avg_response_ms": avg_response_ms,
+            "by_type_30d": message_types,
+        },
+        "documents": {
+            "total": total_docs,
+            "uploaded_7d": docs_7d,
+            "uploaded_30d": docs_30d,
+        },
+        "platform": {
+            "total_roles": total_roles,
+            "total_scenarios": total_scenarios,
+            "total_templates": total_templates,
+            "total_groups": total_groups,
+        },
+    }
+
+
+_USER_ASSISTANT_SYSTEM = """\
+You are the Rolplay Second Brain Assistant — a read-only AI helper embedded in the user dashboard.
+
+Your role:
+1. Answer questions about your organization's analytics and dashboard metrics using the live data snapshot provided.
+2. Provide general guidance about the platform (how to add users, upload documents, manage scenarios, etc.).
+3. Politely refuse any request that would require writing, modifying, or deleting data.
+
+Rules:
+- NEVER offer to create, edit, or delete anything. You are strictly read-only.
+- If asked to perform an action, explain that you can only read data and direct the user to the relevant panel section.
+- Be concise and direct. Use numbers from the snapshot when answering analytics questions.
+- If data is not in the snapshot, say so honestly.
+- Do not reveal that you receive a JSON snapshot; speak naturally about "dashboard data" or "current metrics".
+- Respond in the same language the user uses (Spanish or English).
+- You do NOT have access to individual WhatsApp conversations or message content.
+
+Dashboard sections for guidance:
+- /dashboard → Overview (KPIs, charts, activity)
+- /dashboard/insights → AI-powered conversation insights & FAQ analytics
+- /dashboard/users → Team member management
+- /dashboard/documents → Knowledge base documents
+- /dashboard/chat → Ask questions about your knowledge base
+- /dashboard/scenarios → Coaching scenarios
+- /dashboard/groups → Team groups
+- /dashboard/broadcasts → Scheduled message broadcasts
+- /dashboard/settings → Profile settings & customization
+"""
+
+
+@router.post("/assistant/chat")
+async def user_assistant_chat(
+    body: _AssistantChatRequest,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    import anthropic as _anthropic
+    from agente_rolplay.config import ANTHROPIC_API_KEY, ANTHROPIC_MODEL_NAME
+
+    profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    snapshot = _gather_org_snapshot(db, profile.org_id)
+    import json as _json_inner
+
+    context_block = (
+        f"Current dashboard page: {body.page or 'unknown'}\n\n"
+        f"Live organization data (UTC {snapshot['snapshot_utc']}):\n"
+        + _json_inner.dumps(snapshot, indent=2)
+    )
+
+    messages = []
+    messages.append({"role": "user", "content": context_block})
+    messages.append(
+        {
+            "role": "assistant",
+            "content": "Understood. I have the current dashboard data loaded and I'm ready to help.",
+        }
+    )
+
+    for h in body.history[-10:]:
+        messages.append({"role": h.role, "content": h.content})
+
+    messages.append({"role": "user", "content": body.message})
+
+    _client = _anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    model = ANTHROPIC_MODEL_NAME or "claude-3-5-sonnet-20241022"
+
+    resp = _client.messages.create(
+        model=model,
+        max_tokens=1024,
+        system=_USER_ASSISTANT_SYSTEM,
+        messages=messages,
+    )
+
+    reply = (
+        resp.content[0].text
+        if resp.content
+        else "Sorry, I couldn't generate a response."
+    )
+    return {"reply": reply}
