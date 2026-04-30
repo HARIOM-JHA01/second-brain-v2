@@ -92,6 +92,7 @@ def upload_to_pinecone(
     filename: str,
     file_type: str,
     metadata: Optional[dict] = None,
+    org_id: Optional[str] = None,
 ) -> dict:
     """
     Upload text chunk to Pinecone with metadata.
@@ -144,6 +145,9 @@ def upload_to_pinecone(
                 "chunk_count": total_chunks,
             }
 
+            if org_id:
+                vector_metadata["org_id"] = org_id
+
             if page_numbers:
                 page_start = min(page_numbers)
                 page_end = max(page_numbers)
@@ -193,6 +197,7 @@ def search_knowledge_base(
     query: str,
     top_k: int = 5,
     filename_filter: Optional[str] = None,
+    org_id: Optional[str] = None,
 ) -> list:
     """
     Search the knowledge base for relevant documents.
@@ -223,6 +228,8 @@ def search_knowledge_base(
         query_embedding = embedding_response.data[0].embedding
 
         filter_dict = {}
+        if org_id:
+            filter_dict["org_id"] = {"$eq": org_id}
         if filename_filter:
             filter_dict["filename"] = {"$eq": filename_filter}
 
@@ -248,6 +255,7 @@ def search_knowledge_base(
                 "text_preview": match.metadata.get("text_preview", ""),
                 "chunk_index": match.metadata.get("chunk_index"),
                 "chunk_count": match.metadata.get("chunk_count"),
+                "org_id": match.metadata.get("org_id"),
             }
             if match.metadata.get("page_range"):
                 entry["page_range"] = match.metadata["page_range"]
@@ -290,12 +298,13 @@ def delete_from_pinecone(vector_id: str) -> dict:
         return {"success": False, "error": str(e)}
 
 
-def delete_by_filename(filename: str) -> dict:
+def delete_by_filename(filename: str, org_id: Optional[str] = None) -> dict:
     """
-    Delete all vectors associated with a filename.
+    Delete all vectors associated with a filename, optionally scoped to an org.
 
     Args:
         filename: Name of the file whose vectors should be deleted
+        org_id: When provided, only vectors belonging to this org are deleted
 
     Returns:
         dict with success status and count of deleted vectors
@@ -305,7 +314,11 @@ def delete_by_filename(filename: str) -> dict:
         if index is None:
             return {"success": False, "error": "Pinecone not available"}
 
-        index.delete(filter={"filename": {"$eq": filename}})
+        delete_filter: dict = {"filename": {"$eq": filename}}
+        if org_id:
+            delete_filter["org_id"] = {"$eq": org_id}
+
+        index.delete(filter=delete_filter)
         print(f"Deleted vectors for filename: {filename}")
         return {"success": True}
 

@@ -74,6 +74,7 @@ def list_kb_files(
 def semantic_search(
     q: str,
     top_k: int = 5,
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Semantic vector search over the org's knowledge base."""
@@ -82,8 +83,15 @@ def semantic_search(
     if not q or len(q.strip()) < 2:
         raise HTTPException(status_code=400, detail="Query too short")
 
+    profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    org_id = str(profile.org_id)
+
     # Fetch many chunks so deduplication still yields enough unique files
-    chunks = search_knowledge_base(q.strip(), top_k=top_k * 10)
+    chunks = search_knowledge_base(q.strip(), top_k=top_k * 10, org_id=org_id)
+    # Defensive: discard any chunk whose org_id doesn't match (belt-and-suspenders)
+    chunks = [c for c in chunks if c.get("org_id") == org_id]
 
     # Deduplicate by filename — keep highest-score chunk per file
     seen: dict = {}
@@ -101,10 +109,14 @@ def semantic_search(
 def delete_kb_file(
     public_id: str,
     format: str = "",
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Delete a file from Cloudinary and its vectors from Pinecone."""
     from agente_rolplay.storage.pinecone_client import delete_by_filename
+
+    profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
+    org_id = str(profile.org_id) if profile else None
 
     errors = []
 
@@ -120,7 +132,7 @@ def delete_kb_file(
     # Reconstruct: "knowledgebase/my_doc" + format "pdf" → "my_doc.pdf"
     base_name = public_id.split("/")[-1]
     pinecone_filename = f"{base_name}.{format}" if format else base_name
-    pinecone_result = delete_by_filename(pinecone_filename)
+    pinecone_result = delete_by_filename(pinecone_filename, org_id=org_id)
     if not pinecone_result.get("success"):
         errors.append(f"Pinecone: {pinecone_result.get('error')}")
 

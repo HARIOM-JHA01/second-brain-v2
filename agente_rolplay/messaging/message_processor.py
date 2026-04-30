@@ -698,7 +698,10 @@ def _handle_scenario_selection(
         try:
             scenario = (
                 db.query(CoachingScenario)
-                .filter(CoachingScenario.id == _uuid.UUID(chosen["id"]))
+                .filter(
+                    CoachingScenario.id == _uuid.UUID(chosen["id"]),
+                    CoachingScenario.org_id == org_id,
+                )
                 .first()
             )
             if scenario:
@@ -802,6 +805,7 @@ def _handle_scenario_selection(
             coaching_system_prompt=session_data["system_prompt"],
             ai_provider=_ai_cfg["provider"],
             ai_model=_ai_cfg["model"],
+            org_id=session_data.get("org_id"),
         )
         kickoff_ms = int((time.time() - _t0) * 1000)
         kickoff_reply = str(kickoff_answer.get("answer", "")).strip()
@@ -862,6 +866,7 @@ def _handle_coaching_turn(
         coaching_system_prompt=session["system_prompt"],
         ai_provider=_ai_cfg["provider"],
         ai_model=_ai_cfg["model"],
+        org_id=session.get("org_id"),
     )
     _response_ms = int((time.time() - _t0) * 1000)
 
@@ -1628,6 +1633,16 @@ def process_incoming_messages_functional(form_data, redis_client=r):
     session_facts = get_session_facts(phone_number)
     messages = get_chat_history(chat_history_id, phone=phone_number)
     _t0 = time.time()
+
+    # Resolve org_id for RAG scoping — look up once per request
+    _functional_org_id = None
+    try:
+        from agente_rolplay.db.whatsapp_auth import lookup_whatsapp_user as _lwa_rag
+        _rag_user = _lwa_rag(phone_number)
+        _functional_org_id = _rag_user.get("org_id") if _rag_user else None
+    except Exception:
+        pass
+
     answer_data = responder_usuario(
         messages,
         data,
@@ -1636,6 +1651,7 @@ def process_incoming_messages_functional(form_data, redis_client=r):
         id_phone_number=id_phone_number,
         response_language=current_lang,
         session_facts=session_facts or None,
+        org_id=_functional_org_id,
     )
     _response_ms = int((time.time() - _t0) * 1000)
     print("--------------------------")
@@ -2591,6 +2607,7 @@ def process_incoming_messages(form_data, redis_client=r):
         id_phone_number=id_phone_number,
         response_language=current_lang,
         session_facts=session_facts or None,
+        org_id=whatsapp_user.get("org_id") if whatsapp_user else None,
     )
     print("--------------------------")
     print("ANSWER DATA", answer_data)

@@ -139,6 +139,7 @@ def responder_usuario(
     system_prompt_rag=system_prompt_rag,
     ai_provider: str = "anthropic",
     ai_model: str = None,
+    org_id: str = None,
 ):
     start_time = time.time()
 
@@ -236,14 +237,21 @@ def responder_usuario(
                 query=optimized_query,
                 top_k=5,
                 filename_filter=filename_filter,
+                org_id=org_id,
             )
+            # Defensive: discard any chunk whose org_id doesn't match (belt-and-suspenders)
+            if org_id:
+                results = [r for r in results if r.get("org_id") == org_id]
 
             if not results and optimized_query != raw_query:
                 results = search_knowledge_base(
                     query=raw_query,
                     top_k=5,
                     filename_filter=filename_filter,
+                    org_id=org_id,
                 )
+                if org_id:
+                    results = [r for r in results if r.get("org_id") == org_id]
 
             # Drop results below relevance threshold to prevent hallucination
             results = [r for r in results if r.get("score", 0) >= MIN_RELEVANCE_SCORE]
@@ -254,7 +262,10 @@ def responder_usuario(
                     query=raw_query,
                     top_k=5,
                     filename_filter=filename_filter,
+                    org_id=org_id,
                 )
+                if org_id:
+                    fallback = [r for r in fallback if r.get("org_id") == org_id]
                 results = [r for r in fallback if r.get("score", 0) >= MIN_RELEVANCE_SCORE]
 
             print(f"Content obtained from RAG ({len(results)} above threshold): {results}")

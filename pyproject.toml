@@ -125,3 +125,8 @@ agente-rolplay = "agente_rolplay.main:app"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["agente_rolplay*"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+]

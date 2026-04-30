@@ -244,6 +244,7 @@ def promote_to_kb(
                 "uploaded_by": doc.uploaded_by or "",
                 "cloudinary_url": doc.cloudinary_url,
             },
+            org_id=str(org_id),
         )
 
         if not pinecone_result.get("success"):
@@ -297,7 +298,7 @@ def demote_to_datastore(
     doc = _get_doc(doc_id, org_id, "knowledgebase", db)
 
     if doc.name:
-        delete_by_filename(doc.name)
+        delete_by_filename(doc.name, org_id=str(org_id))
 
     doc.location = "datastore"
     doc.vector_id = None
@@ -322,7 +323,7 @@ def delete_from_kb(
         _cloudinary_delete(doc.drive_file_id)
 
     if doc.name:
-        delete_by_filename(doc.name)
+        delete_by_filename(doc.name, org_id=str(org_id))
 
     db.delete(doc)
     db.commit()
@@ -386,9 +387,10 @@ def chat_query(
     if not body.question or not body.question.strip():
         raise HTTPException(status_code=400, detail="Question cannot be empty")
 
+    org_id = _get_org_id(current_user, db)
+
     # Short-circuit inventory queries — count from DB, not RAG chunks
     if is_knowledge_base_inventory_query(body.question.strip()):
-        org_id = _get_org_id(current_user, db)
         count = (
             db.query(Document)
             .filter(Document.org_id == org_id, Document.location == "knowledgebase")
@@ -399,7 +401,9 @@ def chat_query(
             "sources": [],
         }
 
-    chunks = search_knowledge_base(body.question.strip(), top_k=15)
+    chunks = search_knowledge_base(body.question.strip(), top_k=15, org_id=str(org_id))
+    # Defensive: discard any chunk whose org_id doesn't match (belt-and-suspenders)
+    chunks = [c for c in chunks if c.get("org_id") == str(org_id)]
 
     sources = []
     context_parts = []
@@ -469,9 +473,10 @@ async def chat_stream(
     if not body.question or not body.question.strip():
         raise HTTPException(status_code=400, detail="Question cannot be empty")
 
+    org_id = _get_org_id(current_user, db)
+
     # Inventory short-circuit
     if is_knowledge_base_inventory_query(body.question.strip()):
-        org_id = _get_org_id(current_user, db)
         count = (
             db.query(Document)
             .filter(Document.org_id == org_id, Document.location == "knowledgebase")
@@ -486,7 +491,9 @@ async def chat_stream(
 
         return StreamingResponse(_inventory(), media_type="text/event-stream")
 
-    chunks = search_knowledge_base(body.question.strip(), top_k=15)
+    chunks = search_knowledge_base(body.question.strip(), top_k=15, org_id=str(org_id))
+    # Defensive: discard any chunk whose org_id doesn't match (belt-and-suspenders)
+    chunks = [c for c in chunks if c.get("org_id") == str(org_id)]
 
     sources = []
     context_parts = []
